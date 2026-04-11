@@ -1,8 +1,74 @@
-/// Stub for ProxyServer — will be fully implemented in Phase 1 tasks 1.4–1.8.
-pub struct ProxyServer;
+#![allow(dead_code)]
+
+use std::sync::Arc;
+use std::time::Instant;
+use tokio::sync::{oneshot, RwLock};
+use tokio::task::JoinHandle;
+
+use super::types::{ProxyConfig, ProxyStatus, RouteTable};
+
+/// Internal state of the running proxy server.
+pub struct ProxyState {
+    pub route_table: Arc<RwLock<RouteTable>>,
+    pub status: Arc<RwLock<ProxyStatus>>,
+    pub request_counter: Arc<std::sync::atomic::AtomicU64>,
+    pub start_time: Arc<RwLock<Option<Instant>>>,
+    pub shutdown_tx: Arc<RwLock<Option<oneshot::Sender<()>>>>,
+    pub server_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
+}
+
+/// Manages the axum proxy server lifecycle and holds runtime state.
+pub struct ProxyServer {
+    pub state: ProxyState,
+    pub config: Arc<RwLock<ProxyConfig>>,
+}
 
 impl ProxyServer {
     pub fn new() -> Self {
-        Self
+        Self {
+            state: ProxyState {
+                route_table: Arc::new(RwLock::new(RouteTable::default())),
+                status: Arc::new(RwLock::new(ProxyStatus::default())),
+                request_counter: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                start_time: Arc::new(RwLock::new(None)),
+                shutdown_tx: Arc::new(RwLock::new(None)),
+                server_handle: Arc::new(RwLock::new(None)),
+            },
+            config: Arc::new(RwLock::new(ProxyConfig::default())),
+        }
+    }
+
+    /// Hot-reload the route table: atomic swap, in-flight requests are not interrupted.
+    pub async fn reload_routes(&self, new_table: RouteTable) {
+        let route_count = new_table.routes.len();
+        *self.state.route_table.write().await = new_table;
+        let mut status = self.state.status.write().await;
+        status.active_routes = route_count;
+    }
+
+    /// Check if the proxy is currently running.
+    pub async fn is_running(&self) -> bool {
+        self.state.status.read().await.running
+    }
+
+    /// Get a snapshot of the current proxy status.
+    pub async fn get_status(&self) -> ProxyStatus {
+        let status = self.state.status.read().await;
+        let uptime = if let Some(start) = *self.state.start_time.read().await {
+            start.elapsed().as_secs()
+        } else {
+            0
+        };
+        ProxyStatus {
+            running: status.running,
+            port: status.port,
+            published_at: status.published_at.clone(),
+            active_routes: status.active_routes,
+            total_requests: self
+                .state
+                .request_counter
+                .load(std::sync::atomic::Ordering::Relaxed),
+            uptime_seconds: uptime,
+        }
     }
 }
