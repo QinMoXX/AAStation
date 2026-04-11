@@ -8,9 +8,10 @@ export interface ProxyStatus {
   uptime_seconds: number;
 }
 
-/** Result of a DAG publish operation. */
-export interface PublishResult {
-  success: boolean;
-  routeCount: number;
-  errors: string[];
+/** Compiled route table returned by publish_dag. */
+export interface RouteTable {
+  listen_port: number;
+  listen_address: string;
+  routes: unknown[];
+  default_route: unknown | null;
 }

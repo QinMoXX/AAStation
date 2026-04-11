@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { useAppStore } from '../../store/app-store';
+import { useFlowStore } from '../../store/flow-store';
+import { publishDag, startProxy, getProxyStatus } from '../../lib/tauri-api';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -86,10 +89,42 @@ export default function Header() {
   const proxyStatus = useAppStore((s) => s.proxyStatus);
   const isDraft = useAppStore((s) => s.isDraft);
   const lastPublishedAt = useAppStore((s) => s.lastPublishedAt);
+  const markPublished = useAppStore((s) => s.markPublished);
+  const setProxyStatus = useAppStore((s) => s.setProxyStatus);
+  const getDocument = useFlowStore((s) => s.getDocument);
 
-  const handlePublish = () => {
-    // Will be wired to Tauri IPC in Phase 4
-    console.log('Publish clicked — to be implemented in Phase 4');
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handlePublish = async () => {
+    if (publishing) return;
+
+    setPublishing(true);
+    setError(null);
+
+    try {
+      // 1. Publish DAG (validate → compile → hot-load routes)
+      const doc = getDocument();
+      await publishDag(doc);
+
+      // 2. Start proxy server (if not already running)
+      if (!proxyStatus.running) {
+        await startProxy();
+      }
+
+      // 3. Update UI state
+      markPublished();
+      const status = await getProxyStatus();
+      setProxyStatus(status);
+
+      console.log('[Header] Published and started proxy on port', status.port);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      console.error('[Header] Publish failed:', err);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const formatTime = (iso: string | null) => {
@@ -120,12 +155,27 @@ export default function Header() {
         ) : null}
       </div>
       <div style={rightStyle}>
+        {error && (
+          <span
+            style={{
+              fontSize: 11,
+              color: '#f87171',
+              maxWidth: 300,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={error}
+          >
+            {error}
+          </span>
+        )}
         <button
-          style={isDraft ? publishBtn : publishBtnDisabled}
+          style={publishing ? publishBtnDisabled : isDraft ? publishBtn : publishBtnDisabled}
           onClick={handlePublish}
-          disabled={!isDraft}
+          disabled={!isDraft || publishing}
         >
-          Publish
+          {publishing ? 'Publishing...' : 'Publish'}
         </button>
       </div>
     </header>

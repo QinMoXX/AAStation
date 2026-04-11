@@ -140,8 +140,18 @@ impl ProxyServer {
     }
 
     /// Hot-reload the route table: atomic swap, in-flight requests are not interrupted.
+    /// Also syncs listen_port/listen_address from the route table into ProxyConfig
+    /// so that start() binds to the correct address.
     pub async fn reload_routes(&self, new_table: RouteTable) {
         let route_count = new_table.routes.len();
+
+        // Sync config from route table
+        {
+            let mut config = self.config.write().await;
+            config.listen_port = new_table.listen_port;
+            config.listen_address = new_table.listen_address.clone();
+        }
+
         *self.state.route_table.write().await = new_table;
         let mut status = self.state.status.write().await;
         status.active_routes = route_count;

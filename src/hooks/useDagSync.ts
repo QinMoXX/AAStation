@@ -103,6 +103,8 @@ export function useDagSync() {
         if (cancelled) return;
         if (doc && doc.nodes && doc.nodes.length > 0) {
           loadDocument(doc);
+          // Mark as draft so user can publish the loaded DAG
+          markDirty();
           console.log('[useDagSync] Loaded', doc.nodes.length, 'nodes');
         } else {
           console.log('[useDagSync] No persisted DAG found, starting fresh');
@@ -119,7 +121,7 @@ export function useDagSync() {
     return () => {
       cancelled = true;
     };
-  }, [loadDocument]);
+  }, [loadDocument, markDirty]);
 
   // -----------------------------------------------------------------------
   // Debounced auto-save on node/edge changes

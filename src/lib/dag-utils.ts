@@ -65,28 +65,48 @@ function toCamelCase(s: string): string {
   return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
-/** Recursively convert object keys from camelCase to snake_case */
+/** Recursively convert object keys from camelCase to snake_case, including arrays */
 function keysToSnakeCase(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     const newKey = toSnakeCase(key);
-    result[newKey] =
-      value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? keysToSnakeCase(value as Record<string, unknown>)
-        : value;
+    if (value === null || value === undefined) {
+      result[newKey] = value;
+    } else if (Array.isArray(value)) {
+      // Recursively convert each array element
+      result[newKey] = value.map((item) =>
+        typeof item === 'object' && item !== null
+          ? keysToSnakeCase(item as Record<string, unknown>)
+          : item,
+      );
+    } else if (typeof value === 'object') {
+      result[newKey] = keysToSnakeCase(value as Record<string, unknown>);
+    } else {
+      result[newKey] = value;
+    }
   }
   return result;
 }
 
-/** Recursively convert object keys from snake_case to camelCase */
+/** Recursively convert object keys from snake_case to camelCase, including arrays */
 function keysToCamelCase(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     const newKey = toCamelCase(key);
-    result[newKey] =
-      value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? keysToCamelCase(value as Record<string, unknown>)
-        : value;
+    if (value === null || value === undefined) {
+      result[newKey] = value;
+    } else if (Array.isArray(value)) {
+      // Recursively convert each array element
+      result[newKey] = value.map((item) =>
+        typeof item === 'object' && item !== null
+          ? keysToCamelCase(item as Record<string, unknown>)
+          : item,
+      );
+    } else if (typeof value === 'object') {
+      result[newKey] = keysToCamelCase(value as Record<string, unknown>);
+    } else {
+      result[newKey] = value;
+    }
   }
   return result;
 }

@@ -11,8 +11,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { DAGDocument } from '../types/dag';
-import type { ProxyStatus } from '../types/proxy';
-import type { PublishResult } from '../types/proxy';
+import type { ProxyStatus, RouteTable } from '../types/proxy';
 import { toBackendDocument, fromBackendDocument } from './dag-utils';
 
 // ---------------------------------------------------------------------------
@@ -52,11 +51,11 @@ export async function validateDag(doc: DAGDocument): Promise<ValidationError[]> 
 
 /**
  * Validate + compile + hot-load the DAG into the running proxy.
- * Returns a PublishResult indicating success/failure.
+ * Returns the compiled RouteTable on success; throws on validation/compile error.
  */
-export async function publishDag(doc: DAGDocument): Promise<PublishResult> {
+export async function publishDag(doc: DAGDocument): Promise<RouteTable> {
   const backendDoc = toBackendDocument(doc);
-  return invoke<PublishResult>('publish_dag', { doc: backendDoc });
+  return invoke<RouteTable>('publish_dag', { doc: backendDoc });
 }
 
 // ---------------------------------------------------------------------------
