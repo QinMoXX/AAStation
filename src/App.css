@@ -95,6 +95,54 @@ button {
   margin-right: 5px;
 }
 
+.proxy-section {
+  margin: 1.5em auto;
+  max-width: 480px;
+  text-align: left;
+}
+
+.proxy-section h2 {
+  font-size: 1.1em;
+  margin-bottom: 0.5em;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5em;
+  gap: 0.5em;
+}
+
+.form-row label {
+  min-width: 100px;
+  font-size: 0.9em;
+}
+
+.form-row input {
+  flex: 1;
+}
+
+.proxy-section .row {
+  gap: 0.5em;
+  margin-top: 0.5em;
+}
+
+.error {
+  color: #e53e3e;
+  font-size: 0.9em;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25em 1em;
+  font-size: 0.9em;
+}
+
+.status-grid span:nth-child(odd) {
+  font-weight: 500;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
