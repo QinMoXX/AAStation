@@ -75,6 +75,11 @@ interface FlowState {
   nodes: AAStationNode[];
   edges: AAStationEdge[];
 
+  /** Persisted document ID (set on load, generated on first save). */
+  documentId: string;
+  /** Persisted document name. */
+  documentName: string;
+
   // React Flow callbacks
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
@@ -87,7 +92,7 @@ interface FlowState {
 
   // Document-level
   loadDocument: (doc: DAGDocument) => void;
-  getDocument: (name?: string) => DAGDocument;
+  getDocument: () => DAGDocument;
 
   // Direct setters (used by loadDocument)
   setNodes: (nodes: AAStationNode[]) => void;
@@ -97,6 +102,8 @@ interface FlowState {
 export const useFlowStore = create<FlowState>((set, get) => ({
   nodes: [],
   edges: [],
+  documentId: '',
+  documentName: 'Untitled Pipeline',
 
   // -----------------------------------------------------------------------
   // React Flow change handlers
@@ -155,15 +162,20 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   // -----------------------------------------------------------------------
 
   loadDocument: (doc: DAGDocument) => {
-    set({ nodes: doc.nodes, edges: doc.edges });
+    set({
+      nodes: doc.nodes,
+      edges: doc.edges,
+      documentId: doc.id,
+      documentName: doc.name,
+    });
   },
 
-  getDocument: (name?: string) => {
-    const { nodes, edges } = get();
+  getDocument: () => {
+    const { nodes, edges, documentId, documentName } = get();
     return {
       version: 1 as const,
-      id: name ? '' : '', // will be set by caller or persist layer
-      name: name ?? 'Untitled',
+      id: documentId || crypto.randomUUID(),
+      name: documentName,
       nodes,
       edges,
       updatedAt: new Date().toISOString(),

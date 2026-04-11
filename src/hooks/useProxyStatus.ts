@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import type { ProxyStatus } from "../types/proxy";
+import { useState, useEffect, useCallback } from 'react';
+import { startProxy, stopProxy, getProxyStatus } from '../lib/tauri-api';
+import type { ProxyStatus } from '../types/proxy';
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -24,7 +24,7 @@ export function useProxyStatus() {
 
   const refresh = useCallback(async () => {
     try {
-      const s = await invoke<ProxyStatus>("get_proxy_status");
+      const s = await getProxyStatus();
       setStatus(s);
       setError(null);
     } catch (e) {
@@ -39,10 +39,10 @@ export function useProxyStatus() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const startProxy = useCallback(async () => {
+  const start = useCallback(async () => {
     setLoading(true);
     try {
-      await invoke("start_proxy");
+      await startProxy();
       await refresh();
       setError(null);
     } catch (e) {
@@ -52,10 +52,10 @@ export function useProxyStatus() {
     }
   }, [refresh]);
 
-  const stopProxy = useCallback(async () => {
+  const stop = useCallback(async () => {
     setLoading(true);
     try {
-      await invoke("stop_proxy");
+      await stopProxy();
       await refresh();
       setError(null);
     } catch (e) {
@@ -65,5 +65,5 @@ export function useProxyStatus() {
     }
   }, [refresh]);
 
-  return { status, loading, error, startProxy, stopProxy, refresh };
+  return { status, loading, error, start, stop, refresh };
 }
