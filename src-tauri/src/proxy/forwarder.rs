@@ -1,0 +1,48 @@
+#![allow(dead_code, unused_imports)]
+
+use axum::http::{HeaderMap, HeaderValue, Method};
+use axum::body::Body;
+use axum::response::Response;
+
+use super::error::ProxyError;
+use super::server::HandlerState;
+use super::types::CompiledRoute;
+
+/// Forward the request to the matched upstream route.
+/// Builds a reqwest request with the same method/headers/body,
+/// injects bearer auth and extra headers, then sends it.
+///
+/// Returns the upstream response (streaming or buffered).
+pub async fn forward_request(
+    client: &reqwest::Client,
+    route: &CompiledRoute,
+    method: Method,
+    path: &str,
+    headers: HeaderMap<HeaderValue>,
+    body: bytes::Bytes,
+) -> Result<reqwest::Response, ProxyError> {
+    let url = format!("{}{}", route.upstream_url.trim_end_matches('/'), path);
+
+    let mut req_builder = client.request(method, &url).body(body);
+
+    // Copy original headers, excluding Host
+    for (name, value) in headers.iter() {
+        if name == axum::http::header::HOST {
+            continue;
+        }
+        req_builder = req_builder.header(name, value);
+    }
+
+    // Inject bearer auth
+    req_builder = req_builder.bearer_auth(&route.api_key);
+
+    // Inject extra headers from route config
+    for (key, val) in &route.extra_headers {
+        req_builder = req_builder.header(key.as_str(), val.as_str());
+    }
+
+    req_builder
+        .send()
+        .await
+        .map_err(|e| ProxyError::UpstreamError(e.to_string()))
+}

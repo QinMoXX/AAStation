@@ -5,6 +5,8 @@ use std::time::Instant;
 use tokio::sync::{oneshot, RwLock};
 use tokio::task::JoinHandle;
 
+use super::error::ProxyError;
+use super::handler::proxy_handler;
 use super::types::{ProxyConfig, ProxyStatus, RouteTable};
 
 /// Internal state of the running proxy server.
@@ -23,6 +25,15 @@ pub struct ProxyServer {
     pub config: Arc<RwLock<ProxyConfig>>,
 }
 
+/// Shared state injected into each axum handler via extension.
+/// Cheaply cloneable (all inner fields are Arc).
+#[derive(Clone)]
+pub struct HandlerState {
+    pub route_table: Arc<RwLock<RouteTable>>,
+    pub request_counter: Arc<std::sync::atomic::AtomicU64>,
+    pub http_client: reqwest::Client,
+}
+
 impl ProxyServer {
     pub fn new() -> Self {
         Self {
@@ -36,6 +47,96 @@ impl ProxyServer {
             },
             config: Arc::new(RwLock::new(ProxyConfig::default())),
         }
+    }
+
+    /// Start the axum proxy server.
+    /// Binds to the configured address/port and begins accepting connections.
+    pub async fn start(&self) -> Result<(), ProxyError> {
+        // Guard: already running?
+        if self.is_running().await {
+            let port = self.state.status.read().await.port;
+            return Err(ProxyError::AlreadyRunning(port));
+        }
+
+        // Guard: must have a non-empty route table
+        if self.state.route_table.read().await.is_empty() {
+            return Err(ProxyError::NoRouteTable);
+        }
+
+        let config = self.config.read().await;
+        let addr = format!("{}:{}", config.listen_address, config.listen_port);
+        let listener = tokio::net::TcpListener::bind(&addr)
+            .await
+            .map_err(|e| ProxyError::BindFailed(addr.clone(), e.to_string()))?;
+        let local_addr = listener.local_addr().unwrap();
+
+        // One-shot shutdown channel
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+        *self.state.shutdown_tx.write().await = Some(shutdown_tx);
+
+        // Handler state (shared across all request tasks)
+        let handler_state = HandlerState {
+            route_table: Arc::clone(&self.state.route_table),
+            request_counter: Arc::clone(&self.state.request_counter),
+            http_client: reqwest::Client::new(),
+        };
+
+        // Build axum router with catch-all handler
+        let app = axum::Router::new()
+            .fallback(axum::routing::any(proxy_handler))
+            .layer(axum::extract::DefaultBodyLimit::max(200 * 1024 * 1024)) // 200 MB
+            .layer(tower_http::cors::CorsLayer::permissive())
+            .with_state(handler_state);
+
+        // Update status
+        let mut status = self.state.status.write().await;
+        status.running = true;
+        status.port = local_addr.port();
+        drop(status);
+
+        *self.state.start_time.write().await = Some(Instant::now());
+
+        // Spawn server task
+        let handle = tokio::spawn(async move {
+            axum::serve(listener, app)
+                .with_graceful_shutdown(async {
+                    let _ = shutdown_rx.await;
+                })
+                .await
+                .ok();
+        });
+
+        *self.state.server_handle.write().await = Some(handle);
+
+        Ok(())
+    }
+
+    /// Stop the proxy server gracefully.
+    /// Sends the shutdown signal and waits for the server task to finish.
+    pub async fn stop(&self) -> Result<(), ProxyError> {
+        if !self.is_running().await {
+            return Err(ProxyError::NotRunning);
+        }
+
+        // Send shutdown signal
+        if let Some(tx) = self.state.shutdown_tx.write().await.take() {
+            let _ = tx.send(());
+        }
+
+        // Wait for server task to finish
+        if let Some(handle) = self.state.server_handle.write().await.take() {
+            let _ = handle.await;
+        }
+
+        // Reset status
+        let mut status = self.state.status.write().await;
+        status.running = false;
+        status.port = 0;
+        drop(status);
+
+        *self.state.start_time.write().await = None;
+
+        Ok(())
     }
 
     /// Hot-reload the route table: atomic swap, in-flight requests are not interrupted.
