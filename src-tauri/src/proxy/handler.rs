@@ -5,11 +5,12 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 
+use super::body_parser::extract_model;
 use super::error::ProxyError;
 use super::forwarder::forward_request;
+use super::router::match_route;
 use super::server::HandlerState;
 use super::stream::{is_sse_response, LoggedStream};
-use super::types::{CompiledRoute, MatchType};
 
 /// Catch-all proxy handler: reads body → matches route → forwards → returns response.
 /// SSE streaming detection and passthrough is handled here.
@@ -80,63 +81,6 @@ pub async fn proxy_handler(
 
     // Build the downstream response from upstream response
     build_response(upstream_resp).await
-}
-
-/// Match a request against the route table.
-/// Priority: path_prefix → header → model, then default route.
-fn match_route<'a>(
-    routes: &'a [CompiledRoute],
-    default_route: &'a Option<CompiledRoute>,
-    path: &str,
-    headers: &HeaderMap,
-    model: Option<&str>,
-) -> Result<&'a CompiledRoute, ProxyError> {
-    // 1. Try path_prefix matches
-    for route in routes {
-        if matches!(route.match_type, MatchType::PathPrefix) && path.starts_with(&route.pattern) {
-            return Ok(route);
-        }
-    }
-
-    // 2. Try header matches (pattern format: "Header-Name:value")
-    for route in routes {
-        if matches!(route.match_type, MatchType::Header) {
-            if let Some((header_name, header_value)) = route.pattern.split_once(':') {
-                if headers
-                    .get(header_name)
-                    .and_then(|v| v.to_str().ok())
-                    .map(|v| v == header_value)
-                    .unwrap_or(false)
-                {
-                    return Ok(route);
-                }
-            }
-        }
-    }
-
-    // 3. Try model matches
-    if let Some(req_model) = model {
-        for route in routes {
-            if matches!(route.match_type, MatchType::Model) && route.pattern == req_model {
-                return Ok(route);
-            }
-        }
-    }
-
-    // 4. Fall back to default route
-    if let Some(ref route) = default_route {
-        return Ok(route);
-    }
-
-    Err(ProxyError::NoMatch)
-}
-
-/// Extract the `model` field from a JSON request body.
-/// Returns None if body is not valid JSON or field is absent.
-fn extract_model(body: &[u8]) -> Option<String> {
-    serde_json::from_slice::<serde_json::Value>(body)
-        .ok()
-        .and_then(|v| v.get("model")?.as_str().map(|s| s.to_string()))
 }
 
 /// Convert an upstream reqwest::Response into an axum Response.

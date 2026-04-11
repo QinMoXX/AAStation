@@ -7,3 +7,10 @@ export interface ProxyStatus {
   total_requests: number;
   uptime_seconds: number;
 }
+
+/** Result of a DAG publish operation. */
+export interface PublishResult {
+  success: boolean;
+  routeCount: number;
+  errors: string[];
+}
