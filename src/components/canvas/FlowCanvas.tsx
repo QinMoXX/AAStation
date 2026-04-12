@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
 import ReactFlow, {
-  Controls,
   Background,
   type NodeTypes,
   type EdgeTypes,
@@ -96,7 +95,6 @@ export default function FlowCanvas() {
         snapToGrid
         snapGrid={[16, 16]}
       >
-        <Controls />
         <Background gap={16} size={1} />
       </ReactFlow>
     </div>

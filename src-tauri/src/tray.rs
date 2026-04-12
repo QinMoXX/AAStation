@@ -1,0 +1,105 @@
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, Runtime, WindowEvent,
+};
+
+use crate::store::AppState;
+
+/// Setup system tray with menu items
+pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
+    // Create menu items
+    let show_hide = MenuItem::with_id(app, "show_hide", "显示窗口", true, None::<&str>)?;
+    let separator = MenuItem::with_id(app, "separator", "─", true, None::<&str>)?;
+    let toggle_proxy = MenuItem::with_id(app, "toggle_proxy", "切换代理", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+
+    // Build menu
+    let menu = Menu::with_items(app, &[&show_hide, &separator, &toggle_proxy, &quit])?;
+
+    // Build tray icon
+    let _tray = TrayIconBuilder::with_id("main")
+        .menu(&menu)
+        .tooltip("AAStation - API 代理")
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show_hide" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    if window.is_visible().unwrap_or(false) {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+            }
+            "toggle_proxy" => {
+                let app_handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Some(state) = app_handle.try_state::<AppState>() {
+                        let proxy = state.proxy.read().await;
+                        let status = proxy.get_status().await;
+                        drop(proxy);
+
+                        let proxy = state.proxy.read().await;
+                        if status.running {
+                            let _ = proxy.stop().await;
+                        } else {
+                            let _ = proxy.start().await;
+                        }
+                    }
+                });
+            }
+            "quit" => {
+                app.exit(0);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                let app = tray.app_handle();
+                if let Some(window) = app.get_webview_window("main") {
+                    if window.is_visible().unwrap_or(false) {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
+/// Handle window close event - minimize to tray instead of closing
+pub fn on_window_close<R: Runtime>(window: &tauri::WebviewWindow<R>) {
+    // Clone the window to move into the closure
+    let window_clone = window.clone();
+    window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            // Prevent window from closing
+            api.prevent_close();
+            // Hide the window instead
+            let _ = window_clone.hide();
+        }
+    });
+}
+
+/// Update tray tooltip to reflect current proxy status
+pub fn update_tray_menu<R: Runtime>(app: &AppHandle<R>, running: bool) {
+    if let Some(tray) = app.tray_by_id("main") {
+        // Update tooltip instead of menu for simplicity
+        let tooltip = if running {
+            "AAStation - 代理运行中"
+        } else {
+            "AAStation - 代理已停止"
+        };
+        let _ = tray.set_tooltip(Some(tooltip));
+    }
+}

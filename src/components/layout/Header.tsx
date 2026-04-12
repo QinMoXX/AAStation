@@ -215,12 +215,6 @@ export default function Header() {
       <header style={headerStyle}>
         <div style={leftStyle}>
           <span style={{ fontSize: 16, fontWeight: 700 }}>AAStation</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={statusDotStyle(proxyStatus.running)} />
-            <span style={{ fontSize: 12, fontWeight: 400, color: '#94a3b8' }}>
-              {proxyStatus.running ? `Running :${proxyStatus.port}` : `Stopped :${settings.listenPort}`}
-            </span>
-          </div>
           {isDraft ? (
             <span style={draftBadge}>Draft</span>
           ) : lastPublishedAt ? (

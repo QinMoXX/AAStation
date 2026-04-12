@@ -5,8 +5,11 @@ mod error;
 mod proxy;
 mod settings;
 mod store;
+mod tray;
 
+use std::time::Duration;
 use store::AppState;
+use tauri::Manager;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tauri::command]
@@ -22,9 +25,11 @@ pub fn run() {
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
+    let state = AppState::new();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(AppState::new())
+        .manage(state)
         .invoke_handler(tauri::generate_handler![
             greet,
             commands::dag_commands::load_dag,
@@ -38,6 +43,33 @@ pub fn run() {
             commands::settings_commands::load_settings,
             commands::settings_commands::save_settings,
         ])
+        .setup(|app| {
+            // Setup system tray
+            tray::setup_tray(app.handle()).map_err(|e| e.to_string())?;
+
+            // Setup window close handler - minimize to tray instead of closing
+            if let Some(window) = app.get_webview_window("main") {
+                tray::on_window_close(&window);
+            }
+
+            // Start background task to update tray status periodically
+            let app_handle = app.handle().clone();
+            let state = app.state::<AppState>();
+            let proxy = state.proxy.clone();
+            
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(2));
+                loop {
+                    interval.tick().await;
+                    let proxy = proxy.read().await;
+                    let status = proxy.get_status().await;
+                    drop(proxy);
+                    tray::update_tray_menu(&app_handle, status.running);
+                }
+            });
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
