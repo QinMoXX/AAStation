@@ -25,6 +25,7 @@ const nodeTypes: NodeTypes = {
 
 // Register custom edge type for selection highlighting.
 const edgeTypes: EdgeTypes = {
+  default: CustomEdge,
   smoothstep: CustomEdge,
 };
 
@@ -69,7 +70,7 @@ export default function FlowCanvas() {
   const defaultEdgeOptions = useMemo(
     () => ({
       animated: true,
-      type: 'smoothstep' as const,
+      type: 'default' as const,
       style: { strokeWidth: 2, stroke: '#94a3b8' },
     }),
     [],

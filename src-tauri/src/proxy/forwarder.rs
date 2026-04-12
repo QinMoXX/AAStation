@@ -4,6 +4,7 @@ use axum::http::{HeaderMap, HeaderValue, Method};
 use axum::body::Body;
 use axum::response::Response;
 
+use super::body_parser::replace_model;
 use super::error::ProxyError;
 use super::server::HandlerState;
 use super::types::{ApiType, CompiledRoute};
@@ -11,6 +12,8 @@ use super::types::{ApiType, CompiledRoute};
 /// Forward the request to the matched upstream route.
 /// Builds a reqwest request with the same method/headers/body,
 /// injects auth based on the route's api_type, then sends it.
+///
+/// If `route.target_model` is set, replaces the `model` field in the request body.
 ///
 /// Returns the upstream response (streaming or buffered).
 pub async fn forward_request(
@@ -22,6 +25,13 @@ pub async fn forward_request(
     body: bytes::Bytes,
 ) -> Result<reqwest::Response, ProxyError> {
     let url = format!("{}{}", route.upstream_url.trim_end_matches('/'), path);
+
+    // Replace model in body if target_model is specified
+    let body = if !route.target_model.is_empty() {
+        replace_model(&body, &route.target_model).map(bytes::Bytes::from).unwrap_or(body)
+    } else {
+        body
+    };
 
     let mut req_builder = client.request(method, &url).body(body);
 

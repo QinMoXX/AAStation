@@ -86,32 +86,57 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     super::types::ApiType::Anthropic => ApiType::Anthropic,
                     super::types::ApiType::OpenAI => ApiType::OpenAI,
                 }),
+                target_model: entry.target_model.clone(),
             });
         }
 
         // Process default route for this Router
+        // Priority: explicit "default" handle > main "input" handle
         if router_data.has_default {
             let default_handle = "default";
-            let edge = target_edge_map
-                .get(&(node.id.as_str(), default_handle))
-                .ok_or_else(|| CompileError::DefaultEdgeNotFound(node.id.clone()))?;
+            if let Some(edge) = target_edge_map.get(&(node.id.as_str(), default_handle)) {
+                let provider = resolve_provider(&edge.source, &node_map)?;
+                let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
 
-            let provider = resolve_provider(&edge.source, &node_map)?;
-            let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
+                default_route = Some(CompiledRoute {
+                    id: format!("route-default-{}", node.id),
+                    match_type: MatchType::PathPrefix,
+                    pattern: String::new(),
+                    upstream_url: provider_data.base_url,
+                    api_key: provider_data.api_key,
+                    extra_headers: HashMap::new(),
+                    is_default: true,
+                    api_type: Some(match provider_data.api_type {
+                        super::types::ApiType::Anthropic => ApiType::Anthropic,
+                        super::types::ApiType::OpenAI => ApiType::OpenAI,
+                    }),
+                    target_model: String::new(),
+                });
+            }
+        }
 
-            default_route = Some(CompiledRoute {
-                id: format!("route-default-{}", node.id),
-                match_type: MatchType::PathPrefix,
-                pattern: String::new(),
-                upstream_url: provider_data.base_url,
-                api_key: provider_data.api_key,
-                extra_headers: HashMap::new(),
-                is_default: true,
-                api_type: Some(match provider_data.api_type {
-                    super::types::ApiType::Anthropic => ApiType::Anthropic,
-                    super::types::ApiType::OpenAI => ApiType::OpenAI,
-                }),
-            });
+        // If no explicit default route, check main input handle
+        if default_route.is_none() {
+            let input_handle = "input";
+            if let Some(edge) = target_edge_map.get(&(node.id.as_str(), input_handle)) {
+                let provider = resolve_provider(&edge.source, &node_map)?;
+                let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
+
+                default_route = Some(CompiledRoute {
+                    id: format!("route-input-{}", node.id),
+                    match_type: MatchType::PathPrefix,
+                    pattern: String::new(),
+                    upstream_url: provider_data.base_url,
+                    api_key: provider_data.api_key,
+                    extra_headers: HashMap::new(),
+                    is_default: true,
+                    api_type: Some(match provider_data.api_type {
+                        super::types::ApiType::Anthropic => ApiType::Anthropic,
+                        super::types::ApiType::OpenAI => ApiType::OpenAI,
+                    }),
+                    target_model: String::new(),
+                });
+            }
         }
     }
 
@@ -145,6 +170,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                                 super::types::ApiType::Anthropic => ApiType::Anthropic,
                                 super::types::ApiType::OpenAI => ApiType::OpenAI,
                             }),
+                            target_model: String::new(),
                         });
                     }
                 }
@@ -292,6 +318,7 @@ mod tests {
                 label: "gpt-4o".to_string(),
                 match_type: DagMatchType::Model,
                 pattern: "gpt-4o".to_string(),
+                target_model: String::new(),
             }],
             false,
         );
@@ -342,6 +369,7 @@ mod tests {
                 label: "gpt-4o".to_string(),
                 match_type: DagMatchType::Model,
                 pattern: "gpt-4o".to_string(),
+                target_model: String::new(),
             }],
             true,
         );
@@ -409,6 +437,7 @@ mod tests {
                 label: "gpt-4o".to_string(),
                 match_type: DagMatchType::Model,
                 pattern: "gpt-4o".to_string(),
+                target_model: String::new(),
             }],
             false,
         );
@@ -424,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn test_default_edge_not_found() {
+    fn test_default_edge_not_found_but_optional() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
             "https://api.openai.com", "sk-test",
@@ -433,13 +462,17 @@ mod tests {
 
         let router = make_router("r1", vec![], true);
 
+        // No edge connecting provider to router default or input
         let doc = DAGDocument {
             nodes: vec![provider, router],
             edges: vec![],
             ..Default::default()
         };
 
-        assert!(matches!(compile(&doc, &default_settings()), Err(CompileError::DefaultEdgeNotFound(_))));
+        // Now default route is optional, should compile successfully with no default
+        let table = compile(&doc, &default_settings()).unwrap();
+        assert!(table.routes.is_empty());
+        assert!(table.default_route.is_none());
     }
 
     #[test]
@@ -464,12 +497,14 @@ mod tests {
                     label: "gpt-4o".to_string(),
                     match_type: DagMatchType::Model,
                     pattern: "gpt-4o".to_string(),
+                    target_model: String::new(),
                 },
                 RouterEntry {
                     id: "entry-2".to_string(),
                     label: "claude-sonnet-4".to_string(),
                     match_type: DagMatchType::Model,
                     pattern: "claude-sonnet-4-20250514".to_string(),
+                    target_model: "claude-sonnet-4-20250514".to_string(),
                 },
             ],
             false,
@@ -493,6 +528,39 @@ mod tests {
         assert_eq!(table.routes.len(), 2);
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
         assert_eq!(table.routes[1].api_type, Some(ApiType::Anthropic));
+        // Check target_model is properly set
+        assert_eq!(table.routes[1].target_model, "claude-sonnet-4-20250514");
+    }
+
+    #[test]
+    fn test_router_main_input_as_default() {
+        let provider = make_provider(
+            "p1", "OpenAI", DagApiType::OpenAI,
+            "https://api.openai.com", "sk-test",
+            vec![],
+        );
+
+        let router = make_router("r1", vec![], false); // no entries, no explicit default
+
+        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+
+        // Connect provider unified output to router main input
+        let edges = vec![
+            make_edge("e1", "p1", "r1", Some("unified"), Some("input")),
+            make_edge("e2", "r1", "t1", Some("output"), Some("input")),
+        ];
+
+        let doc = DAGDocument {
+            nodes: vec![provider, router, terminal],
+            edges,
+            ..Default::default()
+        };
+
+        let table = compile(&doc, &default_settings()).unwrap();
+        assert!(table.routes.is_empty());
+        // Main input should be used as default route
+        assert!(table.default_route.is_some());
+        assert_eq!(table.default_route.unwrap().upstream_url, "https://api.openai.com");
     }
 
     #[test]

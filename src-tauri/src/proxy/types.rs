@@ -40,6 +40,10 @@ pub struct CompiledRoute {
     /// API compatibility type for request/response adaptation.
     #[serde(default)]
     pub api_type: Option<ApiType>,
+    /// Target model name to replace in the request body when forwarding.
+    /// If empty, the original model is kept.
+    #[serde(default)]
+    pub target_model: String,
 }
 
 /// Route match strategy.

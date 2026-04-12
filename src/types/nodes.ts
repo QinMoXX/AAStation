@@ -35,6 +35,9 @@ export interface RouterEntry {
    *  - header: "Header-Name:value" format
    *  - model: model name e.g. "claude-sonnet-4-20250514" */
   pattern: string;
+  /** Target model name to replace in the request body when forwarding.
+   *  If empty, the original model is kept. */
+  targetModel: string;
 }
 
 /** Router node: routes requests by model matching to different Providers. */

@@ -199,6 +199,10 @@ pub struct RouterEntry {
     pub match_type: MatchType,
     /// Match pattern (model name, path prefix, or header value).
     pub pattern: String,
+    /// Target model name to replace in the request body when forwarding.
+    /// If empty, the original model is kept.
+    #[serde(default)]
+    pub target_model: String,
 }
 
 /// Router node data: routes requests by entries to different Providers.

@@ -1,7 +1,8 @@
-import { BaseEdge, getSmoothStepPath, type EdgeProps } from 'reactflow';
+import { BaseEdge, getBezierPath, type EdgeProps } from 'reactflow';
 
 /**
  * Custom edge component that highlights when selected.
+ * Uses bezier curves for smooth connections.
  */
 export default function CustomEdge({
   id,
@@ -14,14 +15,13 @@ export default function CustomEdge({
   style = {},
   selected,
 }: EdgeProps) {
-  const [edgePath] = getSmoothStepPath({
+  const [edgePath] = getBezierPath({
     sourceX,
     sourceY,
     targetX,
     targetY,
     sourcePosition,
     targetPosition,
-    borderRadius: 8,
   });
 
   return (

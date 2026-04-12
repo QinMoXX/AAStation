@@ -221,6 +221,7 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
       label: '',
       matchType: 'model',
       pattern: '',
+      targetModel: '',
     };
     onUpdate({ entries: [...data.entries, newEntry] });
   }, [data.entries, onUpdate]);
@@ -359,6 +360,19 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
               }
               onChange={(e) => updateEntry(entry.id, { pattern: e.target.value })}
             />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Target Model (optional)</label>
+            <input
+              style={inputStyle}
+              value={entry.targetModel || ''}
+              placeholder="Leave empty to keep original model"
+              onChange={(e) => updateEntry(entry.id, { targetModel: e.target.value })}
+            />
+            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+              Replace request model with this value when forwarding
+            </div>
           </div>
         </div>
       ))}

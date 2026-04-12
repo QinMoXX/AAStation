@@ -20,36 +20,69 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
         borderRadius: 8,
         border: `2px solid ${borderColor}`,
         background: '#fffbeb',
-        minWidth: 180,
+        minWidth: 200,
         fontSize: 13,
+        position: 'relative',
       }}
     >
+      {/* Main input handle on the LEFT side - connects from Provider unified output */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input"
+        style={{
+          background: '#d97706',
+          width: 12,
+          height: 12,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+        title="Main input (from Provider)"
+      />
+
+      {/* Output handle on the RIGHT side - connects to Terminal */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="output"
+        style={{
+          background: '#d97706',
+          width: 12,
+          height: 12,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+        title="Output to Terminal"
+      />
+
       {/* Header */}
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>
-        🔀 {data.label || 'Router'}
+      <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span>🔀</span>
+        <span>{data.label || 'Router'}</span>
       </div>
 
       {/* Entry count */}
-      <div style={{ color: '#64748b', fontSize: 12 }}>
+      <div style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>
         {entryCount === 0
-          ? 'No entries'
-          : `${entryCount} entr${entryCount > 1 ? 'ies' : 'y'}`}
+          ? 'No routing rules'
+          : `${entryCount} routing rule${entryCount > 1 ? 's' : ''}`}
       </div>
 
-      {/* Entry input handles on the LEFT side */}
-      {data.entries.map((entry) => (
+      {/* Routing entries with LEFT-side input handles (for model-specific routing) */}
+      {data.entries.map((entry, index) => (
         <div
           key={entry.id}
           style={{
             display: 'flex',
             alignItems: 'center',
-            marginTop: 4,
-            padding: '2px 6px',
+            marginBottom: 4,
+            padding: '4px 8px',
             borderRadius: 4,
             background: '#fef3c7',
             fontSize: 11,
             color: '#92400e',
             position: 'relative',
+            borderLeft: '3px solid #f59e0b',
           }}
         >
           <Handle
@@ -58,35 +91,48 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             id={`entry-${entry.id}`}
             style={{
               background: '#f59e0b',
-              width: 8,
-              height: 8,
+              width: 10,
+              height: 10,
               position: 'relative' as const,
               right: 'auto' as const,
               left: 'auto' as const,
               bottom: 'auto' as const,
               top: 'auto' as const,
-              marginRight: 6,
+              marginRight: 8,
+              marginLeft: -4,
             }}
+            title={`Connect from Provider model (matches: ${entry.pattern || '—'})`}
           />
-          <span>
-            {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || entry.label || '—'}
-          </span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 500 }}>
+              {entry.label || `Rule #${index + 1}`}
+            </div>
+            <div style={{ color: '#a16207', fontSize: 10 }}>
+              {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || '—'}
+              {entry.targetModel && (
+                <span style={{ color: '#16a34a', marginLeft: 4 }}>
+                  → {entry.targetModel}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       ))}
 
-      {/* Default input handle on the LEFT side */}
+      {/* Default route with LEFT-side input handle */}
       {data.hasDefault && (
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            marginTop: 4,
-            padding: '2px 6px',
+            marginTop: data.entries.length > 0 ? 8 : 0,
+            padding: '4px 8px',
             borderRadius: 4,
             background: '#fde68a',
             fontSize: 11,
             color: '#78350f',
             position: 'relative',
+            borderLeft: '3px solid #d97706',
           }}
         >
           <Handle
@@ -95,50 +141,42 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             id="default"
             style={{
               background: '#d97706',
-              width: 8,
-              height: 8,
+              width: 10,
+              height: 10,
               position: 'relative' as const,
               right: 'auto' as const,
               left: 'auto' as const,
               bottom: 'auto' as const,
               top: 'auto' as const,
-              marginRight: 6,
+              marginRight: 8,
+              marginLeft: -4,
             }}
+            title="Default route (fallback Provider)"
           />
-          <span>Default</span>
+          <div>
+            <div style={{ fontWeight: 500 }}>Default</div>
+            <div style={{ color: '#a16207', fontSize: 10 }}>
+              Fallback when no rules match
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Unified output handle on the RIGHT side */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          marginTop: 6,
-          position: 'relative',
-        }}
-      >
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="output"
-          style={{
-            background: '#f59e0b',
-            width: 10,
-            height: 10,
-          }}
-        />
-      </div>
-
-      {/* Fallback: when no entries and no default, show a generic target handle */}
+      {/* Hint when no entries */}
       {entryCount === 0 && !data.hasDefault && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="target"
-          style={{ background: '#f59e0b', width: 10, height: 10 }}
-        />
+        <div
+          style={{
+            marginTop: 8,
+            padding: '6px 8px',
+            borderRadius: 4,
+            background: '#fef3c7',
+            fontSize: 10,
+            color: '#92400e',
+            textAlign: 'center',
+          }}
+        >
+          Add routing rules or enable default route
+        </div>
       )}
     </div>
   );
