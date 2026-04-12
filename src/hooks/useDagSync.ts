@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useFlowStore } from '../store/flow-store';
 import { useAppStore } from '../store/app-store';
 import { loadDag, saveDag } from '../lib/tauri-api';
+import { toast } from '../store/toast-store';
 import type { DAGDocument } from '../types/dag';
 
 // ---------------------------------------------------------------------------
@@ -78,6 +79,8 @@ export function useDagSync() {
         setDirty(false);
         console.log('[useDagSync] Saved');
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`Failed to save: ${msg}`);
         console.error('[useDagSync] Save failed:', err);
       }
     },

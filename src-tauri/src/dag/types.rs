@@ -108,9 +108,10 @@ impl std::fmt::Display for NodeType {
 
 /// API compatibility type for Provider nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ApiType {
+    #[serde(rename = "anthropic")]
     Anthropic,
+    #[serde(rename = "openai")]
     OpenAI,
 }
 

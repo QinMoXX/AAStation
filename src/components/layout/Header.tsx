@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
 import { useSettingsStore } from '../../store/settings-store';
-import { publishDag, startProxy, getProxyStatus } from '../../lib/tauri-api';
+import { publishDag, startProxy, stopProxy, getProxyStatus } from '../../lib/tauri-api';
+import { toast } from '../../store/toast-store';
 import SettingsModal from '../settings/SettingsModal';
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,31 @@ const settingsBtnStyle: React.CSSProperties = {
   lineHeight: 1,
 };
 
+const toggleBtnBase: React.CSSProperties = {
+  padding: '5px 14px',
+  fontSize: 12,
+  fontWeight: 600,
+  border: 'none',
+  borderRadius: 6,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  transition: 'background 0.15s',
+};
+
+const toggleBtnOn: React.CSSProperties = {
+  ...toggleBtnBase,
+  background: '#166534',
+  color: '#fff',
+};
+
+const toggleBtnOff: React.CSSProperties = {
+  ...toggleBtnBase,
+  background: '#374151',
+  color: '#9ca3af',
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -108,8 +134,39 @@ export default function Header() {
   const settings = useSettingsStore((s) => s.settings);
 
   const [publishing, setPublishing] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // -----------------------------------------------------------------------
+  // Toggle proxy on/off (independent of publish)
+  // -----------------------------------------------------------------------
+
+  const handleToggleProxy = useCallback(async () => {
+    if (toggling) return;
+
+    setToggling(true);
+    setError(null);
+
+    try {
+      if (proxyStatus.running) {
+        await stopProxy();
+        toast.success('Proxy server stopped');
+      } else {
+        await startProxy();
+        toast.success('Proxy server started');
+      }
+      const status = await getProxyStatus();
+      setProxyStatus(status);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      toast.error(`Failed to toggle proxy: ${msg}`);
+      console.error('[Header] Toggle proxy failed:', err);
+    } finally {
+      setToggling(false);
+    }
+  }, [proxyStatus.running, toggling, setProxyStatus]);
 
   const handlePublish = async () => {
     if (publishing) return;
@@ -132,10 +189,12 @@ export default function Header() {
       const status = await getProxyStatus();
       setProxyStatus(status);
 
+      toast.success('Published successfully');
       console.log('[Header] Published and started proxy on port', status.port);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+      toast.error(`Publish failed: ${msg}`);
       console.error('[Header] Publish failed:', err);
     } finally {
       setPublishing(false);
@@ -186,6 +245,15 @@ export default function Header() {
               {error}
             </span>
           )}
+          <button
+            style={proxyStatus.running ? toggleBtnOn : toggleBtnOff}
+            onClick={handleToggleProxy}
+            disabled={toggling}
+            title={proxyStatus.running ? 'Stop proxy server' : 'Start proxy server'}
+          >
+            <span style={statusDotStyle(proxyStatus.running)} />
+            {toggling ? '...' : proxyStatus.running ? 'Running' : 'Stopped'}
+          </button>
           <button
             style={settingsBtnStyle}
             onClick={() => setSettingsOpen(true)}
