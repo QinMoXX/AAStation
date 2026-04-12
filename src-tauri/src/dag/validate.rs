@@ -27,8 +27,6 @@ pub enum ValidationErrorKind {
     ProviderNoBaseUrl,
     /// A provider node is missing its api_key.
     ProviderNoApiKey,
-    /// A provider node has no models.
-    ProviderNoModels,
     /// A router node has no routing entries.
     RouterNoEntries,
     /// A terminal node has no incoming edges.
@@ -47,7 +45,6 @@ impl std::fmt::Display for ValidationErrorKind {
             ValidationErrorKind::OrphanNode => write!(f, "orphan_node"),
             ValidationErrorKind::ProviderNoBaseUrl => write!(f, "provider_no_base_url"),
             ValidationErrorKind::ProviderNoApiKey => write!(f, "provider_no_api_key"),
-            ValidationErrorKind::ProviderNoModels => write!(f, "provider_no_models"),
             ValidationErrorKind::RouterNoEntries => write!(f, "router_no_entries"),
             ValidationErrorKind::TerminalDisconnected => write!(f, "terminal_disconnected"),
             ValidationErrorKind::EdgeToMissingNode => write!(f, "edge_to_missing_node"),
@@ -134,12 +131,8 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
                             message: format!("Provider node '{}' must have an API key", node.id),
                         });
                     }
-                    if data.models.is_empty() {
-                        errors.push(ValidationError {
-                            kind: ValidationErrorKind::ProviderNoModels,
-                            message: format!("Provider node '{}' must have at least one model", node.id),
-                        });
-                    }
+                    // Note: Provider can have empty models, meaning all models are available
+                    // via the "unified" handle (no model restriction).
                 } else {
                     errors.push(ValidationError {
                         kind: ValidationErrorKind::NodeDataInvalid,
@@ -328,7 +321,8 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_no_models() {
+    fn test_provider_no_models_allowed() {
+        // Provider without models should be valid (unified handle routes all models)
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![]);
         let t = make_terminal("t1");
         let e = make_edge("e1", "p1", "t1");
@@ -338,7 +332,7 @@ mod tests {
             ..Default::default()
         };
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ProviderNoModels));
+        assert!(errors.is_empty(), "Expected no errors for provider without models, got: {:?}", errors);
     }
 
     #[test]

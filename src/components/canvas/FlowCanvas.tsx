@@ -3,6 +3,7 @@ import ReactFlow, {
   Controls,
   Background,
   type NodeTypes,
+  type EdgeTypes,
   type IsValidConnection,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -13,12 +14,18 @@ import { isValidConnection } from '../../lib/edge-rules';
 import ProviderNode from '../nodes/ProviderNode';
 import RouterNode from '../nodes/RouterNode';
 import TerminalNode from '../nodes/TerminalNode';
+import CustomEdge from '../edges/CustomEdge';
 
 // Register custom node type components.
 const nodeTypes: NodeTypes = {
   provider: ProviderNode,
   router: RouterNode,
   terminal: TerminalNode,
+};
+
+// Register custom edge type for selection highlighting.
+const edgeTypes: EdgeTypes = {
+  smoothstep: CustomEdge,
 };
 
 /** The main React Flow canvas component. */
@@ -79,6 +86,7 @@ export default function FlowCanvas() {
         onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         isValidConnection={checkValidConnection}
         defaultEdgeOptions={defaultEdgeOptions}
         fitView

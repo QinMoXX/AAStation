@@ -7,6 +7,7 @@ mod settings;
 mod store;
 
 use store::AppState;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -15,6 +16,12 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize tracing subscriber for logging
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::new())

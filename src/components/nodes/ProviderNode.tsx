@@ -25,8 +25,24 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
         background: '#eff6ff',
         minWidth: 180,
         fontSize: 13,
+        position: 'relative',
       }}
     >
+      {/* Unified output handle - centered on right side of node */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="unified"
+        style={{
+          background: '#2563eb',
+          width: 12,
+          height: 12,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+        title="Unified (any model)"
+      />
+
       {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
         ☁️ {data.label || 'Provider'}
@@ -71,75 +87,43 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
       </div>
 
       {/* Model entries with right-side output handles */}
-      {data.models.map((model) => (
-        <div
-          key={model.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 4,
-            padding: '2px 6px',
-            borderRadius: 4,
-            background: model.enabled ? '#dbeafe' : '#f1f5f9',
-            fontSize: 11,
-            color: model.enabled ? '#1e40af' : '#94a3b8',
-            position: 'relative',
-          }}
-        >
-          <span>{model.name || 'Unnamed'}</span>
-          <Handle
-            type="source"
-            position={Position.Right}
-            id={`model-${model.id}`}
-            style={{
-              background: '#3b82f6',
-              width: 8,
-              height: 8,
-              position: 'relative' as const,
-              right: 'auto' as const,
-              left: 'auto' as const,
-              bottom: 'auto' as const,
-              top: 'auto' as const,
-              marginLeft: 6,
-            }}
-          />
+      {data.models.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {data.models.map((model) => (
+            <div
+              key={model.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: 4,
+                padding: '4px 6px',
+                borderRadius: 4,
+                background: model.enabled ? '#dbeafe' : '#f1f5f9',
+                fontSize: 11,
+                color: model.enabled ? '#1e40af' : '#94a3b8',
+                position: 'relative',
+              }}
+            >
+              <span>{model.name || 'Unnamed'}</span>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={`model-${model.id}`}
+                style={{
+                  background: '#3b82f6',
+                  width: 10,
+                  height: 10,
+                  right: -5,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+                title={`Model: ${model.name || 'Unnamed'}`}
+              />
+            </div>
+          ))}
         </div>
-      ))}
-
-      {/* Unified output handle */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: 4,
-          padding: '2px 6px',
-          borderRadius: 4,
-          background: '#bfdbfe',
-          fontSize: 11,
-          color: '#1e3a5f',
-          position: 'relative',
-        }}
-      >
-        <span>Unified</span>
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="unified"
-          style={{
-            background: '#2563eb',
-            width: 10,
-            height: 10,
-            position: 'relative' as const,
-            right: 'auto' as const,
-            left: 'auto' as const,
-            bottom: 'auto' as const,
-            top: 'auto' as const,
-            marginLeft: 6,
-          }}
-        />
-      </div>
+      )}
     </div>
   );
 }

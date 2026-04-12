@@ -31,4 +31,6 @@ futures = "0.3"
 http = "1"
 tower-http = { version = "0.5", features = ["cors"] }
 uuid = { version = "1", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
