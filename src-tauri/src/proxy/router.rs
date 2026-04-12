@@ -71,6 +71,7 @@ mod tests {
             extra_headers: HashMap::new(),
             is_default: false,
             api_type: None,
+            target_model: String::new(),
         }
     }
 
@@ -84,6 +85,7 @@ mod tests {
             extra_headers: HashMap::new(),
             is_default: true,
             api_type: None,
+            target_model: String::new(),
         }
     }
 

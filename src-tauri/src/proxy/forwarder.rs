@@ -35,11 +35,17 @@ pub async fn forward_request(
 
     let mut req_builder = client.request(method, &url).body(body);
 
-    // Copy original headers, excluding Host and auth headers
+    // Copy original headers, excluding hop-by-hop headers and content-length
+    // (content-length must match the actual body after potential model replacement,
+    //  so we let reqwest set it automatically)
     for (name, value) in headers.iter() {
         if name == axum::http::header::HOST
             || name == axum::http::header::AUTHORIZATION
             || name == "x-api-key"
+            || name == axum::http::header::CONTENT_LENGTH
+            || name == axum::http::header::TRANSFER_ENCODING
+            || name == axum::http::header::CONNECTION
+            || name == "upgrade"
         {
             continue;
         }
@@ -65,5 +71,14 @@ pub async fn forward_request(
     req_builder
         .send()
         .await
-        .map_err(|e| ProxyError::UpstreamError(e.to_string()))
+        .map_err(|e| {
+            let detail = if e.is_connect() {
+                format!("connection failed: {} (url: {})", e, url)
+            } else if e.is_timeout() {
+                format!("request timed out: {} (url: {})", e, url)
+            } else {
+                format!("{} (url: {})", e, url)
+            };
+            ProxyError::UpstreamError(detail)
+        })
 }

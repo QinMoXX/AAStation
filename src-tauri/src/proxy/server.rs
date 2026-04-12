@@ -78,7 +78,11 @@ impl ProxyServer {
         let handler_state = HandlerState {
             route_table: Arc::clone(&self.state.route_table),
             request_counter: Arc::clone(&self.state.request_counter),
-            http_client: reqwest::Client::new(),
+            http_client: reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .timeout(std::time::Duration::from_secs(300))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
         };
 
         // Build axum router with catch-all handler

@@ -6,8 +6,19 @@ use crate::proxy::types::{ApiType, CompiledRoute, MatchType, RouteTable};
 use crate::settings::AppSettings;
 
 use super::types::{
-    DAGDocument, DAGEdge, DAGNode, NodeType, ProviderNodeData, RouterNodeData,
+    DAGDocument, DAGEdge, DAGNode, NodeType, ProviderModel, ProviderNodeData, RouterNodeData,
 };
+
+/// Normalize a base URL by ensuring it has a scheme (http:// or https://).
+/// If missing, defaults to https://.
+fn normalize_base_url(url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        trimmed.to_string()
+    } else {
+        format!("https://{}", trimmed)
+    }
+}
 
 /// Compile a DAG document into a flat route table.
 ///
@@ -70,6 +81,17 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
             let provider = resolve_provider(&edge.source, &node_map)?;
             let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
 
+            // Resolve target_model from the edge's source_handle.
+            // When the edge comes from a Provider model sub-handle (e.g. "model-{uuid}"),
+            // use that model's name as the target model to replace in the request body.
+            // When no matching rule is met, the default route (via Provider main handle)
+            // keeps target_model empty, forwarding without model replacement.
+            let target_model = resolve_model_name(
+                edge.source_handle.as_deref(),
+                &provider_data.models,
+                &entry.target_model,
+            );
+
             routes.push(CompiledRoute {
                 id: format!("route-{}", entry.id),
                 match_type: match entry.match_type {
@@ -78,7 +100,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     super::types::MatchType::Model => MatchType::Model,
                 },
                 pattern: entry.pattern.clone(),
-                upstream_url: provider_data.base_url,
+                upstream_url: normalize_base_url(&provider_data.base_url),
                 api_key: provider_data.api_key,
                 extra_headers: HashMap::new(),
                 is_default: false,
@@ -86,7 +108,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     super::types::ApiType::Anthropic => ApiType::Anthropic,
                     super::types::ApiType::OpenAI => ApiType::OpenAI,
                 }),
-                target_model: entry.target_model.clone(),
+                target_model,
             });
         }
 
@@ -102,7 +124,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     id: format!("route-default-{}", node.id),
                     match_type: MatchType::PathPrefix,
                     pattern: String::new(),
-                    upstream_url: provider_data.base_url,
+                    upstream_url: normalize_base_url(&provider_data.base_url),
                     api_key: provider_data.api_key,
                     extra_headers: HashMap::new(),
                     is_default: true,
@@ -126,7 +148,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     id: format!("route-input-{}", node.id),
                     match_type: MatchType::PathPrefix,
                     pattern: String::new(),
-                    upstream_url: provider_data.base_url,
+                    upstream_url: normalize_base_url(&provider_data.base_url),
                     api_key: provider_data.api_key,
                     extra_headers: HashMap::new(),
                     is_default: true,
@@ -162,7 +184,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                             id: format!("route-direct-{}", node.id),
                             match_type: MatchType::PathPrefix,
                             pattern: String::new(),
-                            upstream_url: provider_data.base_url,
+                            upstream_url: normalize_base_url(&provider_data.base_url),
                             api_key: provider_data.api_key,
                             extra_headers: HashMap::new(),
                             is_default: true,
@@ -200,6 +222,27 @@ fn resolve_provider<'a>(
     }
 
     Ok(*node)
+}
+
+/// Resolve the target model name from an edge's source handle.
+///
+/// When a Provider model sub-handle (e.g. "model-{uuid}") connects to a Router entry,
+/// the target model should be the model name from that specific ProviderModel.
+/// If the source_handle is not a model sub-handle (e.g. "unified"), falls back to
+/// the provided `fallback` value (typically `entry.target_model`).
+fn resolve_model_name(
+    source_handle: Option<&str>,
+    models: &[ProviderModel],
+    fallback: &str,
+) -> String {
+    if let Some(handle) = source_handle {
+        if let Some(model_id) = handle.strip_prefix("model-") {
+            if let Some(model) = models.iter().find(|m| m.id == model_id) {
+                return model.name.clone();
+            }
+        }
+    }
+    fallback.to_string()
 }
 
 /// Deserialize a DAG node's `data` field into a typed struct.
@@ -343,6 +386,8 @@ mod tests {
         assert_eq!(table.routes[0].pattern, "gpt-4o");
         assert_eq!(table.routes[0].upstream_url, "https://api.openai.com");
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
+        // target_model is resolved from the Provider model sub-handle ("model-model-1" → "gpt-4o")
+        assert_eq!(table.routes[0].target_model, "gpt-4o");
         assert!(table.default_route.is_none());
     }
 
@@ -528,8 +573,11 @@ mod tests {
         assert_eq!(table.routes.len(), 2);
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
         assert_eq!(table.routes[1].api_type, Some(ApiType::Anthropic));
-        // Check target_model is properly set
-        assert_eq!(table.routes[1].target_model, "claude-sonnet-4-20250514");
+        // target_model is resolved from Provider model sub-handle, not entry.target_model
+        // Route 0: edge from "model-m1" → model name "gpt-4o"
+        assert_eq!(table.routes[0].target_model, "gpt-4o");
+        // Route 1: edge from "model-m2" → model name "claude-sonnet-4"
+        assert_eq!(table.routes[1].target_model, "claude-sonnet-4");
     }
 
     #[test]
@@ -561,6 +609,60 @@ mod tests {
         // Main input should be used as default route
         assert!(table.default_route.is_some());
         assert_eq!(table.default_route.unwrap().upstream_url, "https://api.openai.com");
+    }
+
+    #[test]
+    fn test_single_provider_model_match_with_default_fallback() {
+        // Scenario: single Provider with both main and model connections to Router.
+        // - When entry pattern matches → replace model with Provider model sub-node's model
+        // - When no match → forward via default route without model replacement
+        let provider = make_provider(
+            "p1", "SiliconFlow", DagApiType::OpenAI,
+            "api.siliconflow.cn", "sk-sf-key",
+            vec![ProviderModel { id: "m1".to_string(), name: "Qwen/Qwen2.5-7B-Instruct".to_string(), enabled: true }],
+        );
+
+        let router = make_router(
+            "r1",
+            vec![RouterEntry {
+                id: "entry-1".to_string(),
+                label: "GLM-4.7".to_string(),
+                match_type: DagMatchType::Model,
+                pattern: "Pro/zai-org/GLM-4.7".to_string(),
+                target_model: String::new(), // NOT manually set — should be resolved from edge
+            }],
+            false, // no explicit "default" handle
+        );
+
+        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+
+        let edges = vec![
+            // Provider model sub-handle → Router entry sub-handle (for matching rule)
+            make_edge("e1", "p1", "r1", Some("model-m1"), Some("entry-entry-1")),
+            // Provider unified handle → Router main input (for default/fallback)
+            make_edge("e2", "p1", "r1", Some("unified"), Some("input")),
+            make_edge("e3", "r1", "t1", Some("output"), Some("input")),
+        ];
+
+        let doc = DAGDocument {
+            nodes: vec![provider, router, terminal],
+            edges,
+            ..Default::default()
+        };
+
+        let table = compile(&doc, &default_settings()).unwrap();
+
+        // Specific route: model match with target_model resolved from Provider model sub-handle
+        assert_eq!(table.routes.len(), 1);
+        assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
+        assert_eq!(table.routes[0].pattern, "Pro/zai-org/GLM-4.7");
+        assert_eq!(table.routes[0].target_model, "Qwen/Qwen2.5-7B-Instruct");
+        assert_eq!(table.routes[0].upstream_url, "https://api.siliconflow.cn");
+
+        // Default route: no model replacement, forward as-is
+        assert!(table.default_route.is_some());
+        assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.siliconflow.cn");
+        assert_eq!(table.default_route.as_ref().unwrap().target_model, "");
     }
 
     #[test]

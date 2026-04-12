@@ -275,6 +275,7 @@ mod tests {
             label: "gpt-4o".to_string(),
             match_type: MatchType::Model,
             pattern: "gpt-4o".to_string(),
+            target_model: String::new(),
         }], false);
         let t = make_terminal("t1");
         let e1 = make_edge("e1", "p1", "r1");
@@ -394,6 +395,7 @@ mod tests {
             label: "gpt-4o".to_string(),
             match_type: MatchType::Model,
             pattern: "gpt-4o".to_string(),
+            target_model: String::new(),
         }], false);
         let r2 = make_router("r2", vec![], false);
         let e1 = make_edge("e1", "p1", "r1");
