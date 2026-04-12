@@ -2,6 +2,7 @@ use crate::dag::compile;
 use crate::dag::validate;
 use crate::dag::types::DAGDocument;
 use crate::dag_store;
+use crate::settings;
 use crate::store::AppState;
 use tauri::State;
 
@@ -38,10 +39,13 @@ pub async fn publish_dag(
         return Err(format!("Validation failed:\n{}", msgs.join("\n")));
     }
 
-    // 2. Compile
-    let route_table = compile::compile(&doc).map_err(|e| e.to_string())?;
+    // 2. Load settings for listen port/address
+    let app_settings = settings::load_settings().map_err(|e| e.to_string())?;
 
-    // 3. Hot-load into proxy
+    // 3. Compile with settings
+    let route_table = compile::compile(&doc, &app_settings).map_err(|e| e.to_string())?;
+
+    // 4. Hot-load into proxy
     let proxy = state.proxy.read().await;
     proxy.reload_routes(route_table.clone()).await;
 

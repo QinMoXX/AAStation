@@ -16,9 +16,9 @@ import type {
   AAStationNode,
   AAStationEdge,
   AAStationNodeData,
-  ListenerNodeData,
+  ProviderNodeData,
   RouterNodeData,
-  ForwardNodeData,
+  TerminalNodeData,
 } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -55,12 +55,12 @@ interface BackendDAGDocument {
 // Frontend → Backend conversion
 // ---------------------------------------------------------------------------
 
-/** Convert a frontend RoutingRule's matchType to backend match_type string */
+/** Convert a camelCase string to snake_case */
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
 }
 
-/** Convert a backend snake_case field name to frontend camelCase */
+/** Convert a snake_case string to camelCase */
 function toCamelCase(s: string): string {
   return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
@@ -73,7 +73,6 @@ function keysToSnakeCase(obj: Record<string, unknown>): Record<string, unknown> 
     if (value === null || value === undefined) {
       result[newKey] = value;
     } else if (Array.isArray(value)) {
-      // Recursively convert each array element
       result[newKey] = value.map((item) =>
         typeof item === 'object' && item !== null
           ? keysToSnakeCase(item as Record<string, unknown>)
@@ -96,7 +95,6 @@ function keysToCamelCase(obj: Record<string, unknown>): Record<string, unknown> 
     if (value === null || value === undefined) {
       result[newKey] = value;
     } else if (Array.isArray(value)) {
-      // Recursively convert each array element
       result[newKey] = value.map((item) =>
         typeof item === 'object' && item !== null
           ? keysToCamelCase(item as Record<string, unknown>)
@@ -169,38 +167,40 @@ function nodeDataToFrontend(
   const camelData = keysToCamelCase(data);
 
   switch (nodeType) {
-    case 'listener':
+    case 'provider':
       return {
-        nodeType: 'listener',
-        label: (camelData.label as string) || 'Listener',
-        bindAddress: (camelData.bindAddress as string) || '127.0.0.1',
-        port: (camelData.port as number) || 9527,
+        nodeType: 'provider',
+        label: (camelData.label as string) || 'Provider',
+        apiType: (camelData.apiType as ProviderNodeData['apiType']) || 'openai',
+        baseUrl: (camelData.baseUrl as string) || '',
+        apiKey: (camelData.apiKey as string) || '',
+        models: (camelData.models as ProviderNodeData['models']) || [],
         description: camelData.description as string | undefined,
-      } as ListenerNodeData;
+      } as ProviderNodeData;
     case 'router':
       return {
         nodeType: 'router',
         label: (camelData.label as string) || 'Router',
-        rules: (camelData.rules as RouterNodeData['rules']) || [],
-        defaultEdgeId: (camelData.defaultEdgeId as string | null) ?? null,
+        entries: (camelData.entries as RouterNodeData['entries']) || [],
+        hasDefault: (camelData.hasDefault as boolean) ?? false,
         description: camelData.description as string | undefined,
       } as RouterNodeData;
-    case 'forward':
+    case 'terminal':
       return {
-        nodeType: 'forward',
-        label: (camelData.label as string) || 'Forward',
-        upstreamUrl: (camelData.upstreamUrl as string) || '',
-        apiKey: (camelData.apiKey as string) || '',
-        extraHeaders: (camelData.extraHeaders as Record<string, string>) || undefined,
+        nodeType: 'terminal',
+        label: (camelData.label as string) || 'Terminal',
+        appType: (camelData.appType as string) || 'custom',
         description: camelData.description as string | undefined,
-      } as ForwardNodeData;
+      } as TerminalNodeData;
     default:
-      // Fallback: return as listener
+      // Fallback: return as provider with minimal defaults
       return {
-        nodeType: 'listener',
+        nodeType: 'provider',
         label: 'Unknown',
-        bindAddress: '127.0.0.1',
-        port: 9527,
+        apiType: 'openai',
+        baseUrl: '',
+        apiKey: '',
+        models: [],
       };
   }
 }
@@ -233,7 +233,7 @@ function edgeToFrontend(edge: BackendDAGEdge): AAStationEdge {
  */
 export function fromBackendDocument(raw: BackendDAGDocument): DAGDocument {
   return {
-    version: 1 as const,
+    version: (raw.version >= 2 ? 2 : 1) as 1 | 2,
     id: raw.id,
     name: raw.name,
     nodes: raw.nodes.map(nodeToFrontend),

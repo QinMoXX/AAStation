@@ -10,15 +10,15 @@ import 'reactflow/dist/style.css';
 import { useFlowStore } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import { isValidConnection } from '../../lib/edge-rules';
-import ListenerNode from '../nodes/ListenerNode';
+import ProviderNode from '../nodes/ProviderNode';
 import RouterNode from '../nodes/RouterNode';
-import ForwardNode from '../nodes/ForwardNode';
+import TerminalNode from '../nodes/TerminalNode';
 
 // Register custom node type components.
 const nodeTypes: NodeTypes = {
-  listener: ListenerNode,
+  provider: ProviderNode,
   router: RouterNode,
-  forward: ForwardNode,
+  terminal: TerminalNode,
 };
 
 /** The main React Flow canvas component. */
@@ -51,6 +51,8 @@ export default function FlowCanvas() {
       const result = isValidConnection(
         sourceNode.data.nodeType,
         targetNode.data.nodeType,
+        edge.sourceHandle,
+        edge.targetHandle,
       );
       return result.valid;
     },
@@ -60,6 +62,7 @@ export default function FlowCanvas() {
   const defaultEdgeOptions = useMemo(
     () => ({
       animated: true,
+      type: 'smoothstep' as const,
       style: { strokeWidth: 2, stroke: '#94a3b8' },
     }),
     [],

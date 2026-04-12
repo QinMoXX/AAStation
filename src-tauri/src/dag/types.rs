@@ -26,7 +26,7 @@ pub struct DAGDocument {
 impl Default for DAGDocument {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             id: uuid::Uuid::new_v4().to_string(),
             name: "Untitled Pipeline".to_string(),
             nodes: Vec::new(),
@@ -53,9 +53,9 @@ pub struct DAGNode {
     pub position: Position,
     /// Node-type-specific data stored as a JSON value.
     /// Discriminated by `node_type`:
-    /// - `Listener` → `ListenerNodeData`
-    /// - `Router`   → `RouterNodeData`
-    /// - `Forward`  → `ForwardNodeData`
+    /// - `Provider`  → `ProviderNodeData`
+    /// - `Router`    → `RouterNodeData`
+    /// - `Terminal`  → `TerminalNodeData`
     pub data: serde_json::Value,
 }
 
@@ -74,10 +74,10 @@ pub struct DAGEdge {
     pub source: String,
     /// Target node ID.
     pub target: String,
-    /// Source handle (for multi-output nodes like Router).
+    /// Source handle (e.g. "model-{uuid}", "unified", "output").
     #[serde(default)]
     pub source_handle: Option<String>,
-    /// Target handle.
+    /// Target handle (e.g. "entry-{uuid}", "default", "input").
     #[serde(default)]
     pub target_handle: Option<String>,
     /// Edge-type-specific data.
@@ -89,101 +89,81 @@ pub struct DAGEdge {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
-    Listener,
+    Provider,
     Router,
-    Forward,
+    Terminal,
 }
 
 impl std::fmt::Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NodeType::Listener => write!(f, "listener"),
+            NodeType::Provider => write!(f, "provider"),
             NodeType::Router => write!(f, "router"),
-            NodeType::Forward => write!(f, "forward"),
+            NodeType::Terminal => write!(f, "terminal"),
         }
     }
 }
 
 // --- Node-specific data structures (typed wrappers for `DAGNode.data`) ---
 
-/// Listener node data: defines the local port the proxy listens on.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListenerNodeData {
-    pub label: String,
-    #[serde(default)]
-    pub description: Option<String>,
-    pub port: u16,
-    pub bind_address: String,
+/// API compatibility type for Provider nodes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiType {
+    Anthropic,
+    OpenAI,
 }
 
-impl Default for ListenerNodeData {
-    fn default() -> Self {
-        Self {
-            label: "Listener".to_string(),
-            description: None,
-            port: 9527,
-            bind_address: "127.0.0.1".to_string(),
+impl std::fmt::Display for ApiType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApiType::Anthropic => write!(f, "anthropic"),
+            ApiType::OpenAI => write!(f, "openai"),
         }
     }
 }
 
-/// A single routing rule inside a Router node.
+/// A model entry within a Provider node.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoutingRule {
+pub struct ProviderModel {
+    /// UUID, also used as handle ID: "model-{id}"
     pub id: String,
-    pub match_type: MatchType,
-    /// - `path_prefix`: e.g. "/v1/messages"
-    /// - `header`: "Header-Name:value" format
-    /// - `model`: model name e.g. "claude-sonnet-4-20250514"
-    pub pattern: String,
-    /// The outgoing edge ID this rule corresponds to.
-    pub target_edge_id: String,
+    /// Model name, e.g. "gpt-4o"
+    pub name: String,
+    /// Whether this model entry is active.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
 }
 
-/// Router node data: routes requests by rules to different Forward nodes.
+fn default_true() -> bool {
+    true
+}
+
+/// Provider node data: an upstream API endpoint with model sub-nodes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RouterNodeData {
+pub struct ProviderNodeData {
     pub label: String,
     #[serde(default)]
     pub description: Option<String>,
-    pub rules: Vec<RoutingRule>,
-    /// Edge ID used when no rule matches (default route).
-    #[serde(default)]
-    pub default_edge_id: Option<String>,
-}
-
-impl Default for RouterNodeData {
-    fn default() -> Self {
-        Self {
-            label: "Router".to_string(),
-            description: None,
-            rules: Vec::new(),
-            default_edge_id: None,
-        }
-    }
-}
-
-/// Forward node data: an upstream API endpoint.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ForwardNodeData {
-    pub label: String,
-    #[serde(default)]
-    pub description: Option<String>,
-    pub upstream_url: String,
+    /// API compatibility type.
+    pub api_type: ApiType,
+    /// Base URL for the API (e.g. "https://api.anthropic.com").
+    pub base_url: String,
+    /// API key for authentication.
     pub api_key: String,
-    /// Extra headers to add/overwrite on forwarded requests.
-    #[serde(default)]
-    pub extra_headers: HashMap<String, String>,
+    /// Model entries, each with its own right-side output handle.
+    pub models: Vec<ProviderModel>,
 }
 
-impl Default for ForwardNodeData {
+impl Default for ProviderNodeData {
     fn default() -> Self {
         Self {
-            label: "Forward".to_string(),
+            label: "Provider".to_string(),
             description: None,
-            upstream_url: String::new(),
+            api_type: ApiType::OpenAI,
+            base_url: String::new(),
             api_key: String::new(),
-            extra_headers: HashMap::new(),
+            models: Vec::new(),
         }
     }
 }
@@ -203,6 +183,63 @@ impl std::fmt::Display for MatchType {
             MatchType::PathPrefix => write!(f, "path_prefix"),
             MatchType::Header => write!(f, "header"),
             MatchType::Model => write!(f, "model"),
+        }
+    }
+}
+
+/// A routing entry within a Router node.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouterEntry {
+    /// UUID, also used as handle ID: "entry-{id}"
+    pub id: String,
+    /// Display label, e.g. "claude-sonnet-4"
+    pub label: String,
+    /// Match type for this entry.
+    pub match_type: MatchType,
+    /// Match pattern (model name, path prefix, or header value).
+    pub pattern: String,
+}
+
+/// Router node data: routes requests by entries to different Providers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouterNodeData {
+    pub label: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Routing entries, each with a left-side input handle.
+    pub entries: Vec<RouterEntry>,
+    /// Whether a "default" input handle exists for unmatched requests.
+    #[serde(default)]
+    pub has_default: bool,
+}
+
+impl Default for RouterNodeData {
+    fn default() -> Self {
+        Self {
+            label: "Router".to_string(),
+            description: None,
+            entries: Vec::new(),
+            has_default: false,
+        }
+    }
+}
+
+/// Terminal node data: represents an end application/tool.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalNodeData {
+    pub label: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Application type for display purposes.
+    pub app_type: String,
+}
+
+impl Default for TerminalNodeData {
+    fn default() -> Self {
+        Self {
+            label: "Terminal".to_string(),
+            description: None,
+            app_type: "custom".to_string(),
         }
     }
 }

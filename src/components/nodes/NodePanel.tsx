@@ -2,11 +2,12 @@ import { useCallback } from 'react';
 import { useFlowStore } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import type {
-  ListenerNodeData,
+  ProviderNodeData,
   RouterNodeData,
-  ForwardNodeData,
+  TerminalNodeData,
   AAStationNodeData,
-  RoutingRule,
+  ProviderModel,
+  RouterEntry,
 } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -56,70 +57,33 @@ const inputStyle: React.CSSProperties = {
 const fieldGap: React.CSSProperties = { marginBottom: 12 };
 
 // ---------------------------------------------------------------------------
-// Listener form
+// Provider form
 // ---------------------------------------------------------------------------
 
-function ListenerForm({ data, onUpdate }: { data: ListenerNodeData; onUpdate: (patch: Partial<ListenerNodeData>) => void }) {
-  return (
-    <>
-      <div style={fieldGap}>
-        <label style={labelStyle}>Label</label>
-        <input
-          style={inputStyle}
-          value={data.label}
-          onChange={(e) => onUpdate({ label: e.target.value })}
-        />
-      </div>
-      <div style={fieldGap}>
-        <label style={labelStyle}>Bind Address</label>
-        <input
-          style={inputStyle}
-          value={data.bindAddress}
-          onChange={(e) => onUpdate({ bindAddress: e.target.value })}
-        />
-      </div>
-      <div style={fieldGap}>
-        <label style={labelStyle}>Port</label>
-        <input
-          style={inputStyle}
-          type="number"
-          value={data.port}
-          onChange={(e) => onUpdate({ port: Number(e.target.value) || 0 })}
-        />
-      </div>
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Router form
-// ---------------------------------------------------------------------------
-
-function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch: Partial<RouterNodeData>) => void }) {
-  const addRule = useCallback(() => {
-    const newRule: RoutingRule = {
+function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (patch: Partial<ProviderNodeData>) => void }) {
+  const addModel = useCallback(() => {
+    const newModel: ProviderModel = {
       id: crypto.randomUUID(),
-      matchType: 'path_prefix',
-      pattern: '',
-      targetEdgeId: '',
+      name: '',
+      enabled: true,
     };
-    onUpdate({ rules: [...data.rules, newRule] });
-  }, [data.rules, onUpdate]);
+    onUpdate({ models: [...data.models, newModel] });
+  }, [data.models, onUpdate]);
 
-  const removeRule = useCallback(
-    (ruleId: string) => {
-      onUpdate({ rules: data.rules.filter((r) => r.id !== ruleId) });
+  const removeModel = useCallback(
+    (modelId: string) => {
+      onUpdate({ models: data.models.filter((m) => m.id !== modelId) });
     },
-    [data.rules, onUpdate],
+    [data.models, onUpdate],
   );
 
-  const updateRule = useCallback(
-    (ruleId: string, patch: Partial<RoutingRule>) => {
+  const updateModel = useCallback(
+    (modelId: string, patch: Partial<ProviderModel>) => {
       onUpdate({
-        rules: data.rules.map((r) => (r.id === ruleId ? { ...r, ...patch } : r)),
+        models: data.models.map((m) => (m.id === modelId ? { ...m, ...patch } : m)),
       });
     },
-    [data.rules, onUpdate],
+    [data.models, onUpdate],
   );
 
   return (
@@ -133,47 +97,81 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
         />
       </div>
 
+      <div style={fieldGap}>
+        <label style={labelStyle}>API Type</label>
+        <select
+          style={inputStyle}
+          value={data.apiType}
+          onChange={(e) => onUpdate({ apiType: e.target.value as ProviderNodeData['apiType'] })}
+        >
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+        </select>
+      </div>
+
+      <div style={fieldGap}>
+        <label style={labelStyle}>Base URL</label>
+        <input
+          style={inputStyle}
+          value={data.baseUrl}
+          placeholder="https://api.openai.com"
+          onChange={(e) => onUpdate({ baseUrl: e.target.value })}
+        />
+      </div>
+
+      <div style={fieldGap}>
+        <label style={labelStyle}>API Key</label>
+        <input
+          style={inputStyle}
+          type="password"
+          value={data.apiKey}
+          placeholder={data.apiType === 'anthropic' ? 'sk-ant-...' : 'sk-...'}
+          onChange={(e) => onUpdate({ apiKey: e.target.value })}
+        />
+      </div>
+
+      {/* Models section */}
       <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ ...sectionTitle, marginBottom: 0 }}>Routing Rules</span>
+        <span style={{ ...sectionTitle, marginBottom: 0 }}>Models</span>
         <button
-          onClick={addRule}
+          onClick={addModel}
           style={{
             fontSize: 12,
             padding: '2px 10px',
-            border: '1px solid #f59e0b',
+            border: '1px solid #3b82f6',
             borderRadius: 4,
-            background: '#fffbeb',
-            color: '#92400e',
+            background: '#eff6ff',
+            color: '#1e40af',
             cursor: 'pointer',
           }}
         >
-          + Add Rule
+          + Add Model
         </button>
       </div>
 
-      {data.rules.length === 0 && (
+      {data.models.length === 0 && (
         <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-          No rules yet. Click "Add Rule" to create one.
+          No models yet. Click "Add Model" to create one.
         </div>
       )}
 
-      {data.rules.map((rule, index) => (
+      {data.models.map((model, index) => (
         <div
-          key={rule.id}
+          key={model.id}
           style={{
-            marginBottom: 10,
+            marginBottom: 8,
             padding: 8,
             borderRadius: 6,
-            border: '1px solid #fde68a',
-            background: '#fffbeb',
+            border: '1px solid #bfdbfe',
+            background: '#eff6ff',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#92400e' }}>
-              Rule #{index + 1}
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#1e40af' }}>
+              Model #{index + 1}
             </span>
             <button
-              onClick={() => removeRule(rule.id)}
+              onClick={() => removeModel(model.id)}
               style={{
                 fontSize: 11,
                 padding: '1px 6px',
@@ -189,19 +187,161 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
           </div>
 
           <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>Name</label>
+            <input
+              style={inputStyle}
+              value={model.name}
+              placeholder="gpt-4o"
+              onChange={(e) => updateModel(model.id, { name: e.target.value })}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={model.enabled}
+              onChange={(e) => updateModel(model.id, { enabled: e.target.checked })}
+            />
+            <span style={{ fontSize: 11, color: '#64748b' }}>Enabled</span>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Router form
+// ---------------------------------------------------------------------------
+
+function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch: Partial<RouterNodeData>) => void }) {
+  const addEntry = useCallback(() => {
+    const newEntry: RouterEntry = {
+      id: crypto.randomUUID(),
+      label: '',
+      matchType: 'model',
+      pattern: '',
+    };
+    onUpdate({ entries: [...data.entries, newEntry] });
+  }, [data.entries, onUpdate]);
+
+  const removeEntry = useCallback(
+    (entryId: string) => {
+      onUpdate({ entries: data.entries.filter((e) => e.id !== entryId) });
+    },
+    [data.entries, onUpdate],
+  );
+
+  const updateEntry = useCallback(
+    (entryId: string, patch: Partial<RouterEntry>) => {
+      onUpdate({
+        entries: data.entries.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
+      });
+    },
+    [data.entries, onUpdate],
+  );
+
+  return (
+    <>
+      <div style={fieldGap}>
+        <label style={labelStyle}>Label</label>
+        <input
+          style={inputStyle}
+          value={data.label}
+          onChange={(e) => onUpdate({ label: e.target.value })}
+        />
+      </div>
+
+      {/* Default route toggle */}
+      <div style={{ ...fieldGap, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="checkbox"
+          checked={data.hasDefault}
+          onChange={(e) => onUpdate({ hasDefault: e.target.checked })}
+        />
+        <span style={{ fontSize: 12, color: '#64748b' }}>Enable Default Route</span>
+      </div>
+
+      {/* Entries section */}
+      <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ ...sectionTitle, marginBottom: 0 }}>Routing Entries</span>
+        <button
+          onClick={addEntry}
+          style={{
+            fontSize: 12,
+            padding: '2px 10px',
+            border: '1px solid #f59e0b',
+            borderRadius: 4,
+            background: '#fffbeb',
+            color: '#92400e',
+            cursor: 'pointer',
+          }}
+        >
+          + Add Entry
+        </button>
+      </div>
+
+      {data.entries.length === 0 && (
+        <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+          No entries yet. Click "Add Entry" to create one.
+        </div>
+      )}
+
+      {data.entries.map((entry, index) => (
+        <div
+          key={entry.id}
+          style={{
+            marginBottom: 10,
+            padding: 8,
+            borderRadius: 6,
+            border: '1px solid #fde68a',
+            background: '#fffbeb',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#92400e' }}>
+              Entry #{index + 1}
+            </span>
+            <button
+              onClick={() => removeEntry(entry.id)}
+              style={{
+                fontSize: 11,
+                padding: '1px 6px',
+                border: '1px solid #fca5a5',
+                borderRadius: 3,
+                background: '#fef2f2',
+                color: '#dc2626',
+                cursor: 'pointer',
+              }}
+            >
+              Remove
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>Label</label>
+            <input
+              style={inputStyle}
+              value={entry.label}
+              placeholder="gpt-4o"
+              onChange={(e) => updateEntry(entry.id, { label: e.target.value })}
+            />
+          </div>
+
+          <div style={{ marginBottom: 6 }}>
             <label style={labelStyle}>Match Type</label>
             <select
               style={inputStyle}
-              value={rule.matchType}
+              value={entry.matchType}
               onChange={(e) =>
-                updateRule(rule.id, {
-                  matchType: e.target.value as RoutingRule['matchType'],
+                updateEntry(entry.id, {
+                  matchType: e.target.value as RouterEntry['matchType'],
                 })
               }
             >
+              <option value="model">Model</option>
               <option value="path_prefix">Path Prefix</option>
               <option value="header">Header</option>
-              <option value="model">Model</option>
             </select>
           </div>
 
@@ -209,15 +349,15 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
             <label style={labelStyle}>Pattern</label>
             <input
               style={inputStyle}
-              value={rule.pattern}
+              value={entry.pattern}
               placeholder={
-                rule.matchType === 'path_prefix'
+                entry.matchType === 'path_prefix'
                   ? '/v1/messages'
-                  : rule.matchType === 'header'
+                  : entry.matchType === 'header'
                     ? 'X-Custom:value'
                     : 'claude-sonnet-4-20250514'
               }
-              onChange={(e) => updateRule(rule.id, { pattern: e.target.value })}
+              onChange={(e) => updateEntry(entry.id, { pattern: e.target.value })}
             />
           </div>
         </div>
@@ -227,10 +367,10 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
 }
 
 // ---------------------------------------------------------------------------
-// Forward form
+// Terminal form
 // ---------------------------------------------------------------------------
 
-function ForwardForm({ data, onUpdate }: { data: ForwardNodeData; onUpdate: (patch: Partial<ForwardNodeData>) => void }) {
+function TerminalForm({ data, onUpdate }: { data: TerminalNodeData; onUpdate: (patch: Partial<TerminalNodeData>) => void }) {
   return (
     <>
       <div style={fieldGap}>
@@ -242,23 +382,16 @@ function ForwardForm({ data, onUpdate }: { data: ForwardNodeData; onUpdate: (pat
         />
       </div>
       <div style={fieldGap}>
-        <label style={labelStyle}>Upstream URL</label>
-        <input
+        <label style={labelStyle}>Application Type</label>
+        <select
           style={inputStyle}
-          value={data.upstreamUrl}
-          placeholder="https://api.anthropic.com"
-          onChange={(e) => onUpdate({ upstreamUrl: e.target.value })}
-        />
-      </div>
-      <div style={fieldGap}>
-        <label style={labelStyle}>API Key</label>
-        <input
-          style={inputStyle}
-          type="password"
-          value={data.apiKey}
-          placeholder="sk-ant-..."
-          onChange={(e) => onUpdate({ apiKey: e.target.value })}
-        />
+          value={data.appType}
+          onChange={(e) => onUpdate({ appType: e.target.value })}
+        >
+          <option value="claude_code">Claude Code</option>
+          <option value="openclaw">OpenClaw</option>
+          <option value="custom">Custom</option>
+        </select>
       </div>
     </>
   );
@@ -291,11 +424,11 @@ export default function NodePanel() {
 
   // Color header by node type
   const headerColors: Record<string, { bg: string; text: string; icon: string }> = {
-    listener: { bg: '#3b82f6', text: '#fff', icon: '🎧' },
+    provider: { bg: '#3b82f6', text: '#fff', icon: '☁️' },
     router: { bg: '#f59e0b', text: '#fff', icon: '🔀' },
-    forward: { bg: '#16a34a', text: '#fff', icon: '🚀' },
+    terminal: { bg: '#16a34a', text: '#fff', icon: '🖥️' },
   };
-  const theme = headerColors[data.nodeType] ?? headerColors.listener;
+  const theme = headerColors[data.nodeType] ?? headerColors.provider;
 
   return (
     <div style={panelStyle}>
@@ -332,14 +465,14 @@ export default function NodePanel() {
       </div>
 
       {/* Type-specific form */}
-      {data.nodeType === 'listener' && (
-        <ListenerForm data={data} onUpdate={handleUpdate} />
+      {data.nodeType === 'provider' && (
+        <ProviderForm data={data} onUpdate={handleUpdate} />
       )}
       {data.nodeType === 'router' && (
         <RouterForm data={data} onUpdate={handleUpdate} />
       )}
-      {data.nodeType === 'forward' && (
-        <ForwardForm data={data} onUpdate={handleUpdate} />
+      {data.nodeType === 'terminal' && (
+        <TerminalForm data={data} onUpdate={handleUpdate} />
       )}
     </div>
   );

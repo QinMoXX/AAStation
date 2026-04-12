@@ -11,7 +11,7 @@ export type AAStationEdge = Edge<AAStationEdgeData>;
 /** Complete DAG document — the persistence unit. */
 export interface DAGDocument {
   /** Document schema version for future migrations. */
-  version: 1;
+  version: 1 | 2;
   /** Unique document identifier. */
   id: string;
   /** Display name. */

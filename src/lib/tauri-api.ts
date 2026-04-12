@@ -12,6 +12,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { DAGDocument } from '../types/dag';
 import type { ProxyStatus, RouteTable } from '../types/proxy';
+import type { AppSettings } from '../types/settings';
 import { toBackendDocument, fromBackendDocument } from './dag-utils';
 
 // ---------------------------------------------------------------------------
@@ -75,4 +76,27 @@ export async function stopProxy(): Promise<void> {
 /** Get the current proxy server status. */
 export async function getProxyStatus(): Promise<ProxyStatus> {
   return invoke<ProxyStatus>('get_proxy_status');
+}
+
+// ---------------------------------------------------------------------------
+// Settings commands
+// ---------------------------------------------------------------------------
+
+/** Load application settings from disk. Returns defaults if no file exists. */
+export async function loadSettings(): Promise<AppSettings> {
+  const raw = await invoke<{ listen_port: number; listen_address: string }>('load_settings');
+  return {
+    listenPort: raw.listen_port,
+    listenAddress: raw.listen_address,
+  };
+}
+
+/** Save application settings to disk. */
+export async function saveSettings(settings: AppSettings): Promise<void> {
+  return invoke<void>('save_settings', {
+    settings: {
+      listen_port: settings.listenPort,
+      listen_address: settings.listenAddress,
+    },
+  });
 }

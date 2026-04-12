@@ -3,6 +3,14 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// API compatibility type for compiled routes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiType {
+    Anthropic,
+    OpenAI,
+}
+
 /// Compiled routing table — output of DAG compilation.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RouteTable {
@@ -29,6 +37,9 @@ pub struct CompiledRoute {
     #[serde(default)]
     pub extra_headers: HashMap<String, String>,
     pub is_default: bool,
+    /// API compatibility type for request/response adaptation.
+    #[serde(default)]
+    pub api_type: Option<ApiType>,
 }
 
 /// Route match strategy.
@@ -40,7 +51,7 @@ pub enum MatchType {
     Model,
 }
 
-/// Proxy server configuration (derived from Listener node at publish time).
+/// Proxy server configuration (derived from settings at publish time).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
     pub listen_port: u16,

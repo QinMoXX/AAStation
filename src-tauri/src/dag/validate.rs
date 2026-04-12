@@ -21,18 +21,18 @@ impl std::error::Error for ValidationError {}
 /// Kinds of validation errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationErrorKind {
-    /// No listener node found.
-    NoListener,
-    /// More than one listener node.
-    MultipleListeners,
     /// A node has no connected edges (orphan).
     OrphanNode,
-    /// A router node has no routing rules.
-    RouterNoRules,
-    /// A forward node is missing its upstream_url.
-    ForwardNoUpstreamUrl,
-    /// A forward node is missing its api_key.
-    ForwardNoApiKey,
+    /// A provider node is missing its base_url.
+    ProviderNoBaseUrl,
+    /// A provider node is missing its api_key.
+    ProviderNoApiKey,
+    /// A provider node has no models.
+    ProviderNoModels,
+    /// A router node has no routing entries.
+    RouterNoEntries,
+    /// A terminal node has no incoming edges.
+    TerminalDisconnected,
     /// Invalid edge: source or target node does not exist.
     EdgeToMissingNode,
     /// Invalid edge: connection type not allowed.
@@ -44,12 +44,12 @@ pub enum ValidationErrorKind {
 impl std::fmt::Display for ValidationErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationErrorKind::NoListener => write!(f, "no_listener"),
-            ValidationErrorKind::MultipleListeners => write!(f, "multiple_listeners"),
             ValidationErrorKind::OrphanNode => write!(f, "orphan_node"),
-            ValidationErrorKind::RouterNoRules => write!(f, "router_no_rules"),
-            ValidationErrorKind::ForwardNoUpstreamUrl => write!(f, "forward_no_upstream_url"),
-            ValidationErrorKind::ForwardNoApiKey => write!(f, "forward_no_api_key"),
+            ValidationErrorKind::ProviderNoBaseUrl => write!(f, "provider_no_base_url"),
+            ValidationErrorKind::ProviderNoApiKey => write!(f, "provider_no_api_key"),
+            ValidationErrorKind::ProviderNoModels => write!(f, "provider_no_models"),
+            ValidationErrorKind::RouterNoEntries => write!(f, "router_no_entries"),
+            ValidationErrorKind::TerminalDisconnected => write!(f, "terminal_disconnected"),
             ValidationErrorKind::EdgeToMissingNode => write!(f, "edge_to_missing_node"),
             ValidationErrorKind::InvalidEdgeType => write!(f, "invalid_edge_type"),
             ValidationErrorKind::NodeDataInvalid => write!(f, "node_data_invalid"),
@@ -107,27 +107,6 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
         }
     }
 
-    // Check for exactly one Listener
-    let listeners: Vec<&DAGNode> = doc
-        .nodes
-        .iter()
-        .filter(|n| n.node_type == NodeType::Listener)
-        .collect();
-    match listeners.len() {
-        0 => errors.push(ValidationError {
-            kind: ValidationErrorKind::NoListener,
-            message: "DAG must have exactly one Listener node".to_string(),
-        }),
-        1 => {}
-        _ => errors.push(ValidationError {
-            kind: ValidationErrorKind::MultipleListeners,
-            message: format!(
-                "DAG must have exactly one Listener node, found {}",
-                listeners.len()
-            ),
-        }),
-    }
-
     // Check for orphan nodes (no connected edges)
     for node in &doc.nodes {
         if !connected_nodes.contains(node.id.as_str()) {
@@ -141,30 +120,40 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
     // Validate each node's data
     for node in &doc.nodes {
         match node.node_type {
-            NodeType::Listener => {
-                // Validate ListenerNodeData
-                if let Ok(data) = serde_json::from_value::<ListenerNodeData>(node.data.clone()) {
-                    if data.port == 0 {
+            NodeType::Provider => {
+                if let Ok(data) = serde_json::from_value::<ProviderNodeData>(node.data.clone()) {
+                    if data.base_url.trim().is_empty() {
                         errors.push(ValidationError {
-                            kind: ValidationErrorKind::NodeDataInvalid,
-                            message: format!("Listener node '{}' has invalid port 0", node.id),
+                            kind: ValidationErrorKind::ProviderNoBaseUrl,
+                            message: format!("Provider node '{}' must have a base URL", node.id),
+                        });
+                    }
+                    if data.api_key.trim().is_empty() {
+                        errors.push(ValidationError {
+                            kind: ValidationErrorKind::ProviderNoApiKey,
+                            message: format!("Provider node '{}' must have an API key", node.id),
+                        });
+                    }
+                    if data.models.is_empty() {
+                        errors.push(ValidationError {
+                            kind: ValidationErrorKind::ProviderNoModels,
+                            message: format!("Provider node '{}' must have at least one model", node.id),
                         });
                     }
                 } else {
                     errors.push(ValidationError {
                         kind: ValidationErrorKind::NodeDataInvalid,
-                        message: format!("Listener node '{}' has invalid data", node.id),
+                        message: format!("Provider node '{}' has invalid data", node.id),
                     });
                 }
             }
             NodeType::Router => {
-                // Validate RouterNodeData
                 if let Ok(data) = serde_json::from_value::<RouterNodeData>(node.data.clone()) {
-                    if data.rules.is_empty() {
+                    if data.entries.is_empty() && !data.has_default {
                         errors.push(ValidationError {
-                            kind: ValidationErrorKind::RouterNoRules,
+                            kind: ValidationErrorKind::RouterNoEntries,
                             message: format!(
-                                "Router node '{}' must have at least one routing rule",
+                                "Router node '{}' must have at least one entry or a default route",
                                 node.id
                             ),
                         });
@@ -176,28 +165,13 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
                     });
                 }
             }
-            NodeType::Forward => {
-                // Validate ForwardNodeData
-                if let Ok(data) = serde_json::from_value::<ForwardNodeData>(node.data.clone()) {
-                    if data.upstream_url.trim().is_empty() {
-                        errors.push(ValidationError {
-                            kind: ValidationErrorKind::ForwardNoUpstreamUrl,
-                            message: format!(
-                                "Forward node '{}' must have an upstream URL",
-                                node.id
-                            ),
-                        });
-                    }
-                    if data.api_key.trim().is_empty() {
-                        errors.push(ValidationError {
-                            kind: ValidationErrorKind::ForwardNoApiKey,
-                            message: format!("Forward node '{}' must have an API key", node.id),
-                        });
-                    }
-                } else {
+            NodeType::Terminal => {
+                // Check that Terminal has at least one incoming edge
+                let has_incoming = doc.edges.iter().any(|e| e.target == node.id);
+                if !has_incoming {
                     errors.push(ValidationError {
-                        kind: ValidationErrorKind::NodeDataInvalid,
-                        message: format!("Forward node '{}' has invalid data", node.id),
+                        kind: ValidationErrorKind::TerminalDisconnected,
+                        message: format!("Terminal node '{}' must have at least one incoming connection", node.id),
                     });
                 }
             }
@@ -208,37 +182,38 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
 }
 
 /// Check if an edge from source type to target type is valid.
-/// Allowed: Listener→Router, Listener→Forward, Router→Forward
+/// Allowed: Provider→Router, Provider→Terminal, Router→Terminal
 fn is_valid_edge(source: NodeType, target: NodeType) -> bool {
     matches!(
         (source, target),
-        (NodeType::Listener, NodeType::Router)
-            | (NodeType::Listener, NodeType::Forward)
-            | (NodeType::Router, NodeType::Forward)
+        (NodeType::Provider, NodeType::Router)
+            | (NodeType::Provider, NodeType::Terminal)
+            | (NodeType::Router, NodeType::Terminal)
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
-    fn make_listener(id: &str, port: u16) -> DAGNode {
+    fn make_provider(id: &str, base_url: &str, api_key: &str, models: Vec<ProviderModel>) -> DAGNode {
         DAGNode {
             id: id.to_string(),
-            node_type: NodeType::Listener,
+            node_type: NodeType::Provider,
             position: Position { x: 0.0, y: 0.0 },
-            data: serde_json::to_value(ListenerNodeData {
-                label: "L".to_string(),
+            data: serde_json::to_value(ProviderNodeData {
+                label: "P".to_string(),
                 description: None,
-                port,
-                bind_address: "127.0.0.1".to_string(),
+                api_type: ApiType::OpenAI,
+                base_url: base_url.to_string(),
+                api_key: api_key.to_string(),
+                models,
             })
             .unwrap(),
         }
     }
 
-    fn make_router(id: &str, rules: Vec<RoutingRule>) -> DAGNode {
+    fn make_router(id: &str, entries: Vec<RouterEntry>, has_default: bool) -> DAGNode {
         DAGNode {
             id: id.to_string(),
             node_type: NodeType::Router,
@@ -246,24 +221,22 @@ mod tests {
             data: serde_json::to_value(RouterNodeData {
                 label: "R".to_string(),
                 description: None,
-                rules,
-                default_edge_id: None,
+                entries,
+                has_default,
             })
             .unwrap(),
         }
     }
 
-    fn make_forward(id: &str, url: &str, key: &str) -> DAGNode {
+    fn make_terminal(id: &str) -> DAGNode {
         DAGNode {
             id: id.to_string(),
-            node_type: NodeType::Forward,
+            node_type: NodeType::Terminal,
             position: Position { x: 0.0, y: 0.0 },
-            data: serde_json::to_value(ForwardNodeData {
-                label: "F".to_string(),
+            data: serde_json::to_value(TerminalNodeData {
+                label: "T".to_string(),
                 description: None,
-                upstream_url: url.to_string(),
-                api_key: key.to_string(),
-                extra_headers: HashMap::new(),
+                app_type: "custom".to_string(),
             })
             .unwrap(),
         }
@@ -281,39 +254,40 @@ mod tests {
     }
 
     fn valid_doc() -> DAGDocument {
-        let l = make_listener("l1", 9527);
-        let f = make_forward("f1", "https://api.example.com", "sk-123");
-        let e = make_edge("e1", "l1", "f1");
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let t = make_terminal("t1");
+        let e = make_edge("e1", "p1", "t1");
         DAGDocument {
-            nodes: vec![l, f],
+            nodes: vec![p, t],
             edges: vec![e],
             ..Default::default()
         }
     }
 
     #[test]
-    fn test_valid_listener_to_forward() {
+    fn test_valid_provider_to_terminal() {
         let errors = validate(&valid_doc());
         assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
     }
 
     #[test]
-    fn test_valid_listener_router_forward() {
-        let l = make_listener("l1", 9527);
-        let r = make_router(
-            "r1",
-            vec![RoutingRule {
-                id: "rule1".to_string(),
-                match_type: MatchType::PathPrefix,
-                pattern: "/v1".to_string(),
-                target_edge_id: "e2".to_string(),
-            }],
-        );
-        let f = make_forward("f1", "https://api.example.com", "sk-123");
-        let e1 = make_edge("e1", "l1", "r1");
-        let e2 = make_edge("e2", "r1", "f1");
+    fn test_valid_provider_router_terminal() {
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let r = make_router("r1", vec![RouterEntry {
+            id: "e1".to_string(),
+            label: "gpt-4o".to_string(),
+            match_type: MatchType::Model,
+            pattern: "gpt-4o".to_string(),
+        }], false);
+        let t = make_terminal("t1");
+        let e1 = make_edge("e1", "p1", "r1");
+        let e2 = make_edge("e2", "r1", "t1");
         let doc = DAGDocument {
-            nodes: vec![l, r, f],
+            nodes: vec![p, r, t],
             edges: vec![e1, e2],
             ..Default::default()
         };
@@ -322,97 +296,93 @@ mod tests {
     }
 
     #[test]
-    fn test_no_listener() {
-        let f = make_forward("f1", "https://api.example.com", "sk-123");
-        let _e = make_edge("e1", "n1", "f1"); // source doesn't exist but that's another error
-        let mut doc = valid_doc();
-        doc.nodes = vec![f];
-        doc.edges = vec![];
-        let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::NoListener));
-    }
-
-    #[test]
-    fn test_multiple_listeners() {
-        let mut doc = valid_doc();
-        doc.nodes.push(make_listener("l2", 8080));
-        let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::MultipleListeners));
-    }
-
-    #[test]
-    fn test_orphan_node() {
-        let mut doc = valid_doc();
-        let orphan = make_forward("f2", "https://orphan.com", "sk-xxx");
-        doc.nodes.push(orphan);
-        let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::OrphanNode && e.message.contains("f2")));
-    }
-
-    #[test]
-    fn test_router_no_rules() {
-        let l = make_listener("l1", 9527);
-        let r = make_router("r1", vec![]);
-        let f = make_forward("f1", "https://api.example.com", "sk-123");
-        let e1 = make_edge("e1", "l1", "r1");
-        let e2 = make_edge("e2", "r1", "f1");
+    fn test_provider_no_base_url() {
+        let p = make_provider("p1", "", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let t = make_terminal("t1");
+        let e = make_edge("e1", "p1", "t1");
         let doc = DAGDocument {
-            nodes: vec![l, r, f],
+            nodes: vec![p, t],
+            edges: vec![e],
+            ..Default::default()
+        };
+        let errors = validate(&doc);
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ProviderNoBaseUrl));
+    }
+
+    #[test]
+    fn test_provider_no_api_key() {
+        let p = make_provider("p1", "https://api.openai.com", "", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let t = make_terminal("t1");
+        let e = make_edge("e1", "p1", "t1");
+        let doc = DAGDocument {
+            nodes: vec![p, t],
+            edges: vec![e],
+            ..Default::default()
+        };
+        let errors = validate(&doc);
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ProviderNoApiKey));
+    }
+
+    #[test]
+    fn test_provider_no_models() {
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![]);
+        let t = make_terminal("t1");
+        let e = make_edge("e1", "p1", "t1");
+        let doc = DAGDocument {
+            nodes: vec![p, t],
+            edges: vec![e],
+            ..Default::default()
+        };
+        let errors = validate(&doc);
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ProviderNoModels));
+    }
+
+    #[test]
+    fn test_router_no_entries() {
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let r = make_router("r1", vec![], false);
+        let t = make_terminal("t1");
+        let e1 = make_edge("e1", "p1", "r1");
+        let e2 = make_edge("e2", "r1", "t1");
+        let doc = DAGDocument {
+            nodes: vec![p, r, t],
             edges: vec![e1, e2],
             ..Default::default()
         };
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::RouterNoRules));
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::RouterNoEntries));
     }
 
     #[test]
-    fn test_forward_no_upstream_url() {
-        let l = make_listener("l1", 9527);
-        let f = make_forward("f1", "", "sk-123");
-        let e = make_edge("e1", "l1", "f1");
+    fn test_terminal_disconnected() {
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let t = make_terminal("t1");
         let doc = DAGDocument {
-            nodes: vec![l, f],
-            edges: vec![e],
+            nodes: vec![p, t],
+            edges: vec![],
             ..Default::default()
         };
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ForwardNoUpstreamUrl));
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::TerminalDisconnected));
     }
 
     #[test]
-    fn test_forward_no_api_key() {
-        let l = make_listener("l1", 9527);
-        let f = make_forward("f1", "https://api.example.com", "");
-        let e = make_edge("e1", "l1", "f1");
+    fn test_invalid_edge_type_terminal_to_provider() {
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let t = make_terminal("t1");
+        let e = make_edge("e1", "t1", "p1"); // Terminal → Provider (invalid)
         let doc = DAGDocument {
-            nodes: vec![l, f],
-            edges: vec![e],
-            ..Default::default()
-        };
-        let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ForwardNoApiKey));
-    }
-
-    #[test]
-    fn test_edge_to_missing_node() {
-        let l = make_listener("l1", 9527);
-        let e = make_edge("e1", "l1", "nonexistent");
-        let doc = DAGDocument {
-            nodes: vec![l],
-            edges: vec![e],
-            ..Default::default()
-        };
-        let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::EdgeToMissingNode));
-    }
-
-    #[test]
-    fn test_invalid_edge_type_forward_to_listener() {
-        let l = make_listener("l1", 9527);
-        let f = make_forward("f1", "https://api.example.com", "sk-123");
-        let e = make_edge("e1", "f1", "l1"); // Forward → Listener (invalid)
-        let doc = DAGDocument {
-            nodes: vec![l, f],
+            nodes: vec![p, t],
             edges: vec![e],
             ..Default::default()
         };
@@ -422,26 +392,20 @@ mod tests {
 
     #[test]
     fn test_invalid_edge_type_router_to_router() {
-        let l = make_listener("l1", 9527);
-        let r1 = make_router(
-            "r1",
-            vec![RoutingRule {
-                id: "rule1".to_string(),
-                match_type: MatchType::PathPrefix,
-                pattern: "/v1".to_string(),
-                target_edge_id: "e2".to_string(),
-            }],
-        );
-        let r2 = make_router("r2", vec![RoutingRule {
-            id: "rule2".to_string(),
-            match_type: MatchType::PathPrefix,
-            pattern: "/v2".to_string(),
-            target_edge_id: "e3".to_string(),
-        }]);
-        let e1 = make_edge("e1", "l1", "r1");
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let r1 = make_router("r1", vec![RouterEntry {
+            id: "e1".to_string(),
+            label: "gpt-4o".to_string(),
+            match_type: MatchType::Model,
+            pattern: "gpt-4o".to_string(),
+        }], false);
+        let r2 = make_router("r2", vec![], false);
+        let e1 = make_edge("e1", "p1", "r1");
         let e2 = make_edge("e2", "r1", "r2"); // Router → Router (invalid)
         let doc = DAGDocument {
-            nodes: vec![l, r1, r2],
+            nodes: vec![p, r1, r2],
             edges: vec![e1, e2],
             ..Default::default()
         };
@@ -450,35 +414,44 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_node_data() {
+    fn test_orphan_node() {
         let mut doc = valid_doc();
-        // Corrupt the listener's data
-        doc.nodes[0].data = serde_json::Value::String("bad data".to_string());
+        let orphan = make_provider("p2", "https://orphan.com", "sk-xxx", vec![
+            ProviderModel { id: "m2".to_string(), name: "orphan".to_string(), enabled: true },
+        ]);
+        doc.nodes.push(orphan);
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::NodeDataInvalid));
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::OrphanNode && e.message.contains("p2")));
+    }
+
+    #[test]
+    fn test_edge_to_missing_node() {
+        let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
+            ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
+        ]);
+        let e = make_edge("e1", "p1", "nonexistent");
+        let doc = DAGDocument {
+            nodes: vec![p],
+            edges: vec![e],
+            ..Default::default()
+        };
+        let errors = validate(&doc);
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::EdgeToMissingNode));
     }
 
     #[test]
     fn test_empty_dag() {
         let doc = DAGDocument::default();
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::NoListener));
+        // Empty DAG should have no errors (no nodes to validate)
+        assert!(errors.is_empty());
     }
 
     #[test]
-    fn test_multiple_errors_at_once() {
-        // No listener + orphan + forward without URL
-        let f1 = make_forward("f1", "", "sk-123");
-        let f2 = make_forward("f2", "https://api.example.com", "sk-456");
-        let doc = DAGDocument {
-            nodes: vec![f1, f2],
-            edges: vec![make_edge("e1", "f1", "f2")], // invalid edge type too
-            ..Default::default()
-        };
+    fn test_invalid_node_data() {
+        let mut doc = valid_doc();
+        doc.nodes[0].data = serde_json::Value::String("bad data".to_string());
         let errors = validate(&doc);
-        let kinds: Vec<_> = errors.iter().map(|e| e.kind).collect();
-        assert!(kinds.contains(&ValidationErrorKind::NoListener));
-        assert!(kinds.contains(&ValidationErrorKind::ForwardNoUpstreamUrl));
-        assert!(kinds.contains(&ValidationErrorKind::InvalidEdgeType));
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::NodeDataInvalid));
     }
 }

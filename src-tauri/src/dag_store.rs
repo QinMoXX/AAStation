@@ -53,8 +53,14 @@ pub fn load_dag() -> Result<DAGDocument, AppError> {
     }
 
     let content = fs::read_to_string(&path)?;
-    let doc: DAGDocument = serde_json::from_str(&content)?;
-    Ok(doc)
+
+    // Try to parse as v2 document. If it fails (e.g. old v1 format with
+    // removed node types), return a fresh default document so the user
+    // can start over with the new node types.
+    match serde_json::from_str::<DAGDocument>(&content) {
+        Ok(doc) => Ok(doc),
+        Err(_) => Ok(DAGDocument::default()),
+    }
 }
 
 /// Save the DAG document to disk using atomic write (write to .tmp then rename).
@@ -118,7 +124,7 @@ mod tests {
         let loaded: DAGDocument =
             serde_json::from_str(&fs::read_to_string(&file_path).unwrap()).unwrap();
         assert_eq!(loaded.name, "Test Pipeline");
-        assert_eq!(loaded.version, 1);
+        assert_eq!(loaded.version, 2);
 
         // Cleanup
         let _ = fs::remove_dir_all(&tmp_dir);

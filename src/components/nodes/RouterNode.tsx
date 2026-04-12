@@ -11,7 +11,7 @@ const MATCH_TYPE_LABELS: Record<string, string> = {
 
 function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
   const borderColor = selected ? '#d97706' : '#f59e0b';
-  const ruleCount = data.rules.length;
+  const entryCount = data.entries.length;
 
   return (
     <div
@@ -20,37 +20,29 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
         borderRadius: 8,
         border: `2px solid ${borderColor}`,
         background: '#fffbeb',
-        minWidth: 160,
+        minWidth: 180,
         fontSize: 13,
       }}
     >
-      {/* Target handle at the top — Router receives from Listener */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="target"
-        style={{ background: '#d97706', width: 10, height: 10 }}
-      />
-
+      {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
         🔀 {data.label || 'Router'}
       </div>
 
-      {/* Rules summary */}
+      {/* Entry count */}
       <div style={{ color: '#64748b', fontSize: 12 }}>
-        {ruleCount === 0
-          ? 'No rules'
-          : `${ruleCount} rule${ruleCount > 1 ? 's' : ''}`}
+        {entryCount === 0
+          ? 'No entries'
+          : `${entryCount} entr${entryCount > 1 ? 'ies' : 'y'}`}
       </div>
 
-      {/* Show each rule as a small label with a source handle */}
-      {data.rules.map((rule) => (
+      {/* Entry input handles on the LEFT side */}
+      {data.entries.map((entry) => (
         <div
-          key={rule.id}
+          key={entry.id}
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             marginTop: 4,
             padding: '2px 6px',
             borderRadius: 4,
@@ -60,13 +52,10 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             position: 'relative',
           }}
         >
-          <span>
-            {MATCH_TYPE_LABELS[rule.matchType] ?? rule.matchType}: {rule.pattern || '—'}
-          </span>
           <Handle
-            type="source"
-            position={Position.Bottom}
-            id={`rule-${rule.id}`}
+            type="target"
+            position={Position.Left}
+            id={`entry-${entry.id}`}
             style={{
               background: '#f59e0b',
               width: 8,
@@ -76,19 +65,21 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
               left: 'auto' as const,
               bottom: 'auto' as const,
               top: 'auto' as const,
-              marginLeft: 6,
+              marginRight: 6,
             }}
           />
+          <span>
+            {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || entry.label || '—'}
+          </span>
         </div>
       ))}
 
-      {/* Default route source handle */}
-      {data.defaultEdgeId !== null && (
+      {/* Default input handle on the LEFT side */}
+      {data.hasDefault && (
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             marginTop: 4,
             padding: '2px 6px',
             borderRadius: 4,
@@ -98,10 +89,9 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             position: 'relative',
           }}
         >
-          <span>Default</span>
           <Handle
-            type="source"
-            position={Position.Bottom}
+            type="target"
+            position={Position.Left}
             id="default"
             style={{
               background: '#d97706',
@@ -112,18 +102,41 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
               left: 'auto' as const,
               bottom: 'auto' as const,
               top: 'auto' as const,
-              marginLeft: 6,
+              marginRight: 6,
             }}
           />
+          <span>Default</span>
         </div>
       )}
 
-      {/* Generic source handle for when no specific rules exist yet */}
-      {ruleCount === 0 && data.defaultEdgeId === null && (
+      {/* Unified output handle on the RIGHT side */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          marginTop: 6,
+          position: 'relative',
+        }}
+      >
         <Handle
           type="source"
-          position={Position.Bottom}
-          id="source"
+          position={Position.Right}
+          id="output"
+          style={{
+            background: '#f59e0b',
+            width: 10,
+            height: 10,
+          }}
+        />
+      </div>
+
+      {/* Fallback: when no entries and no default, show a generic target handle */}
+      {entryCount === 0 && !data.hasDefault && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="target"
           style={{ background: '#f59e0b', width: 10, height: 10 }}
         />
       )}

@@ -3,6 +3,7 @@ mod dag;
 mod dag_store;
 mod error;
 mod proxy;
+mod settings;
 mod store;
 
 use store::AppState;
@@ -27,6 +28,8 @@ pub fn run() {
             commands::proxy_commands::stop_proxy,
             commands::proxy_commands::get_proxy_status,
             commands::proxy_commands::reload_routes,
+            commands::settings_commands::load_settings,
+            commands::settings_commands::save_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

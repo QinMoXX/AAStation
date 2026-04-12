@@ -42,9 +42,9 @@ const separatorStyle: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 
 const NODE_ADD_OPTIONS: { type: NodeType; label: string; icon: string; color: string }[] = [
-  { type: 'listener', label: 'Listener', icon: '🎧', color: '#3b82f6' },
+  { type: 'provider', label: 'Provider', icon: '☁️', color: '#3b82f6' },
   { type: 'router', label: 'Router', icon: '🔀', color: '#f59e0b' },
-  { type: 'forward', label: 'Forward', icon: '🚀', color: '#16a34a' },
+  { type: 'terminal', label: 'Terminal', icon: '🖥️', color: '#16a34a' },
 ];
 
 // ---------------------------------------------------------------------------

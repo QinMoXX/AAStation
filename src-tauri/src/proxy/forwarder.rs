@@ -6,11 +6,11 @@ use axum::response::Response;
 
 use super::error::ProxyError;
 use super::server::HandlerState;
-use super::types::CompiledRoute;
+use super::types::{ApiType, CompiledRoute};
 
 /// Forward the request to the matched upstream route.
 /// Builds a reqwest request with the same method/headers/body,
-/// injects bearer auth and extra headers, then sends it.
+/// injects auth based on the route's api_type, then sends it.
 ///
 /// Returns the upstream response (streaming or buffered).
 pub async fn forward_request(
@@ -25,16 +25,27 @@ pub async fn forward_request(
 
     let mut req_builder = client.request(method, &url).body(body);
 
-    // Copy original headers, excluding Host
+    // Copy original headers, excluding Host and auth headers
     for (name, value) in headers.iter() {
-        if name == axum::http::header::HOST {
+        if name == axum::http::header::HOST
+            || name == axum::http::header::AUTHORIZATION
+            || name == "x-api-key"
+        {
             continue;
         }
         req_builder = req_builder.header(name, value);
     }
 
-    // Inject bearer auth
-    req_builder = req_builder.bearer_auth(&route.api_key);
+    // Inject auth based on API type
+    match route.api_type {
+        Some(ApiType::Anthropic) => {
+            req_builder = req_builder.header("x-api-key", &route.api_key);
+            req_builder = req_builder.header("anthropic-version", "2023-06-01");
+        }
+        Some(ApiType::OpenAI) | None => {
+            req_builder = req_builder.bearer_auth(&route.api_key);
+        }
+    }
 
     // Inject extra headers from route config
     for (key, val) in &route.extra_headers {

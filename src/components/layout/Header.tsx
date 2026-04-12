@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
+import { useSettingsStore } from '../../store/settings-store';
 import { publishDag, startProxy, getProxyStatus } from '../../lib/tauri-api';
+import SettingsModal from '../settings/SettingsModal';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -81,6 +83,17 @@ const publishBtnDisabled: React.CSSProperties = {
   cursor: 'not-allowed',
 };
 
+const settingsBtnStyle: React.CSSProperties = {
+  padding: '4px 10px',
+  fontSize: 14,
+  border: '1px solid #475569',
+  borderRadius: 6,
+  cursor: 'pointer',
+  background: 'transparent',
+  color: '#94a3b8',
+  lineHeight: 1,
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -92,9 +105,11 @@ export default function Header() {
   const markPublished = useAppStore((s) => s.markPublished);
   const setProxyStatus = useAppStore((s) => s.setProxyStatus);
   const getDocument = useFlowStore((s) => s.getDocument);
+  const settings = useSettingsStore((s) => s.settings);
 
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handlePublish = async () => {
     if (publishing) return;
@@ -137,47 +152,57 @@ export default function Header() {
   };
 
   return (
-    <header style={headerStyle}>
-      <div style={leftStyle}>
-        <span style={{ fontSize: 16, fontWeight: 700 }}>AAStation</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={statusDotStyle(proxyStatus.running)} />
-          <span style={{ fontSize: 12, fontWeight: 400, color: '#94a3b8' }}>
-            {proxyStatus.running ? `Running :${proxyStatus.port}` : 'Stopped'}
-          </span>
+    <>
+      <header style={headerStyle}>
+        <div style={leftStyle}>
+          <span style={{ fontSize: 16, fontWeight: 700 }}>AAStation</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={statusDotStyle(proxyStatus.running)} />
+            <span style={{ fontSize: 12, fontWeight: 400, color: '#94a3b8' }}>
+              {proxyStatus.running ? `Running :${proxyStatus.port}` : `Stopped :${settings.listenPort}`}
+            </span>
+          </div>
+          {isDraft ? (
+            <span style={draftBadge}>Draft</span>
+          ) : lastPublishedAt ? (
+            <span style={publishedBadge}>
+              Published {formatTime(lastPublishedAt)}
+            </span>
+          ) : null}
         </div>
-        {isDraft ? (
-          <span style={draftBadge}>Draft</span>
-        ) : lastPublishedAt ? (
-          <span style={publishedBadge}>
-            Published {formatTime(lastPublishedAt)}
-          </span>
-        ) : null}
-      </div>
-      <div style={rightStyle}>
-        {error && (
-          <span
-            style={{
-              fontSize: 11,
-              color: '#f87171',
-              maxWidth: 300,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            title={error}
+        <div style={rightStyle}>
+          {error && (
+            <span
+              style={{
+                fontSize: 11,
+                color: '#f87171',
+                maxWidth: 300,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={error}
+            >
+              {error}
+            </span>
+          )}
+          <button
+            style={settingsBtnStyle}
+            onClick={() => setSettingsOpen(true)}
+            title="Settings"
           >
-            {error}
-          </span>
-        )}
-        <button
-          style={publishing ? publishBtnDisabled : isDraft ? publishBtn : publishBtnDisabled}
-          onClick={handlePublish}
-          disabled={!isDraft || publishing}
-        >
-          {publishing ? 'Publishing...' : 'Publish'}
-        </button>
-      </div>
-    </header>
+            ⚙
+          </button>
+          <button
+            style={publishing ? publishBtnDisabled : isDraft ? publishBtn : publishBtnDisabled}
+            onClick={handlePublish}
+            disabled={!isDraft || publishing}
+          >
+            {publishing ? 'Publishing...' : 'Publish'}
+          </button>
+        </div>
+      </header>
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </>
   );
 }

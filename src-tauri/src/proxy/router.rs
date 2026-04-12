@@ -70,6 +70,7 @@ mod tests {
             api_key: "test-key".to_string(),
             extra_headers: HashMap::new(),
             is_default: false,
+            api_type: None,
         }
     }
 
@@ -82,6 +83,7 @@ mod tests {
             api_key: "default-key".to_string(),
             extra_headers: HashMap::new(),
             is_default: true,
+            api_type: None,
         }
     }
 

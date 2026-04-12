@@ -14,9 +14,9 @@ import type {
   AAStationNode,
   AAStationEdge,
   AAStationNodeData,
-  ListenerNodeData,
+  ProviderNodeData,
   RouterNodeData,
-  ForwardNodeData,
+  TerminalNodeData,
   NodeType,
 } from '../types';
 import type { DAGDocument } from '../types/dag';
@@ -25,12 +25,14 @@ import type { DAGDocument } from '../types/dag';
 // Default node data factories
 // ---------------------------------------------------------------------------
 
-export function defaultListenerData(): ListenerNodeData {
+export function defaultProviderData(): ProviderNodeData {
   return {
-    nodeType: 'listener',
-    label: 'Listener',
-    port: 9527,
-    bindAddress: '127.0.0.1',
+    nodeType: 'provider',
+    label: 'Provider',
+    apiType: 'openai',
+    baseUrl: '',
+    apiKey: '',
+    models: [],
   };
 }
 
@@ -38,24 +40,23 @@ export function defaultRouterData(): RouterNodeData {
   return {
     nodeType: 'router',
     label: 'Router',
-    rules: [],
-    defaultEdgeId: null,
+    entries: [],
+    hasDefault: false,
   };
 }
 
-export function defaultForwardData(): ForwardNodeData {
+export function defaultTerminalData(): TerminalNodeData {
   return {
-    nodeType: 'forward',
-    label: 'Forward',
-    upstreamUrl: '',
-    apiKey: '',
+    nodeType: 'terminal',
+    label: 'Terminal',
+    appType: 'custom',
   };
 }
 
 const DEFAULT_DATA_MAP: Record<NodeType, () => AAStationNodeData> = {
-  listener: defaultListenerData,
+  provider: defaultProviderData,
   router: defaultRouterData,
-  forward: defaultForwardData,
+  terminal: defaultTerminalData,
 };
 
 // ---------------------------------------------------------------------------
@@ -142,9 +143,30 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set({
       nodes: get().nodes.map((n) => {
         if (n.id !== nodeId) return n;
-        // Preserve the discriminated union by spreading at the Node level
-        // and re-assigning data as the merged result.
         const merged = { ...n.data, ...patch } as AAStationNodeData;
+
+        // When Provider models are updated, clean up orphaned edges
+        // that reference removed model handles
+        if (merged.nodeType === 'provider' && n.data.nodeType === 'provider') {
+          const oldModels = (n.data as ProviderNodeData).models;
+          const newModels = merged.models;
+          const oldModelIds = new Set(oldModels.map((m) => `model-${m.id}`));
+          const newModelIds = new Set(newModels.map((m) => `model-${m.id}`));
+          const removedIds = new Set(
+            [...oldModelIds].filter((id) => !newModelIds.has(id)),
+          );
+
+          if (removedIds.size > 0) {
+            // Remove edges whose sourceHandle is a removed model handle
+            set({
+              edges: get().edges.filter(
+                (e) =>
+                  !(e.source === nodeId && e.sourceHandle && removedIds.has(e.sourceHandle)),
+              ),
+            });
+          }
+        }
+
         return { ...n, data: merged };
       }),
     });
@@ -173,7 +195,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   getDocument: () => {
     const { nodes, edges, documentId, documentName } = get();
     return {
-      version: 1 as const,
+      version: 2 as const,
       id: documentId || crypto.randomUUID(),
       name: documentName,
       nodes,

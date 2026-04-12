@@ -12,6 +12,18 @@ export interface ProxyStatus {
 export interface RouteTable {
   listen_port: number;
   listen_address: string;
-  routes: unknown[];
-  default_route: unknown | null;
+  routes: CompiledRoute[];
+  default_route: CompiledRoute | null;
+}
+
+/** A single compiled route entry. */
+export interface CompiledRoute {
+  id: string;
+  match_type: 'path_prefix' | 'header' | 'model';
+  pattern: string;
+  upstream_url: string;
+  api_key: string;
+  extra_headers: Record<string, string>;
+  is_default: boolean;
+  api_type: 'anthropic' | 'openai' | null;
 }
