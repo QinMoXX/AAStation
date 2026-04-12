@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
-import { useSettingsStore } from '../../store/settings-store';
 import { publishDag, startProxy, stopProxy, getProxyStatus } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
 import SettingsModal from '../settings/SettingsModal';
@@ -131,7 +130,6 @@ export default function Header() {
   const markPublished = useAppStore((s) => s.markPublished);
   const setProxyStatus = useAppStore((s) => s.setProxyStatus);
   const getDocument = useFlowStore((s) => s.getDocument);
-  const settings = useSettingsStore((s) => s.settings);
 
   const [publishing, setPublishing] = useState(false);
   const [toggling, setToggling] = useState(false);
