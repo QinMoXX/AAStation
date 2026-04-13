@@ -26,7 +26,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
   // Get the icon component for the preset
   const IconComponent = useMemo(() => {
     if (preset) {
-      return getProviderIcon(preset.id);
+      return getProviderIcon(preset.icon);
     }
     return null;
   }, [preset]);

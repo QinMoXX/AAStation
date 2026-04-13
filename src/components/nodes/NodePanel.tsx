@@ -129,7 +129,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
     <>
       {/* Preset indicator */}
       {isPreset && (() => {
-        const Icon = getProviderIcon(preset.id);
+        const Icon = getProviderIcon(preset.icon);
         return (
           <div
             style={{

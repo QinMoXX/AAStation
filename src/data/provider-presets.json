@@ -1,0 +1,87 @@
+[
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "icon": "[lobehub:OpenAI]",
+    "apiType": "openai",
+    "baseUrl": "https://api.openai.com",
+    "defaultLabel": "OpenAI",
+    "models": [
+      { "name": "gpt-4o", "label": "GPT-4o" },
+      { "name": "gpt-4o-mini", "label": "GPT-4o Mini" },
+      { "name": "gpt-4-turbo", "label": "GPT-4 Turbo" },
+      { "name": "gpt-3.5-turbo", "label": "GPT-3.5 Turbo" },
+      { "name": "o1", "label": "o1" },
+      { "name": "o1-mini", "label": "o1 Mini" },
+      { "name": "o1-preview", "label": "o1 Preview" }
+    ]
+  },
+  {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "icon": "[lobehub:Anthropic]",
+    "apiType": "anthropic",
+    "baseUrl": "https://api.anthropic.com",
+    "defaultLabel": "Anthropic",
+    "models": [
+      { "name": "claude-sonnet-4-20250514", "label": "Claude Sonnet 4" },
+      { "name": "claude-3-5-sonnet-20241022", "label": "Claude 3.5 Sonnet" },
+      { "name": "claude-3-5-haiku-20241022", "label": "Claude 3.5 Haiku" },
+      { "name": "claude-3-opus-20240229", "label": "Claude 3 Opus" }
+    ]
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "icon": "[lobehub:DeepSeek]",
+    "apiType": "openai",
+    "baseUrl": "https://api.deepseek.com",
+    "defaultLabel": "DeepSeek",
+    "models": [
+      { "name": "deepseek-chat", "label": "DeepSeek Chat" },
+      { "name": "deepseek-reasoner", "label": "DeepSeek Reasoner" }
+    ]
+  },
+  {
+    "id": "moonshot",
+    "name": "Moonshot (Kimi)",
+    "icon": "[lobehub:Moonshot]",
+    "apiType": "openai",
+    "baseUrl": "https://api.moonshot.cn",
+    "defaultLabel": "Moonshot",
+    "models": [
+      { "name": "moonshot-v1-8k", "label": "Moonshot V1 8K" },
+      { "name": "moonshot-v1-32k", "label": "Moonshot V1 32K" },
+      { "name": "moonshot-v1-128k", "label": "Moonshot V1 128K" }
+    ]
+  },
+  {
+    "id": "zhipu",
+    "name": "Zhipu AI",
+    "icon": "[lobehub:Zhipu]",
+    "apiType": "openai",
+    "baseUrl": "https://open.bigmodel.cn",
+    "defaultLabel": "Zhipu AI",
+    "models": [
+      { "name": "glm-4-plus", "label": "GLM-4 Plus" },
+      { "name": "glm-4-0520", "label": "GLM-4 0520" },
+      { "name": "glm-4-air", "label": "GLM-4 Air" },
+      { "name": "glm-4-flash", "label": "GLM-4 Flash" }
+    ]
+  },
+  {
+    "id": "openrouter",
+    "name": "OpenRouter",
+    "icon": "[lobehub:OpenRouter]",
+    "apiType": "openai",
+    "baseUrl": "https://openrouter.ai",
+    "defaultLabel": "OpenRouter",
+    "models": [
+      { "name": "anthropic/claude-sonnet-4", "label": "Claude Sonnet 4" },
+      { "name": "anthropic/claude-3.5-sonnet", "label": "Claude 3.5 Sonnet" },
+      { "name": "openai/gpt-4o", "label": "GPT-4o" },
+      { "name": "google/gemini-pro-1.5", "label": "Gemini Pro 1.5" },
+      { "name": "meta-llama/llama-3.1-405b-instruct", "label": "Llama 3.1 405B" }
+    ]
+  }
+]

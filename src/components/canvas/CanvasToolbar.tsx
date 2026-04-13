@@ -122,7 +122,7 @@ function ProviderDropdownButton() {
         <div style={dropdownStyle}>
           <div style={dropdownSectionHeaderStyle}>Preset Providers</div>
           {PRESET_PROVIDERS.map((preset) => {
-            const Icon = getProviderIcon(preset.id);
+            const Icon = getProviderIcon(preset.icon);
             return (
               <div
                 key={preset.id}
