@@ -18,8 +18,10 @@ import type {
   RouterNodeData,
   TerminalNodeData,
   NodeType,
+  ProviderPreset,
 } from '../types';
 import type { DAGDocument } from '../types/dag';
+import presets from '../data/provider-presets.json';
 
 // ---------------------------------------------------------------------------
 // Default node data factories
@@ -60,6 +62,24 @@ const DEFAULT_DATA_MAP: Record<NodeType, () => AAStationNodeData> = {
 };
 
 // ---------------------------------------------------------------------------
+// Preset Provider helper
+// ---------------------------------------------------------------------------
+
+export const PRESET_PROVIDERS = presets as ProviderPreset[];
+
+export function createPresetProviderData(preset: ProviderPreset): ProviderNodeData {
+  return {
+    nodeType: 'provider',
+    presetId: preset.id,
+    label: preset.defaultLabel,
+    apiType: preset.apiType,
+    baseUrl: preset.baseUrl,
+    apiKey: '',
+    models: [],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Counter for generating IDs (simple incrementing; UUID not needed for local)
 // ---------------------------------------------------------------------------
 
@@ -88,6 +108,8 @@ interface FlowState {
 
   // CRUD
   addNode: (type: NodeType, position?: { x: number; y: number }) => string;
+  /** Add a preset Provider node by preset ID. */
+  addPresetProviderNode: (presetId: string, position?: { x: number; y: number }) => string;
   updateNodeData: (nodeId: string, data: Partial<AAStationNodeData>) => void;
   deleteNode: (nodeId: string) => void;
 
@@ -132,6 +154,23 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const node: AAStationNode = {
       id,
       type, // maps to React Flow nodeTypes key
+      position: position ?? { x: Math.random() * 400, y: Math.random() * 400 },
+      data,
+    };
+    set({ nodes: [...get().nodes, node] });
+    return id;
+  },
+
+  addPresetProviderNode: (presetId: string, position?: { x: number; y: number }) => {
+    const preset = PRESET_PROVIDERS.find((p) => p.id === presetId);
+    if (!preset) {
+      throw new Error(`Unknown preset: ${presetId}`);
+    }
+    const id = nextNodeId();
+    const data = createPresetProviderData(preset);
+    const node: AAStationNode = {
+      id,
+      type: 'provider',
       position: position ?? { x: Math.random() * 400, y: Math.random() * 400 },
       data,
     };

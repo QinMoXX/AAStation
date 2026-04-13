@@ -15,20 +15,20 @@ const APP_TYPE_ICONS: Record<string, string> = {
 };
 
 function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
-  const borderColor = selected ? '#16a34a' : '#4ade80';
   const icon = APP_TYPE_ICONS[data.appType] || '🖥️';
   const appLabel = APP_TYPE_LABELS[data.appType] || data.appType || 'Custom';
 
   return (
     <div
       style={{
-        padding: '10px 16px',
+        padding: '12px 16px',
         borderRadius: 8,
-        border: `2px solid ${borderColor}`,
-        background: '#f0fdf4',
-        minWidth: 140,
+        border: selected ? '2px solid #f97316' : '2px solid transparent',
+        background: '#e5e7eb',
+        minWidth: 180,
         fontSize: 13,
         position: 'relative',
+        boxSizing: 'border-box',
       }}
     >
       {/* Input handle on the LEFT side */}
@@ -36,11 +36,19 @@ function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
         type="target"
         position={Position.Left}
         id="input"
-        style={{ background: '#16a34a', width: 10, height: 10 }}
+        style={{
+          background: '#f97316',
+          width: 12,
+          height: 12,
+          left: -10,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          border: '3px solid #fff',
+        }}
       />
 
       {/* Header */}
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151' }}>
         {icon} {data.label || 'Terminal'}
       </div>
 
@@ -48,11 +56,11 @@ function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
       <div
         style={{
           display: 'inline-block',
-          fontSize: 10,
-          padding: '1px 6px',
+          fontSize: 11,
+          padding: '2px 8px',
           borderRadius: 4,
-          background: '#dcfce7',
-          color: '#166534',
+          background: '#d1d5db',
+          color: '#4b5563',
         }}
       >
         {appLabel}

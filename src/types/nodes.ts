@@ -19,6 +19,8 @@ export interface ProviderModel {
 /** Provider node: an upstream API endpoint with model sub-nodes. */
 export interface ProviderNodeData extends BaseNodeData {
   nodeType: 'provider';
+  /** Preset ID if created from a preset (apiType/baseUrl become read-only). */
+  presetId?: string;
   apiType: ApiType;
   baseUrl: string; // e.g. "https://api.anthropic.com"
   apiKey: string;

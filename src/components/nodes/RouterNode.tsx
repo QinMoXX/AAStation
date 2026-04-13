@@ -10,19 +10,19 @@ const MATCH_TYPE_LABELS: Record<string, string> = {
 };
 
 function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
-  const borderColor = selected ? '#d97706' : '#f59e0b';
   const entryCount = data.entries.length;
 
   return (
     <div
       style={{
-        padding: '10px 16px',
+        padding: '12px 16px',
         borderRadius: 8,
-        border: `2px solid ${borderColor}`,
-        background: '#fffbeb',
-        minWidth: 200,
+        border: selected ? '2px solid #f97316' : '2px solid transparent',
+        background: '#e5e7eb',
+        minWidth: 220,
         fontSize: 13,
         position: 'relative',
+        boxSizing: 'border-box',
       }}
     >
       {/* Main input handle on the LEFT side - connects from Provider unified output */}
@@ -31,11 +31,13 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
         position={Position.Left}
         id="input"
         style={{
-          background: '#d97706',
+          background: '#f97316',
           width: 12,
           height: 12,
           top: '50%',
+          left: -10,
           transform: 'translateY(-50%)',
+          border: '3px solid #fff',
         }}
         title="Main input (from Provider)"
       />
@@ -46,43 +48,48 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
         position={Position.Right}
         id="output"
         style={{
-          background: '#d97706',
+          background: '#f97316',
           width: 12,
           height: 12,
           top: '50%',
+          right: -10,
           transform: 'translateY(-50%)',
+          border: '3px solid #fff',
         }}
         title="Output to Terminal"
       />
 
       {/* Header */}
-      <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+      <div style={{ fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, color: '#374151' }}>
         <span>🔀</span>
         <span>{data.label || 'Router'}</span>
       </div>
 
       {/* Entry count */}
-      <div style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>
+      <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 8 }}>
         {entryCount === 0
           ? 'No routing rules'
           : `${entryCount} routing rule${entryCount > 1 ? 's' : ''}`}
       </div>
 
       {/* Routing entries with LEFT-side input handles (for model-specific routing) */}
-      {data.entries.map((entry, index) => (
+      {data.entries.map((entry, index, arr) => (
         <div
           key={entry.id}
           style={{
             display: 'flex',
             alignItems: 'center',
-            marginBottom: 4,
-            padding: '4px 8px',
-            borderRadius: 4,
-            background: '#fef3c7',
-            fontSize: 11,
-            color: '#92400e',
+            paddingTop: index === 0 ? 8 : 6,
+            paddingBottom: 6,
+            borderTop: index === 0 ? '1px solid #d1d5db' : 'none',
+            marginBottom: index === arr.length - 1 && !data.hasDefault ? -12 : 0,
+            fontSize: 12,
+            color: '#374151',
             position: 'relative',
-            borderLeft: '3px solid #f59e0b',
+            marginLeft: -16,
+            marginRight: -16,
+            paddingLeft: 16,
+            paddingRight: 16,
           }}
         >
           <Handle
@@ -90,16 +97,13 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             position={Position.Left}
             id={`entry-${entry.id}`}
             style={{
-              background: '#f59e0b',
-              width: 10,
-              height: 10,
-              position: 'relative' as const,
-              right: 'auto' as const,
-              left: 'auto' as const,
-              bottom: 'auto' as const,
-              top: 'auto' as const,
-              marginRight: 8,
-              marginLeft: -4,
+              background: '#f97316',
+              width: 12,
+              height: 12,
+              left: -10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              border: '3px solid #fff',
             }}
             title={`Connect from Provider model (matches: ${entry.pattern || '—'})`}
           />
@@ -107,7 +111,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             <div style={{ fontWeight: 500 }}>
               {entry.label || `Rule #${index + 1}`}
             </div>
-            <div style={{ color: '#a16207', fontSize: 10 }}>
+            <div style={{ color: '#6b7280', fontSize: 11 }}>
               {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || '—'}
               {entry.targetModel && (
                 <span style={{ color: '#16a34a', marginLeft: 4 }}>
@@ -125,14 +129,17 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            marginTop: data.entries.length > 0 ? 8 : 0,
-            padding: '4px 8px',
-            borderRadius: 4,
-            background: '#fde68a',
-            fontSize: 11,
-            color: '#78350f',
+            paddingTop: data.entries.length > 0 ? 6 : 8,
+            paddingBottom: 6,
+            borderTop: data.entries.length > 0 ? 'none' : '1px solid #d1d5db',
+            marginBottom: -12,
+            fontSize: 12,
+            color: '#374151',
             position: 'relative',
-            borderLeft: '3px solid #d97706',
+            marginLeft: -16,
+            marginRight: -16,
+            paddingLeft: 16,
+            paddingRight: 16,
           }}
         >
           <Handle
@@ -140,22 +147,19 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             position={Position.Left}
             id="default"
             style={{
-              background: '#d97706',
-              width: 10,
-              height: 10,
-              position: 'relative' as const,
-              right: 'auto' as const,
-              left: 'auto' as const,
-              bottom: 'auto' as const,
-              top: 'auto' as const,
-              marginRight: 8,
-              marginLeft: -4,
+              background: '#f97316',
+              width: 12,
+              height: 12,
+              left: -10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              border: '3px solid #fff',
             }}
             title="Default route (fallback Provider)"
           />
           <div>
             <div style={{ fontWeight: 500 }}>Default</div>
-            <div style={{ color: '#a16207', fontSize: 10 }}>
+            <div style={{ color: '#6b7280', fontSize: 11 }}>
               Fallback when no rules match
             </div>
           </div>
@@ -167,11 +171,11 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
         <div
           style={{
             marginTop: 8,
-            padding: '6px 8px',
-            borderRadius: 4,
-            background: '#fef3c7',
-            fontSize: 10,
-            color: '#92400e',
+            padding: '8px',
+            borderRadius: 6,
+            background: '#d1d5db',
+            fontSize: 11,
+            color: '#6b7280',
             textAlign: 'center',
           }}
         >

@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { useFlowStore } from '../../store/flow-store';
+import { useCallback, useMemo } from 'react';
+import { useFlowStore, PRESET_PROVIDERS } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import type {
   ProviderNodeData,
@@ -9,6 +9,7 @@ import type {
   ProviderModel,
   RouterEntry,
 } from '../../types';
+import { getProviderIcon } from '../icons/ProviderIcons';
 
 // ---------------------------------------------------------------------------
 // Shared styles
@@ -60,7 +61,33 @@ const fieldGap: React.CSSProperties = { marginBottom: 12 };
 // Provider form
 // ---------------------------------------------------------------------------
 
+const API_TYPE_LABELS: Record<string, string> = {
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+};
+
+const readonlyInputStyle: React.CSSProperties = {
+  ...inputStyle,
+  background: '#f1f5f9',
+  color: '#64748b',
+  cursor: 'not-allowed',
+};
+
 function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (patch: Partial<ProviderNodeData>) => void }) {
+  // Check if this is a preset node
+  const preset = useMemo(
+    () => PRESET_PROVIDERS.find((p) => p.id === data.presetId),
+    [data.presetId]
+  );
+  const isPreset = !!preset;
+
+  // Available models from preset (for quick add)
+  const availablePresetModels = useMemo(() => {
+    if (!preset) return [];
+    const existingNames = new Set(data.models.map((m) => m.name));
+    return preset.models.filter((m) => !existingNames.has(m.name));
+  }, [preset, data.models]);
+
   const addModel = useCallback(() => {
     const newModel: ProviderModel = {
       id: crypto.randomUUID(),
@@ -69,6 +96,18 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
     };
     onUpdate({ models: [...data.models, newModel] });
   }, [data.models, onUpdate]);
+
+  const addPresetModel = useCallback(
+    (modelName: string) => {
+      const newModel: ProviderModel = {
+        id: crypto.randomUUID(),
+        name: modelName,
+        enabled: true,
+      };
+      onUpdate({ models: [...data.models, newModel] });
+    },
+    [data.models, onUpdate]
+  );
 
   const removeModel = useCallback(
     (modelId: string) => {
@@ -88,6 +127,32 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
 
   return (
     <>
+      {/* Preset indicator */}
+      {isPreset && (() => {
+        const Icon = getProviderIcon(preset.id);
+        return (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: '6px 10px',
+              background: '#fef3c7',
+              border: '1px solid #fcd34d',
+              borderRadius: 6,
+              fontSize: 11,
+              color: '#92400e',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
+              {Icon && <Icon style={{ width: 16, height: 16 }} />}
+            </span>
+            <strong>{preset.name}</strong> Preset — API Type and Base URL are fixed
+          </div>
+        );
+      })()}
+
       <div style={fieldGap}>
         <label style={labelStyle}>Label</label>
         <input
@@ -99,23 +164,32 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
 
       <div style={fieldGap}>
         <label style={labelStyle}>API Type</label>
-        <select
-          style={inputStyle}
-          value={data.apiType}
-          onChange={(e) => onUpdate({ apiType: e.target.value as ProviderNodeData['apiType'] })}
-        >
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-        </select>
+        {isPreset ? (
+          <input
+            style={readonlyInputStyle}
+            value={API_TYPE_LABELS[data.apiType] || data.apiType}
+            disabled
+          />
+        ) : (
+          <select
+            style={inputStyle}
+            value={data.apiType}
+            onChange={(e) => onUpdate({ apiType: e.target.value as ProviderNodeData['apiType'] })}
+          >
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+        )}
       </div>
 
       <div style={fieldGap}>
         <label style={labelStyle}>Base URL</label>
         <input
-          style={inputStyle}
+          style={isPreset ? readonlyInputStyle : inputStyle}
           value={data.baseUrl}
           placeholder="https://api.openai.com"
           onChange={(e) => onUpdate({ baseUrl: e.target.value })}
+          disabled={isPreset}
         />
       </div>
 
@@ -133,25 +207,51 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
       {/* Models section */}
       <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ ...sectionTitle, marginBottom: 0 }}>Models</span>
-        <button
-          onClick={addModel}
-          style={{
-            fontSize: 12,
-            padding: '2px 10px',
-            border: '1px solid #3b82f6',
-            borderRadius: 4,
-            background: '#eff6ff',
-            color: '#1e40af',
-            cursor: 'pointer',
-          }}
-        >
-          + Add Model
-        </button>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {isPreset && availablePresetModels.length > 0 && (
+            <select
+              style={{
+                fontSize: 11,
+                padding: '2px 6px',
+                border: '1px solid #3b82f6',
+                borderRadius: 4,
+                background: '#eff6ff',
+                color: '#1e40af',
+                cursor: 'pointer',
+              }}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addPresetModel(e.target.value);
+              }}
+            >
+              <option value="">+ Quick Add</option>
+              {availablePresetModels.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.label || m.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            onClick={addModel}
+            style={{
+              fontSize: 12,
+              padding: '2px 10px',
+              border: '1px solid #3b82f6',
+              borderRadius: 4,
+              background: '#eff6ff',
+              color: '#1e40af',
+              cursor: 'pointer',
+            }}
+          >
+            + Custom
+          </button>
+        </div>
       </div>
 
       {data.models.length === 0 && (
         <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-          No models yet. Click "Add Model" to create one.
+          No models yet. {isPreset ? 'Use Quick Add or ' : ''}Click "+ Custom" to create one.
         </div>
       )}
 
@@ -194,7 +294,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
               placeholder="gpt-4o"
               onChange={(e) => updateModel(model.id, { name: e.target.value })}
             />
-          </div>
+        </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input
