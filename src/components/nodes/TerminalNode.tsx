@@ -24,7 +24,7 @@ function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
         padding: '12px 16px',
         borderRadius: 8,
         border: selected ? '2px solid #f97316' : '2px solid transparent',
-        background: '#e5e7eb',
+        background: '#eff0eb',
         minWidth: 180,
         fontSize: 13,
         position: 'relative',
@@ -59,7 +59,7 @@ function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
           fontSize: 11,
           padding: '2px 8px',
           borderRadius: 4,
-          background: '#d1d5db',
+          background: '#ffffff',
           color: '#4b5563',
         }}
       >

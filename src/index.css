@@ -1,3 +1,17 @@
+/* Reset default margins/padding to eliminate white border */
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
 /* Hide React Flow attribution */
 .react-flow__attribution {
   display: none !important;

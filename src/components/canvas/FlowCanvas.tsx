@@ -76,7 +76,7 @@ export default function FlowCanvas() {
   );
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
+    <div style={{ width: '100%', height: '100%', background: '#dfdfd7' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -95,7 +95,7 @@ export default function FlowCanvas() {
         snapToGrid
         snapGrid={[16, 16]}
       >
-        <Background gap={16} size={1} />
+        <Background gap={16} size={0} />
       </ReactFlow>
     </div>
   );

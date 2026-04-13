@@ -37,7 +37,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
         padding: '12px 16px',
         borderRadius: 8,
         border: selected ? '2px solid #f97316' : '2px solid transparent',
-        background: '#e5e7eb',
+        background: '#eff0eb',
         minWidth: 220,
         fontSize: 13,
         position: 'relative',
@@ -95,7 +95,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
           fontSize: 11,
           padding: '2px 8px',
           borderRadius: 4,
-          background: '#d1d5db',
+          background: '#ffffff',
           color: '#4b5563',
           marginBottom: 6,
         }}

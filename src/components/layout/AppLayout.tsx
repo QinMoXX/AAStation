@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import TitleBar from './TitleBar';
 import Header from './Header';
 import StatusBar from './StatusBar';
 import ToastContainer from '../common/ToastContainer';
@@ -42,6 +43,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div style={layoutStyle}>
+      <TitleBar />
       <Header />
       <div style={canvasAreaStyle}>{children}</div>
       <StatusBar />
