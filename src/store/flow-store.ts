@@ -15,7 +15,7 @@ import type {
   AAStationEdge,
   AAStationNodeData,
   ProviderNodeData,
-  RouterNodeData,
+  SwitcherNodeData,
   ApplicationNodeData,
   NodeType,
   ProviderPreset,
@@ -38,10 +38,10 @@ export function defaultProviderData(): ProviderNodeData {
   };
 }
 
-export function defaultRouterData(): RouterNodeData {
+export function defaultSwitcherData(): SwitcherNodeData {
   return {
-    nodeType: 'router',
-    label: 'Router',
+    nodeType: 'switcher',
+    label: 'Switcher',
     entries: [],
     hasDefault: false,
   };
@@ -57,7 +57,7 @@ export function defaultApplicationData(): ApplicationNodeData {
 
 const DEFAULT_DATA_MAP: Record<NodeType, () => AAStationNodeData> = {
   provider: defaultProviderData,
-  router: defaultRouterData,
+  switcher: defaultSwitcherData,
   application: defaultApplicationData,
 };
 

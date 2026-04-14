@@ -17,7 +17,7 @@ import type {
   AAStationEdge,
   AAStationNodeData,
   ProviderNodeData,
-  RouterNodeData,
+  SwitcherNodeData,
   ApplicationNodeData,
 } from '../types';
 
@@ -177,14 +177,23 @@ function nodeDataToFrontend(
         models: (camelData.models as ProviderNodeData['models']) || [],
         description: camelData.description as string | undefined,
       } as ProviderNodeData;
-    case 'router':
+    case 'router': // backward compatibility with older data files
+    case 'switcher': {
+      // Strip legacy targetModel from entries (no longer used — resolved from edge connection)
+      const rawEntries = (camelData.entries as Record<string, unknown>[]) || [];
+      const entries = rawEntries.map((entry) => {
+        // Remove targetModel if present (legacy field)
+        const { targetModel: _, ...rest } = entry as Record<string, unknown> & { targetModel?: unknown };
+        return rest as unknown as SwitcherNodeData['entries'][number];
+      });
       return {
-        nodeType: 'router',
-        label: (camelData.label as string) || 'Router',
-        entries: (camelData.entries as RouterNodeData['entries']) || [],
+        nodeType: 'switcher',
+        label: (camelData.label as string) || 'Switcher',
+        entries,
         hasDefault: (camelData.hasDefault as boolean) ?? false,
         description: camelData.description as string | undefined,
-      } as RouterNodeData;
+      } as SwitcherNodeData;
+    }
     case 'application':
     case 'terminal': // backward compatibility with older data files
       return {
@@ -208,8 +217,10 @@ function nodeDataToFrontend(
 
 /** Convert a single backend DAGNode to frontend AAStationNode */
 function nodeToFrontend(node: BackendDAGNode): AAStationNode {
-  // Map legacy 'terminal' node type to 'application'
-  const nodeType = node.node_type === 'terminal' ? 'application' : node.node_type;
+  // Map legacy node types
+  let nodeType = node.node_type;
+  if (nodeType === 'terminal') nodeType = 'application';
+  if (nodeType === 'router') nodeType = 'switcher';
   return {
     id: node.id,
     type: nodeType,

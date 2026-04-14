@@ -58,7 +58,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
           transform: 'translateY(-50%)',
           border: '3px solid #fff',
         }}
-        title="Unified (any model)"
+        title="Unified [any] — accepts any connection"
       />
 
       {/* Header */}
@@ -154,7 +154,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
                 position={Position.Left}
                 id={`model-${model.id}`}
                 style={{
-                  background: '#f97316',
+                  background: '#3b82f6',
                   width: 12,
                   height: 12,
                   left: -10,
@@ -162,7 +162,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
                   transform: 'translateY(-50%)',
                   border: '3px solid #fff',
                 }}
-                title={`Model: ${model.name || 'Unnamed'}`}
+                title={`Model [model]: ${model.name || 'Unnamed'}`}
               />
               <span>{model.name || 'Unnamed'}</span>
             </div>

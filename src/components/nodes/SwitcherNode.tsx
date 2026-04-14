@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import type { RouterNodeData } from '../../types';
+import type { SwitcherNodeData } from '../../types';
 
 /** Match-type display labels. */
 const MATCH_TYPE_LABELS: Record<string, string> = {
@@ -9,7 +9,13 @@ const MATCH_TYPE_LABELS: Record<string, string> = {
   model: 'Model',
 };
 
-function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
+/** Handle type colors: model=blue, any=orange */
+const HANDLE_COLORS: Record<string, string> = {
+  model: '#3b82f6', // blue for model-type handles
+  any: '#f97316',   // orange for generic handles
+};
+
+function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
   const entryCount = data.entries.length;
 
   return (
@@ -39,23 +45,23 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
           transform: 'translateY(-50%)',
           border: '3px solid #fff',
         }}
-        title="Main input (from Application)"
+        title="Input [any] — from Application"
       />
 
       {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, color: '#374151' }}>
         <span>🔀</span>
-        <span>{data.label || 'Router'}</span>
+        <span>{data.label || 'Switcher'}</span>
       </div>
 
       {/* Entry count */}
       <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 8 }}>
         {entryCount === 0
-          ? 'No routing rules'
-          : `${entryCount} routing rule${entryCount > 1 ? 's' : ''}`}
+          ? '无匹配器'
+          : `${entryCount} 个匹配器`}
       </div>
 
-      {/* Routing entries with RIGHT-side output handles (to Provider model handles) */}
+      {/* Matcher entries with RIGHT-side output handles (to Provider model handles) */}
       {data.entries.map((entry, index, arr) => (
         <div
           key={entry.id}
@@ -77,15 +83,10 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
         >
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>
-              {entry.label || `Rule #${index + 1}`}
+              {entry.label || `Matcher #${index + 1}`}
             </div>
             <div style={{ color: '#6b7280', fontSize: 11 }}>
               {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || '—'}
-              {entry.targetModel && (
-                <span style={{ color: '#16a34a', marginLeft: 4 }}>
-                  → {entry.targetModel}
-                </span>
-              )}
             </div>
           </div>
           <Handle
@@ -93,7 +94,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             position={Position.Right}
             id={`entry-${entry.id}`}
             style={{
-              background: '#f97316',
+              background: HANDLE_COLORS[entry.matchType] || HANDLE_COLORS.any,
               width: 12,
               height: 12,
               right: -10,
@@ -101,7 +102,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
               transform: 'translateY(-50%)',
               border: '3px solid #fff',
             }}
-            title={`Connect to Provider model (matches: ${entry.pattern || '—'})`}
+            title={`[${entry.matchType}] Connect to Provider${entry.matchType === 'model' ? ' model' : ''} (matches: ${entry.pattern || '—'})`}
           />
         </div>
       ))}
@@ -128,7 +129,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
           <div>
             <div style={{ fontWeight: 500 }}>Default</div>
             <div style={{ color: '#6b7280', fontSize: 11 }}>
-              Fallback when no rules match
+              Fallback when no matchers match
             </div>
           </div>
           <Handle
@@ -144,7 +145,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
               transform: 'translateY(-50%)',
               border: '3px solid #fff',
             }}
-            title="Default route (fallback Provider)"
+            title="Default [any] — fallback to Provider"
           />
         </div>
       )}
@@ -162,11 +163,11 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             textAlign: 'center',
           }}
         >
-          Add routing rules or enable default route
+          Add matchers or enable default route
         </div>
       )}
     </div>
   );
 }
 
-export default memo(RouterNode);
+export default memo(SwitcherNode);

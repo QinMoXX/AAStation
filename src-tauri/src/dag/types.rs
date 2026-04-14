@@ -54,7 +54,7 @@ pub struct DAGNode {
     /// Node-type-specific data stored as a JSON value.
     /// Discriminated by `node_type`:
     /// - `Provider`  → `ProviderNodeData`
-    /// - `Router`    → `RouterNodeData`
+    /// - `Switcher`   → `SwitcherNodeData`
     /// - `Application`  → `ApplicationNodeData`
     pub data: serde_json::Value,
 }
@@ -90,7 +90,7 @@ pub struct DAGEdge {
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
     Provider,
-    Router,
+    Switcher,
     Application,
 }
 
@@ -98,7 +98,7 @@ impl std::fmt::Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NodeType::Provider => write!(f, "provider"),
-            NodeType::Router => write!(f, "router"),
+            NodeType::Switcher => write!(f, "switcher"),
             NodeType::Application => write!(f, "application"),
         }
     }
@@ -188,9 +188,9 @@ impl std::fmt::Display for MatchType {
     }
 }
 
-/// A routing entry within a Router node.
+/// A matcher entry within a Switcher node.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RouterEntry {
+pub struct SwitcherEntry {
     /// UUID, also used as handle ID: "entry-{id}"
     pub id: String,
     /// Display label, e.g. "claude-sonnet-4"
@@ -199,29 +199,25 @@ pub struct RouterEntry {
     pub match_type: MatchType,
     /// Match pattern (model name, path prefix, or header value).
     pub pattern: String,
-    /// Target model name to replace in the request body when forwarding.
-    /// If empty, the original model is kept.
-    #[serde(default)]
-    pub target_model: String,
 }
 
-/// Router node data: routes requests by entries to different Providers.
+/// Switcher node data: routes requests by matchers to different Providers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RouterNodeData {
+pub struct SwitcherNodeData {
     pub label: String,
     #[serde(default)]
     pub description: Option<String>,
-    /// Routing entries, each with a left-side input handle.
-    pub entries: Vec<RouterEntry>,
-    /// Whether a "default" input handle exists for unmatched requests.
+    /// Matcher entries, each with a right-side output handle.
+    pub entries: Vec<SwitcherEntry>,
+    /// Whether a "default" output handle exists for unmatched requests.
     #[serde(default)]
     pub has_default: bool,
 }
 
-impl Default for RouterNodeData {
+impl Default for SwitcherNodeData {
     fn default() -> Self {
         Self {
-            label: "Router".to_string(),
+            label: "Switcher".to_string(),
             description: None,
             entries: Vec::new(),
             has_default: false,

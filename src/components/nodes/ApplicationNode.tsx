@@ -45,7 +45,7 @@ function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
           transform: 'translateY(-50%)',
           border: '3px solid #fff',
         }}
-        title="Output to Router or Provider"
+        title="Output [any] — connect to Switcher or Provider"
       />
 
       {/* Header */}

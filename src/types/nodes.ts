@@ -1,5 +1,8 @@
 /** Node type discriminator. */
-export type NodeType = 'provider' | 'router' | 'application';
+export type NodeType = 'provider' | 'switcher' | 'application';
+
+/** Handle type discriminator for connection validation. */
+export type HandleType = 'model' | 'any';
 
 /** API compatibility type for Provider nodes. */
 export type ApiType = 'anthropic' | 'openai';
@@ -28,8 +31,8 @@ export interface ProviderNodeData extends BaseNodeData {
   models: ProviderModel[];
 }
 
-/** A routing entry within a Router node. */
-export interface RouterEntry {
+/** A matcher entry within a Switcher node. */
+export interface SwitcherEntry {
   id: string; // uuid, also used as handle ID: "entry-{id}"
   label: string; // e.g. "claude-sonnet-4"
   matchType: 'path_prefix' | 'header' | 'model';
@@ -37,17 +40,14 @@ export interface RouterEntry {
    *  - header: "Header-Name:value" format
    *  - model: model name e.g. "claude-sonnet-4-20250514" */
   pattern: string;
-  /** Target model name to replace in the request body when forwarding.
-   *  If empty, the original model is kept. */
-  targetModel: string;
 }
 
-/** Router node: routes requests by model matching to different Providers. */
-export interface RouterNodeData extends BaseNodeData {
-  nodeType: 'router';
-  /** Routing entries, each with a left-side input handle. */
-  entries: RouterEntry[];
-  /** Whether a "default" input handle exists for unmatched requests. */
+/** Switcher node: routes requests by matchers to different Providers. */
+export interface SwitcherNodeData extends BaseNodeData {
+  nodeType: 'switcher';
+  /** Matcher entries, each with a right-side output handle. */
+  entries: SwitcherEntry[];
+  /** Whether a "default" output handle exists for unmatched requests. */
   hasDefault: boolean;
 }
 
@@ -61,5 +61,5 @@ export interface ApplicationNodeData extends BaseNodeData {
 /** Union of all node data types. */
 export type AAStationNodeData =
   | ProviderNodeData
-  | RouterNodeData
+  | SwitcherNodeData
   | ApplicationNodeData;

@@ -3,11 +3,11 @@ import { useFlowStore, PRESET_PROVIDERS } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import type {
   ProviderNodeData,
-  RouterNodeData,
+  SwitcherNodeData,
   ApplicationNodeData,
   AAStationNodeData,
   ProviderModel,
-  RouterEntry,
+  SwitcherEntry,
 } from '../../types';
 import { getProviderIcon } from '../icons/ProviderIcons';
 
@@ -311,17 +311,16 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
 }
 
 // ---------------------------------------------------------------------------
-// Router form
+// Switcher form
 // ---------------------------------------------------------------------------
 
-function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch: Partial<RouterNodeData>) => void }) {
+function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (patch: Partial<SwitcherNodeData>) => void }) {
   const addEntry = useCallback(() => {
-    const newEntry: RouterEntry = {
+    const newEntry: SwitcherEntry = {
       id: crypto.randomUUID(),
       label: '',
       matchType: 'model',
       pattern: '',
-      targetModel: '',
     };
     onUpdate({ entries: [...data.entries, newEntry] });
   }, [data.entries, onUpdate]);
@@ -334,7 +333,7 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
   );
 
   const updateEntry = useCallback(
-    (entryId: string, patch: Partial<RouterEntry>) => {
+    (entryId: string, patch: Partial<SwitcherEntry>) => {
       onUpdate({
         entries: data.entries.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
       });
@@ -360,12 +359,12 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
           checked={data.hasDefault}
           onChange={(e) => onUpdate({ hasDefault: e.target.checked })}
         />
-        <span style={{ fontSize: 12, color: '#64748b' }}>Enable Default Route</span>
+        <span style={{ fontSize: 12, color: '#64748b' }}>启用默认路由</span>
       </div>
 
       {/* Entries section */}
       <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ ...sectionTitle, marginBottom: 0 }}>Routing Entries</span>
+        <span style={{ ...sectionTitle, marginBottom: 0 }}>匹配器</span>
         <button
           onClick={addEntry}
           style={{
@@ -378,13 +377,13 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
             cursor: 'pointer',
           }}
         >
-          + Add Entry
+          + 添加
         </button>
       </div>
 
       {data.entries.length === 0 && (
         <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-          No entries yet. Click "Add Entry" to create one.
+          还没有匹配器。点击"+ 添加"创建一个。
         </div>
       )}
 
@@ -401,7 +400,7 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: '#92400e' }}>
-              Entry #{index + 1}
+              匹配器 #{index + 1}
             </span>
             <button
               onClick={() => removeEntry(entry.id)}
@@ -436,7 +435,7 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
               value={entry.matchType}
               onChange={(e) =>
                 updateEntry(entry.id, {
-                  matchType: e.target.value as RouterEntry['matchType'],
+                  matchType: e.target.value as SwitcherEntry['matchType'],
                 })
               }
             >
@@ -460,19 +459,6 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
               }
               onChange={(e) => updateEntry(entry.id, { pattern: e.target.value })}
             />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Target Model (optional)</label>
-            <input
-              style={inputStyle}
-              value={entry.targetModel || ''}
-              placeholder="Leave empty to keep original model"
-              onChange={(e) => updateEntry(entry.id, { targetModel: e.target.value })}
-            />
-            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
-              Replace request model with this value when forwarding
-            </div>
           </div>
         </div>
       ))}
@@ -539,7 +525,7 @@ export default function NodePanel() {
   // Color header by node type
   const headerColors: Record<string, { bg: string; text: string; icon: string }> = {
     provider: { bg: '#3b82f6', text: '#fff', icon: '☁️' },
-    router: { bg: '#f59e0b', text: '#fff', icon: '🔀' },
+    switcher: { bg: '#f59e0b', text: '#fff', icon: '🔀' },
     application: { bg: '#16a34a', text: '#fff', icon: '🖥️' },
   };
   const theme = headerColors[data.nodeType] ?? headerColors.provider;
@@ -582,8 +568,8 @@ export default function NodePanel() {
       {data.nodeType === 'provider' && (
         <ProviderForm data={data} onUpdate={handleUpdate} />
       )}
-      {data.nodeType === 'router' && (
-        <RouterForm data={data} onUpdate={handleUpdate} />
+      {data.nodeType === 'switcher' && (
+        <SwitcherForm data={data} onUpdate={handleUpdate} />
       )}
       {data.nodeType === 'application' && (
         <ApplicationForm data={data} onUpdate={handleUpdate} />

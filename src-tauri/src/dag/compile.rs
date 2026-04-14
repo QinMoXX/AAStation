@@ -6,7 +6,7 @@ use crate::proxy::types::{ApiType, CompiledRoute, MatchType, RouteTable};
 use crate::settings::AppSettings;
 
 use super::types::{
-    DAGDocument, DAGEdge, DAGNode, NodeType, ProviderModel, ProviderNodeData, RouterNodeData,
+    DAGDocument, DAGEdge, DAGNode, NodeType, ProviderModel, ProviderNodeData, SwitcherNodeData,
 };
 
 /// Normalize a base URL by ensuring it has a scheme (http:// or https://).
@@ -22,13 +22,13 @@ fn normalize_base_url(url: &str) -> String {
 
 /// Compile a DAG document into a flat route table.
 ///
-/// Traversal logic (left-to-right flow: Application → Router → Provider):
+/// Traversal logic (left-to-right flow: Application → Switcher → Provider):
 /// 1. Get listen_port / listen_address from settings (not from a Listener node)
 /// 2. Build handle → edge lookup maps for efficient traversal
-/// 3. For each Router node:
+/// 3. For each Switcher node:
 ///    - For each entry: find the edge sourcing from this entry's handle → trace to Provider
 ///    - For the "default" handle: find the edge → trace to Provider
-/// 4. For Application nodes directly connected to a Provider (no Router):
+/// 4. For Application nodes directly connected to a Provider (no Switcher):
 ///    - Build a default/catch-all route
 pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, CompileError> {
     // Build node lookup map
@@ -49,16 +49,16 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
     let mut routes: Vec<CompiledRoute> = Vec::new();
     let mut default_route: Option<CompiledRoute> = None;
 
-    // Process all Router nodes
+    // Process all Switcher nodes
     for node in &doc.nodes {
-        if node.node_type != NodeType::Router {
+        if node.node_type != NodeType::Switcher {
             continue;
         }
 
-        let router_data: RouterNodeData = deserialize_node_data(node)?;
+        let switcher_data: SwitcherNodeData = deserialize_node_data(node)?;
 
-        // Process each routing entry
-        for entry in &router_data.entries {
+        // Process each matcher entry
+        for entry in &switcher_data.entries {
             // Find the edge sourcing from this entry's source handle
             let entry_handle = format!("entry-{}", entry.id);
             let edge = source_edge_map
@@ -77,7 +77,6 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
             let target_model = resolve_model_name(
                 edge.target_handle.as_deref(),
                 &provider_data.models,
-                &entry.target_model,
             );
 
             routes.push(CompiledRoute {
@@ -100,9 +99,9 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
             });
         }
 
-        // Process default route for this Router
+        // Process default route for this Switcher
         // Priority: explicit "default" handle > main "output" handle (was "input" on the old layout)
-        if router_data.has_default {
+        if switcher_data.has_default {
             let default_handle = "default";
             if let Some(edge) = source_edge_map.get(&(node.id.as_str(), default_handle)) {
                 let provider = resolve_provider(&edge.target, &node_map)?;
@@ -126,11 +125,11 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
         }
 
         // If no explicit default route, check main input handle
-        // The Router's "input" handle is a target handle (from Application),
+        // The Switcher's "input" handle is a target handle (from Application),
         // not a source handle going to Provider. So we skip this for now.
     }
 
-    // Process Application nodes directly connected to a Provider (no Router)
+    // Process Application nodes directly connected to a Provider (no Switcher)
     for node in &doc.nodes {
         if node.node_type != NodeType::Application {
             continue;
@@ -146,7 +145,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
             if let Some(target) = target_node {
                 if target.node_type == NodeType::Provider {
                     let provider_data: ProviderNodeData = deserialize_node_data(target)?;
-                    // Only set default route if not already set by a Router
+                    // Only set default route if not already set by a Switcher
                     if default_route.is_none() {
                         default_route = Some(CompiledRoute {
                             id: format!("route-direct-{}", node.id),
@@ -194,14 +193,13 @@ fn resolve_provider<'a>(
 
 /// Resolve the target model name from an edge's target handle.
 ///
-/// When a Router entry handle connects to a Provider model sub-handle (e.g. "model-{uuid}"),
+/// When a Switcher entry handle connects to a Provider model sub-handle (e.g. "model-{uuid}"),
 /// the target model should be the model name from that specific ProviderModel.
-/// If the target_handle is not a model sub-handle (e.g. "unified"), falls back to
-/// the provided `fallback` value (typically `entry.target_model`).
+/// If the target_handle is not a model sub-handle (e.g. "unified"), returns empty string
+/// (no model replacement).
 fn resolve_model_name(
     target_handle: Option<&str>,
     models: &[ProviderModel],
-    fallback: &str,
 ) -> String {
     if let Some(handle) = target_handle {
         if let Some(model_id) = handle.strip_prefix("model-") {
@@ -210,7 +208,7 @@ fn resolve_model_name(
             }
         }
     }
-    fallback.to_string()
+    String::new()
 }
 
 /// Deserialize a DAG node's `data` field into a typed struct.
@@ -224,9 +222,9 @@ fn deserialize_node_data<T: serde::de::DeserializeOwned>(
 /// Errors that can occur during DAG compilation.
 #[derive(Debug, thiserror::Error)]
 pub enum CompileError {
-    #[error("routing entry '{0}' has no connected edge")]
+    #[error("matcher entry '{0}' has no connected edge")]
     EntryEdgeNotFound(String),
-    #[error("default edge for router '{0}' not found")]
+    #[error("default edge for switcher '{0}' not found")]
     DefaultEdgeNotFound(String),
     #[error("edge points to missing node '{0}'")]
     EdgeToMissingNode(String),
@@ -241,7 +239,7 @@ mod tests {
     use super::*;
     use crate::dag::types::{
         DAGEdge, DAGDocument, DAGNode, MatchType as DagMatchType, NodeType, Position,
-        ProviderModel, ProviderNodeData, RouterEntry, RouterNodeData, ApplicationNodeData,
+        ProviderModel, ProviderNodeData, SwitcherEntry, SwitcherNodeData, ApplicationNodeData,
         ApiType as DagApiType,
     };
     use crate::proxy::types::MatchType as ProxyMatchType;
@@ -271,13 +269,13 @@ mod tests {
         }
     }
 
-    fn make_router(id: &str, entries: Vec<RouterEntry>, has_default: bool) -> DAGNode {
+    fn make_switcher(id: &str, entries: Vec<SwitcherEntry>, has_default: bool) -> DAGNode {
         DAGNode {
             id: id.to_string(),
-            node_type: NodeType::Router,
+            node_type: NodeType::Switcher,
             position: Position { x: 200.0, y: 0.0 },
-            data: serde_json::to_value(RouterNodeData {
-                label: "Router".to_string(),
+            data: serde_json::to_value(SwitcherNodeData {
+                label: "Switcher".to_string(),
                 description: None,
                 entries,
                 has_default,
@@ -312,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn test_application_to_router_to_provider() {
+    fn test_application_to_switcher_to_provider() {
         let model_id = "model-1";
         let entry_id = "entry-1";
 
@@ -322,14 +320,13 @@ mod tests {
             vec![ProviderModel { id: model_id.to_string(), name: "gpt-4o".to_string(), enabled: true }],
         );
 
-        let router = make_router(
-            "r1",
-            vec![RouterEntry {
+        let switcher = make_switcher(
+            "s1",
+            vec![SwitcherEntry {
                 id: entry_id.to_string(),
                 label: "gpt-4o".to_string(),
                 match_type: DagMatchType::Model,
                 pattern: "gpt-4o".to_string(),
-                target_model: String::new(),
             }],
             false,
         );
@@ -337,12 +334,12 @@ mod tests {
         let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
-            make_edge("e2", "r1", "p1", Some(&format!("entry-{}", entry_id)), Some(&format!("model-{}", model_id))),
+            make_edge("e1", "a1", "s1", Some("output"), Some("input")),
+            make_edge("e2", "s1", "p1", Some(&format!("entry-{}", entry_id)), Some(&format!("model-{}", model_id))),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![application, router, provider],
+            nodes: vec![application, switcher, provider],
             edges,
             ..Default::default()
         };
@@ -354,13 +351,13 @@ mod tests {
         assert_eq!(table.routes[0].pattern, "gpt-4o");
         assert_eq!(table.routes[0].upstream_url, "https://api.openai.com");
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
-        // target_model is resolved from the Provider model target handle ("model-model-1" → "gpt-4o")
+        // target_model is resolved from the Provider model target handle ("model-m1" → "gpt-4o")
         assert_eq!(table.routes[0].target_model, "gpt-4o");
         assert!(table.default_route.is_none());
     }
 
     #[test]
-    fn test_application_to_router_with_default() {
+    fn test_application_to_switcher_with_default() {
         let entry_id = "entry-1";
 
         let provider_a = make_provider(
@@ -375,14 +372,13 @@ mod tests {
             vec![],
         );
 
-        let router = make_router(
-            "r1",
-            vec![RouterEntry {
+        let switcher = make_switcher(
+            "s1",
+            vec![SwitcherEntry {
                 id: entry_id.to_string(),
                 label: "gpt-4o".to_string(),
                 match_type: DagMatchType::Model,
                 pattern: "gpt-4o".to_string(),
-                target_model: String::new(),
             }],
             true,
         );
@@ -390,13 +386,13 @@ mod tests {
         let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
-            make_edge("e2", "r1", "pa", Some(&format!("entry-{}", entry_id)), Some("model-m1")),
-            make_edge("e3", "r1", "pb", Some("default"), Some("unified")),
+            make_edge("e1", "a1", "s1", Some("output"), Some("input")),
+            make_edge("e2", "s1", "pa", Some(&format!("entry-{}", entry_id)), Some("model-m1")),
+            make_edge("e3", "s1", "pb", Some("default"), Some("unified")),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![application, router, provider_a, provider_b],
+            nodes: vec![application, switcher, provider_a, provider_b],
             edges,
             ..Default::default()
         };
@@ -443,21 +439,20 @@ mod tests {
             vec![],
         );
 
-        let router = make_router(
-            "r1",
-            vec![RouterEntry {
+        let switcher = make_switcher(
+            "s1",
+            vec![SwitcherEntry {
                 id: "entry-1".to_string(),
                 label: "gpt-4o".to_string(),
                 match_type: DagMatchType::Model,
                 pattern: "gpt-4o".to_string(),
-                target_model: String::new(),
             }],
             false,
         );
 
-        // No edge connecting router entry to provider
+        // No edge connecting switcher entry to provider
         let doc = DAGDocument {
-            nodes: vec![router, provider],
+            nodes: vec![switcher, provider],
             edges: vec![],
             ..Default::default()
         };
@@ -473,11 +468,11 @@ mod tests {
             vec![],
         );
 
-        let router = make_router("r1", vec![], true);
+        let switcher = make_switcher("s1", vec![], true);
 
-        // No edge connecting router default or input to provider
+        // No edge connecting switcher default or input to provider
         let doc = DAGDocument {
-            nodes: vec![router, provider],
+            nodes: vec![switcher, provider],
             edges: vec![],
             ..Default::default()
         };
@@ -502,22 +497,20 @@ mod tests {
             vec![ProviderModel { id: "m2".to_string(), name: "claude-sonnet-4".to_string(), enabled: true }],
         );
 
-        let router = make_router(
-            "r1",
+        let switcher = make_switcher(
+            "s1",
             vec![
-                RouterEntry {
+                SwitcherEntry {
                     id: "entry-1".to_string(),
                     label: "gpt-4o".to_string(),
                     match_type: DagMatchType::Model,
                     pattern: "gpt-4o".to_string(),
-                    target_model: String::new(),
                 },
-                RouterEntry {
+                SwitcherEntry {
                     id: "entry-2".to_string(),
                     label: "claude-sonnet-4".to_string(),
                     match_type: DagMatchType::Model,
                     pattern: "claude-sonnet-4-20250514".to_string(),
-                    target_model: "claude-sonnet-4-20250514".to_string(),
                 },
             ],
             false,
@@ -526,13 +519,13 @@ mod tests {
         let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
-            make_edge("e2", "r1", "p1", Some("entry-entry-1"), Some("model-m1")),
-            make_edge("e3", "r1", "p2", Some("entry-entry-2"), Some("model-m2")),
+            make_edge("e1", "a1", "s1", Some("output"), Some("input")),
+            make_edge("e2", "s1", "p1", Some("entry-entry-1"), Some("model-m1")),
+            make_edge("e3", "s1", "p2", Some("entry-entry-2"), Some("model-m2")),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![application, router, openai, anthropic],
+            nodes: vec![application, switcher, openai, anthropic],
             edges,
             ..Default::default()
         };
@@ -541,7 +534,7 @@ mod tests {
         assert_eq!(table.routes.len(), 2);
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
         assert_eq!(table.routes[1].api_type, Some(ApiType::Anthropic));
-        // target_model is resolved from Provider model target handle, not entry.target_model
+        // target_model is resolved from Provider model target handle
         // Route 0: edge target "model-m1" → model name "gpt-4o"
         assert_eq!(table.routes[0].target_model, "gpt-4o");
         // Route 1: edge target "model-m2" → model name "claude-sonnet-4"
@@ -549,38 +542,38 @@ mod tests {
     }
 
     #[test]
-    fn test_router_main_input_from_application() {
+    fn test_switcher_main_input_from_application() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
             "https://api.openai.com", "sk-test",
             vec![],
         );
 
-        let router = make_router("r1", vec![], false); // no entries, no explicit default
+        let switcher = make_switcher("s1", vec![], false); // no entries, no explicit default
 
         let application = make_application("a1", "Claude Code", "claude_code");
 
-        // Connect application output to router input
+        // Connect application output to switcher input
         let edges = vec![
-            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
-            // No edges from router to provider (no entries, no default)
+            make_edge("e1", "a1", "s1", Some("output"), Some("input")),
+            // No edges from switcher to provider (no entries, no default)
         ];
 
         let doc = DAGDocument {
-            nodes: vec![application, router, provider],
+            nodes: vec![application, switcher, provider],
             edges,
             ..Default::default()
         };
 
         let table = compile(&doc, &default_settings()).unwrap();
         assert!(table.routes.is_empty());
-        // No default route since router has no source handles going to provider
+        // No default route since switcher has no source handles going to provider
         assert!(table.default_route.is_none());
     }
 
     #[test]
     fn test_single_provider_model_match_with_default_fallback() {
-        // Scenario: single Provider with both model and unified connections from Router.
+        // Scenario: single Provider with both model and unified connections from Switcher.
         // - When entry pattern matches → replace model with Provider model sub-node's model
         // - When no match → forward via default route without model replacement
         let provider = make_provider(
@@ -589,14 +582,13 @@ mod tests {
             vec![ProviderModel { id: "m1".to_string(), name: "Qwen/Qwen2.5-7B-Instruct".to_string(), enabled: true }],
         );
 
-        let router = make_router(
-            "r1",
-            vec![RouterEntry {
+        let switcher = make_switcher(
+            "s1",
+            vec![SwitcherEntry {
                 id: "entry-1".to_string(),
                 label: "GLM-4.7".to_string(),
                 match_type: DagMatchType::Model,
                 pattern: "Pro/zai-org/GLM-4.7".to_string(),
-                target_model: String::new(), // NOT manually set — should be resolved from edge
             }],
             true, // has explicit "default" handle
         );
@@ -604,16 +596,16 @@ mod tests {
         let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            // Application output → Router main input
-            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
-            // Router entry source handle → Provider model target handle (for matching rule)
-            make_edge("e2", "r1", "p1", Some("entry-entry-1"), Some("model-m1")),
-            // Router default source handle → Provider unified target handle (for default/fallback)
-            make_edge("e3", "r1", "p1", Some("default"), Some("unified")),
+            // Application output → Switcher main input
+            make_edge("e1", "a1", "s1", Some("output"), Some("input")),
+            // Switcher entry source handle → Provider model target handle (for matching rule)
+            make_edge("e2", "s1", "p1", Some("entry-entry-1"), Some("model-m1")),
+            // Switcher default source handle → Provider unified target handle (for default/fallback)
+            make_edge("e3", "s1", "p1", Some("default"), Some("unified")),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![application, router, provider],
+            nodes: vec![application, switcher, provider],
             edges,
             ..Default::default()
         };

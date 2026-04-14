@@ -27,8 +27,8 @@ pub enum ValidationErrorKind {
     ProviderNoBaseUrl,
     /// A provider node is missing its api_key.
     ProviderNoApiKey,
-    /// A router node has no routing entries.
-    RouterNoEntries,
+    /// A switcher node has no matcher entries.
+    SwitcherNoEntries,
     /// An application node has no outgoing edges.
     ApplicationDisconnected,
     /// Invalid edge: source or target node does not exist.
@@ -45,7 +45,7 @@ impl std::fmt::Display for ValidationErrorKind {
             ValidationErrorKind::OrphanNode => write!(f, "orphan_node"),
             ValidationErrorKind::ProviderNoBaseUrl => write!(f, "provider_no_base_url"),
             ValidationErrorKind::ProviderNoApiKey => write!(f, "provider_no_api_key"),
-            ValidationErrorKind::RouterNoEntries => write!(f, "router_no_entries"),
+            ValidationErrorKind::SwitcherNoEntries => write!(f, "switcher_no_entries"),
             ValidationErrorKind::ApplicationDisconnected => write!(f, "application_disconnected"),
             ValidationErrorKind::EdgeToMissingNode => write!(f, "edge_to_missing_node"),
             ValidationErrorKind::InvalidEdgeType => write!(f, "invalid_edge_type"),
@@ -140,13 +140,13 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
                     });
                 }
             }
-            NodeType::Router => {
-                if let Ok(data) = serde_json::from_value::<RouterNodeData>(node.data.clone()) {
+            NodeType::Switcher => {
+                if let Ok(data) = serde_json::from_value::<SwitcherNodeData>(node.data.clone()) {
                     if data.entries.is_empty() && !data.has_default {
                         errors.push(ValidationError {
-                            kind: ValidationErrorKind::RouterNoEntries,
+                            kind: ValidationErrorKind::SwitcherNoEntries,
                             message: format!(
-                                "Router node '{}' must have at least one entry or a default route",
+                                "Switcher node '{}' must have at least one matcher or a default route",
                                 node.id
                             ),
                         });
@@ -154,7 +154,7 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
                 } else {
                     errors.push(ValidationError {
                         kind: ValidationErrorKind::NodeDataInvalid,
-                        message: format!("Router node '{}' has invalid data", node.id),
+                        message: format!("Switcher node '{}' has invalid data", node.id),
                     });
                 }
             }
@@ -174,13 +174,13 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
     errors
 }
 
-/// Allowed: Application→Router, Application→Provider, Router→Provider
+/// Allowed: Application→Switcher, Application→Provider, Switcher→Provider
 fn is_valid_edge(source: NodeType, target: NodeType) -> bool {
     matches!(
         (source, target),
-        (NodeType::Application, NodeType::Router)
+        (NodeType::Application, NodeType::Switcher)
             | (NodeType::Application, NodeType::Provider)
-            | (NodeType::Router, NodeType::Provider)
+            | (NodeType::Switcher, NodeType::Provider)
     )
 }
 
@@ -205,13 +205,13 @@ mod tests {
         }
     }
 
-    fn make_router(id: &str, entries: Vec<RouterEntry>, has_default: bool) -> DAGNode {
+    fn make_switcher(id: &str, entries: Vec<SwitcherEntry>, has_default: bool) -> DAGNode {
         DAGNode {
             id: id.to_string(),
-            node_type: NodeType::Router,
+            node_type: NodeType::Switcher,
             position: Position { x: 0.0, y: 0.0 },
-            data: serde_json::to_value(RouterNodeData {
-                label: "R".to_string(),
+            data: serde_json::to_value(SwitcherNodeData {
+                label: "S".to_string(),
                 description: None,
                 entries,
                 has_default,
@@ -265,22 +265,21 @@ mod tests {
     }
 
     #[test]
-    fn test_valid_application_router_provider() {
+    fn test_valid_application_switcher_provider() {
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let r = make_router("r1", vec![RouterEntry {
+        let s = make_switcher("s1", vec![SwitcherEntry {
             id: "e1".to_string(),
             label: "gpt-4o".to_string(),
             match_type: MatchType::Model,
             pattern: "gpt-4o".to_string(),
-            target_model: String::new(),
         }], false);
         let a = make_application("a1");
-        let e1 = make_edge("e1", "a1", "r1");
-        let e2 = make_edge("e2", "r1", "p1");
+        let e1 = make_edge("e1", "a1", "s1");
+        let e2 = make_edge("e2", "s1", "p1");
         let doc = DAGDocument {
-            nodes: vec![a, r, p],
+            nodes: vec![a, s, p],
             edges: vec![e1, e2],
             ..Default::default()
         };
@@ -336,21 +335,21 @@ mod tests {
     }
 
     #[test]
-    fn test_router_no_entries() {
+    fn test_switcher_no_entries() {
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let r = make_router("r1", vec![], false);
+        let s = make_switcher("s1", vec![], false);
         let a = make_application("a1");
-        let e1 = make_edge("e1", "a1", "r1");
-        let e2 = make_edge("e2", "r1", "p1");
+        let e1 = make_edge("e1", "a1", "s1");
+        let e2 = make_edge("e2", "s1", "p1");
         let doc = DAGDocument {
-            nodes: vec![a, r, p],
+            nodes: vec![a, s, p],
             edges: vec![e1, e2],
             ..Default::default()
         };
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::RouterNoEntries));
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::SwitcherNoEntries));
     }
 
     #[test]
@@ -385,22 +384,21 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_edge_type_router_to_router() {
+    fn test_invalid_edge_type_switcher_to_switcher() {
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let r1 = make_router("r1", vec![RouterEntry {
+        let s1 = make_switcher("s1", vec![SwitcherEntry {
             id: "e1".to_string(),
             label: "gpt-4o".to_string(),
             match_type: MatchType::Model,
             pattern: "gpt-4o".to_string(),
-            target_model: String::new(),
         }], false);
-        let r2 = make_router("r2", vec![], false);
-        let e1 = make_edge("e1", "p1", "r1");
-        let e2 = make_edge("e2", "r1", "r2"); // Router → Router (invalid)
+        let s2 = make_switcher("s2", vec![], false);
+        let e1 = make_edge("e1", "p1", "s1");
+        let e2 = make_edge("e2", "s1", "s2"); // Switcher → Switcher (invalid)
         let doc = DAGDocument {
-            nodes: vec![p, r1, r2],
+            nodes: vec![p, s1, s2],
             edges: vec![e1, e2],
             ..Default::default()
         };
