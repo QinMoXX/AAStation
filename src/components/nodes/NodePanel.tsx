@@ -4,7 +4,7 @@ import { useAppStore } from '../../store/app-store';
 import type {
   ProviderNodeData,
   RouterNodeData,
-  TerminalNodeData,
+  ApplicationNodeData,
   AAStationNodeData,
   ProviderModel,
   RouterEntry,
@@ -481,10 +481,10 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (patch
 }
 
 // ---------------------------------------------------------------------------
-// Terminal form
+// Application form
 // ---------------------------------------------------------------------------
 
-function TerminalForm({ data, onUpdate }: { data: TerminalNodeData; onUpdate: (patch: Partial<TerminalNodeData>) => void }) {
+function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpdate: (patch: Partial<ApplicationNodeData>) => void }) {
   return (
     <>
       <div style={fieldGap}>
@@ -540,7 +540,7 @@ export default function NodePanel() {
   const headerColors: Record<string, { bg: string; text: string; icon: string }> = {
     provider: { bg: '#3b82f6', text: '#fff', icon: '☁️' },
     router: { bg: '#f59e0b', text: '#fff', icon: '🔀' },
-    terminal: { bg: '#16a34a', text: '#fff', icon: '🖥️' },
+    application: { bg: '#16a34a', text: '#fff', icon: '🖥️' },
   };
   const theme = headerColors[data.nodeType] ?? headerColors.provider;
 
@@ -585,8 +585,8 @@ export default function NodePanel() {
       {data.nodeType === 'router' && (
         <RouterForm data={data} onUpdate={handleUpdate} />
       )}
-      {data.nodeType === 'terminal' && (
-        <TerminalForm data={data} onUpdate={handleUpdate} />
+      {data.nodeType === 'application' && (
+        <ApplicationForm data={data} onUpdate={handleUpdate} />
       )}
     </div>
   );

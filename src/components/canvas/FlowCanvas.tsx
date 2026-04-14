@@ -12,14 +12,14 @@ import { useAppStore } from '../../store/app-store';
 import { isValidConnection } from '../../lib/edge-rules';
 import ProviderNode from '../nodes/ProviderNode';
 import RouterNode from '../nodes/RouterNode';
-import TerminalNode from '../nodes/TerminalNode';
+import ApplicationNode from '../nodes/ApplicationNode';
 import CustomEdge from '../edges/CustomEdge';
 
 // Register custom node type components.
 const nodeTypes: NodeTypes = {
   provider: ProviderNode,
   router: RouterNode,
-  terminal: TerminalNode,
+  application: ApplicationNode,
 };
 
 // Register custom edge type for selection highlighting.

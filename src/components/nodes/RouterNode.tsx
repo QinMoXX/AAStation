@@ -25,7 +25,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
         boxSizing: 'border-box',
       }}
     >
-      {/* Main input handle on the LEFT side - connects from Provider unified output */}
+      {/* Main input handle on the LEFT side - connects from Application output */}
       <Handle
         type="target"
         position={Position.Left}
@@ -39,24 +39,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
           transform: 'translateY(-50%)',
           border: '3px solid #fff',
         }}
-        title="Main input (from Provider)"
-      />
-
-      {/* Output handle on the RIGHT side - connects to Terminal */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="output"
-        style={{
-          background: '#f97316',
-          width: 12,
-          height: 12,
-          top: '50%',
-          right: -10,
-          transform: 'translateY(-50%)',
-          border: '3px solid #fff',
-        }}
-        title="Output to Terminal"
+        title="Main input (from Application)"
       />
 
       {/* Header */}
@@ -72,7 +55,7 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
           : `${entryCount} routing rule${entryCount > 1 ? 's' : ''}`}
       </div>
 
-      {/* Routing entries with LEFT-side input handles (for model-specific routing) */}
+      {/* Routing entries with RIGHT-side output handles (to Provider model handles) */}
       {data.entries.map((entry, index, arr) => (
         <div
           key={entry.id}
@@ -92,21 +75,6 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             paddingRight: 16,
           }}
         >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id={`entry-${entry.id}`}
-            style={{
-              background: '#f97316',
-              width: 12,
-              height: 12,
-              left: -10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              border: '3px solid #fff',
-            }}
-            title={`Connect from Provider model (matches: ${entry.pattern || '—'})`}
-          />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>
               {entry.label || `Rule #${index + 1}`}
@@ -120,10 +88,25 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
               )}
             </div>
           </div>
+          <Handle
+            type="source"
+            position={Position.Right}
+            id={`entry-${entry.id}`}
+            style={{
+              background: '#f97316',
+              width: 12,
+              height: 12,
+              right: -10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              border: '3px solid #fff',
+            }}
+            title={`Connect to Provider model (matches: ${entry.pattern || '—'})`}
+          />
         </div>
       ))}
 
-      {/* Default route with LEFT-side input handle */}
+      {/* Default route with RIGHT-side output handle */}
       {data.hasDefault && (
         <div
           style={{
@@ -142,27 +125,27 @@ function RouterNode({ data, selected }: NodeProps<RouterNodeData>) {
             paddingRight: 16,
           }}
         >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id="default"
-            style={{
-              background: '#f97316',
-              width: 12,
-              height: 12,
-              left: -10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              border: '3px solid #fff',
-            }}
-            title="Default route (fallback Provider)"
-          />
           <div>
             <div style={{ fontWeight: 500 }}>Default</div>
             <div style={{ color: '#6b7280', fontSize: 11 }}>
               Fallback when no rules match
             </div>
           </div>
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="default"
+            style={{
+              background: '#f97316',
+              width: 12,
+              height: 12,
+              right: -10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              border: '3px solid #fff',
+            }}
+            title="Default route (fallback Provider)"
+          />
         </div>
       )}
 

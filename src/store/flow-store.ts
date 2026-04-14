@@ -16,7 +16,7 @@ import type {
   AAStationNodeData,
   ProviderNodeData,
   RouterNodeData,
-  TerminalNodeData,
+  ApplicationNodeData,
   NodeType,
   ProviderPreset,
 } from '../types';
@@ -47,10 +47,10 @@ export function defaultRouterData(): RouterNodeData {
   };
 }
 
-export function defaultTerminalData(): TerminalNodeData {
+export function defaultApplicationData(): ApplicationNodeData {
   return {
-    nodeType: 'terminal',
-    label: 'Terminal',
+    nodeType: 'application',
+    label: 'Application',
     appType: 'custom',
   };
 }
@@ -58,7 +58,7 @@ export function defaultTerminalData(): TerminalNodeData {
 const DEFAULT_DATA_MAP: Record<NodeType, () => AAStationNodeData> = {
   provider: defaultProviderData,
   router: defaultRouterData,
-  terminal: defaultTerminalData,
+  application: defaultApplicationData,
 };
 
 // ---------------------------------------------------------------------------
@@ -196,11 +196,11 @@ export const useFlowStore = create<FlowState>((set, get) => ({
           );
 
           if (removedIds.size > 0) {
-            // Remove edges whose sourceHandle is a removed model handle
+            // Remove edges whose targetHandle is a removed model handle
             set({
               edges: get().edges.filter(
                 (e) =>
-                  !(e.source === nodeId && e.sourceHandle && removedIds.has(e.sourceHandle)),
+                  !(e.target === nodeId && e.targetHandle && removedIds.has(e.targetHandle)),
               ),
             });
           }

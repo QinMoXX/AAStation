@@ -1,12 +1,12 @@
 /**
  * Connection validation rules for React Flow edges.
  * Enforces the allowed edge topology for left-to-right flow:
- *   Provider → Router    ✅ (model/unified → entry/default)
- *   Provider → Terminal  ✅ (model/unified → input)
- *   Router   → Terminal  ✅ (output → input)
- *   Terminal → *         ❌ (terminal has no output)
- *   Router   → Provider  ❌ (wrong direction)
- *   Provider → Provider  ❌ (no provider chaining)
+ *   Application → Router       ✅ (output → input)
+ *   Application → Provider     ✅ (output → unified)
+ *   Router      → Provider     ✅ (entry/default → model/unified)
+ *   Provider    → *            ❌ (provider has no output)
+ *   Router      → Application  ❌ (wrong direction)
+ *   Provider    → Provider     ❌ (no provider chaining)
  */
 
 export function isValidConnection(
@@ -15,13 +15,13 @@ export function isValidConnection(
   _sourceHandle?: string | null,
   _targetHandle?: string | null,
 ): { valid: boolean; reason?: string } {
-  // Terminal has no outputs
-  if (sourceNodeType === 'terminal')
-    return { valid: false, reason: 'Terminal 是终端节点，不能作为连线起点' };
+  // Provider has no outputs
+  if (sourceNodeType === 'provider')
+    return { valid: false, reason: 'Provider 是终点节点，不能作为连线起点' };
 
-  // No back-connections to Provider
-  if (targetNodeType === 'provider')
-    return { valid: false, reason: '不能连接到供应商节点' };
+  // No back-connections to Application
+  if (targetNodeType === 'application')
+    return { valid: false, reason: '不能连接到 Application 节点' };
 
   // No Router-to-Router
   if (sourceNodeType === 'router' && targetNodeType === 'router')
@@ -31,23 +31,21 @@ export function isValidConnection(
   if (sourceNodeType === 'provider' && targetNodeType === 'provider')
     return { valid: false, reason: '不支持供应商链式连接' };
 
-  // Router → Router already handled above
-
-  // Provider → Router (valid)
-  if (sourceNodeType === 'provider' && targetNodeType === 'router')
+  // Application → Router (valid)
+  if (sourceNodeType === 'application' && targetNodeType === 'router')
     return { valid: true };
 
-  // Provider → Terminal (valid)
-  if (sourceNodeType === 'provider' && targetNodeType === 'terminal')
+  // Application → Provider (valid)
+  if (sourceNodeType === 'application' && targetNodeType === 'provider')
     return { valid: true };
 
-  // Router → Terminal (valid)
-  if (sourceNodeType === 'router' && targetNodeType === 'terminal')
-    return { valid: true };
-
-  // Router → Provider (wrong direction)
+  // Router → Provider (valid)
   if (sourceNodeType === 'router' && targetNodeType === 'provider')
-    return { valid: false, reason: '路由节点不能连接到供应商节点' };
+    return { valid: true };
+
+  // Router → Application (wrong direction)
+  if (sourceNodeType === 'router' && targetNodeType === 'application')
+    return { valid: false, reason: '路由节点不能连接到 Application 节点' };
 
   return { valid: false, reason: '不支持的连接类型' };
 }

@@ -55,7 +55,7 @@ pub struct DAGNode {
     /// Discriminated by `node_type`:
     /// - `Provider`  → `ProviderNodeData`
     /// - `Router`    → `RouterNodeData`
-    /// - `Terminal`  → `TerminalNodeData`
+    /// - `Application`  → `ApplicationNodeData`
     pub data: serde_json::Value,
 }
 
@@ -91,7 +91,7 @@ pub struct DAGEdge {
 pub enum NodeType {
     Provider,
     Router,
-    Terminal,
+    Application,
 }
 
 impl std::fmt::Display for NodeType {
@@ -99,7 +99,7 @@ impl std::fmt::Display for NodeType {
         match self {
             NodeType::Provider => write!(f, "provider"),
             NodeType::Router => write!(f, "router"),
-            NodeType::Terminal => write!(f, "terminal"),
+            NodeType::Application => write!(f, "application"),
         }
     }
 }
@@ -229,9 +229,9 @@ impl Default for RouterNodeData {
     }
 }
 
-/// Terminal node data: represents an end application/tool.
+/// Application node data: represents an end application/tool.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TerminalNodeData {
+pub struct ApplicationNodeData {
     pub label: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -239,10 +239,10 @@ pub struct TerminalNodeData {
     pub app_type: String,
 }
 
-impl Default for TerminalNodeData {
+impl Default for ApplicationNodeData {
     fn default() -> Self {
         Self {
-            label: "Terminal".to_string(),
+            label: "Application".to_string(),
             description: None,
             app_type: "custom".to_string(),
         }

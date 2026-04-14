@@ -18,7 +18,7 @@ import type {
   AAStationNodeData,
   ProviderNodeData,
   RouterNodeData,
-  TerminalNodeData,
+  ApplicationNodeData,
 } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -185,13 +185,14 @@ function nodeDataToFrontend(
         hasDefault: (camelData.hasDefault as boolean) ?? false,
         description: camelData.description as string | undefined,
       } as RouterNodeData;
-    case 'terminal':
+    case 'application':
+    case 'terminal': // backward compatibility with older data files
       return {
-        nodeType: 'terminal',
-        label: (camelData.label as string) || 'Terminal',
+        nodeType: 'application',
+        label: (camelData.label as string) || 'Application',
         appType: (camelData.appType as string) || 'custom',
         description: camelData.description as string | undefined,
-      } as TerminalNodeData;
+      } as ApplicationNodeData;
     default:
       // Fallback: return as provider with minimal defaults
       return {
@@ -207,11 +208,13 @@ function nodeDataToFrontend(
 
 /** Convert a single backend DAGNode to frontend AAStationNode */
 function nodeToFrontend(node: BackendDAGNode): AAStationNode {
+  // Map legacy 'terminal' node type to 'application'
+  const nodeType = node.node_type === 'terminal' ? 'application' : node.node_type;
   return {
     id: node.id,
-    type: node.node_type,
+    type: nodeType,
     position: { x: node.position.x, y: node.position.y },
-    data: nodeDataToFrontend(node.node_type, node.data),
+    data: nodeDataToFrontend(nodeType, node.data),
   };
 }
 

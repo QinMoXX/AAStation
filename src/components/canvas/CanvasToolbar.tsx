@@ -170,7 +170,7 @@ function ProviderDropdownButton() {
 
 const NODE_ADD_OPTIONS: { type: NodeType; label: string; icon: string; color: string }[] = [
   { type: 'router', label: 'Router', icon: '🔀', color: '#f59e0b' },
-  { type: 'terminal', label: 'Terminal', icon: '🖥️', color: '#16a34a' },
+  { type: 'application', label: 'Application', icon: '🖥️', color: '#16a34a' },
 ];
 
 // ---------------------------------------------------------------------------

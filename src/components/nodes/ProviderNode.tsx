@@ -44,17 +44,17 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
         boxSizing: 'border-box',
       }}
     >
-      {/* Unified output handle - centered on right side of node */}
+      {/* Unified input handle - centered on left side of node */}
       <Handle
-        type="source"
-        position={Position.Right}
+        type="target"
+        position={Position.Left}
         id="unified"
         style={{
           background: '#f97316',
           width: 12,
           height: 12,
           top: '50%',
-          right: -10,
+          left: -10,
           transform: 'translateY(-50%)',
           border: '3px solid #fff',
         }}
@@ -127,7 +127,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
         </span>
       </div>
 
-      {/* Model entries with right-side output handles */}
+      {/* Model entries with left-side input handles */}
       {data.models.length > 0 && (
         <div style={{ marginTop: 10, marginBottom: -12 }}>
           {data.models.map((model, index) => (
@@ -149,22 +149,22 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
                 paddingRight: 16,
               }}
             >
-              <span>{model.name || 'Unnamed'}</span>
               <Handle
-                type="source"
-                position={Position.Right}
+                type="target"
+                position={Position.Left}
                 id={`model-${model.id}`}
                 style={{
                   background: '#f97316',
                   width: 12,
                   height: 12,
-                  right: -10,
+                  left: -10,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   border: '3px solid #fff',
                 }}
                 title={`Model: ${model.name || 'Unnamed'}`}
               />
+              <span>{model.name || 'Unnamed'}</span>
             </div>
           ))}
         </div>

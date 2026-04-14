@@ -22,32 +22,20 @@ fn normalize_base_url(url: &str) -> String {
 
 /// Compile a DAG document into a flat route table.
 ///
-/// Traversal logic (left-to-right flow: Provider → Router → Terminal):
+/// Traversal logic (left-to-right flow: Application → Router → Provider):
 /// 1. Get listen_port / listen_address from settings (not from a Listener node)
 /// 2. Build handle → edge lookup maps for efficient traversal
 /// 3. For each Router node:
-///    - For each entry: find the edge targeting this entry's handle → trace to Provider
+///    - For each entry: find the edge sourcing from this entry's handle → trace to Provider
 ///    - For the "default" handle: find the edge → trace to Provider
-/// 4. For Terminal nodes directly connected to a Provider (no Router):
+/// 4. For Application nodes directly connected to a Provider (no Router):
 ///    - Build a default/catch-all route
 pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, CompileError> {
     // Build node lookup map
     let node_map: HashMap<&str, &DAGNode> = doc.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 
-    // Build target lookup: (target_node_id, target_handle) → &DAGEdge
-    let target_edge_map: HashMap<(&str, &str), &DAGEdge> = doc
-        .edges
-        .iter()
-        .filter_map(|e| {
-            match (&e.target_handle, e.target_handle.as_deref()) {
-                (Some(h), _) => Some(((e.target.as_str(), h.as_str()), e)),
-                _ => None,
-            }
-        })
-        .collect();
-
     // Build source lookup: (source_node_id, source_handle) → &DAGEdge
-    let _source_edge_map: HashMap<(&str, &str), &DAGEdge> = doc
+    let source_edge_map: HashMap<(&str, &str), &DAGEdge> = doc
         .edges
         .iter()
         .filter_map(|e| {
@@ -71,23 +59,23 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
 
         // Process each routing entry
         for entry in &router_data.entries {
-            // Find the edge connecting to this entry's target handle
+            // Find the edge sourcing from this entry's source handle
             let entry_handle = format!("entry-{}", entry.id);
-            let edge = target_edge_map
+            let edge = source_edge_map
                 .get(&(node.id.as_str(), entry_handle.as_str()))
                 .ok_or_else(|| CompileError::EntryEdgeNotFound(entry.id.clone()))?;
 
-            // Trace to the source Provider
-            let provider = resolve_provider(&edge.source, &node_map)?;
+            // Trace to the target Provider
+            let provider = resolve_provider(&edge.target, &node_map)?;
             let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
 
-            // Resolve target_model from the edge's source_handle.
-            // When the edge comes from a Provider model sub-handle (e.g. "model-{uuid}"),
+            // Resolve target_model from the edge's target_handle.
+            // When the edge targets a Provider model sub-handle (e.g. "model-{uuid}"),
             // use that model's name as the target model to replace in the request body.
             // When no matching rule is met, the default route (via Provider main handle)
             // keeps target_model empty, forwarding without model replacement.
             let target_model = resolve_model_name(
-                edge.source_handle.as_deref(),
+                edge.target_handle.as_deref(),
                 &provider_data.models,
                 &entry.target_model,
             );
@@ -113,11 +101,11 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
         }
 
         // Process default route for this Router
-        // Priority: explicit "default" handle > main "input" handle
+        // Priority: explicit "default" handle > main "output" handle (was "input" on the old layout)
         if router_data.has_default {
             let default_handle = "default";
-            if let Some(edge) = target_edge_map.get(&(node.id.as_str(), default_handle)) {
-                let provider = resolve_provider(&edge.source, &node_map)?;
+            if let Some(edge) = source_edge_map.get(&(node.id.as_str(), default_handle)) {
+                let provider = resolve_provider(&edge.target, &node_map)?;
                 let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
 
                 default_route = Some(CompiledRoute {
@@ -138,46 +126,26 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
         }
 
         // If no explicit default route, check main input handle
-        if default_route.is_none() {
-            let input_handle = "input";
-            if let Some(edge) = target_edge_map.get(&(node.id.as_str(), input_handle)) {
-                let provider = resolve_provider(&edge.source, &node_map)?;
-                let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
-
-                default_route = Some(CompiledRoute {
-                    id: format!("route-input-{}", node.id),
-                    match_type: MatchType::PathPrefix,
-                    pattern: String::new(),
-                    upstream_url: normalize_base_url(&provider_data.base_url),
-                    api_key: provider_data.api_key,
-                    extra_headers: HashMap::new(),
-                    is_default: true,
-                    api_type: Some(match provider_data.api_type {
-                        super::types::ApiType::Anthropic => ApiType::Anthropic,
-                        super::types::ApiType::OpenAI => ApiType::OpenAI,
-                    }),
-                    target_model: String::new(),
-                });
-            }
-        }
+        // The Router's "input" handle is a target handle (from Application),
+        // not a source handle going to Provider. So we skip this for now.
     }
 
-    // Process Terminal nodes directly connected to a Provider (no Router)
+    // Process Application nodes directly connected to a Provider (no Router)
     for node in &doc.nodes {
-        if node.node_type != NodeType::Terminal {
+        if node.node_type != NodeType::Application {
             continue;
         }
 
-        // Find edges where this Terminal is the target
+        // Find edges where this Application is the source
         for edge in &doc.edges {
-            if edge.target != node.id {
+            if edge.source != node.id {
                 continue;
             }
 
-            let source_node = node_map.get(edge.source.as_str());
-            if let Some(source) = source_node {
-                if source.node_type == NodeType::Provider {
-                    let provider_data: ProviderNodeData = deserialize_node_data(source)?;
+            let target_node = node_map.get(edge.target.as_str());
+            if let Some(target) = target_node {
+                if target.node_type == NodeType::Provider {
+                    let provider_data: ProviderNodeData = deserialize_node_data(target)?;
                     // Only set default route if not already set by a Router
                     if default_route.is_none() {
                         default_route = Some(CompiledRoute {
@@ -218,24 +186,24 @@ fn resolve_provider<'a>(
         .ok_or_else(|| CompileError::EdgeToMissingNode(node_id.to_string()))?;
 
     if node.node_type != NodeType::Provider {
-        return Err(CompileError::SourceNotProvider(node_id.to_string()));
+        return Err(CompileError::TargetNotProvider(node_id.to_string()));
     }
 
     Ok(*node)
 }
 
-/// Resolve the target model name from an edge's source handle.
+/// Resolve the target model name from an edge's target handle.
 ///
-/// When a Provider model sub-handle (e.g. "model-{uuid}") connects to a Router entry,
+/// When a Router entry handle connects to a Provider model sub-handle (e.g. "model-{uuid}"),
 /// the target model should be the model name from that specific ProviderModel.
-/// If the source_handle is not a model sub-handle (e.g. "unified"), falls back to
+/// If the target_handle is not a model sub-handle (e.g. "unified"), falls back to
 /// the provided `fallback` value (typically `entry.target_model`).
 fn resolve_model_name(
-    source_handle: Option<&str>,
+    target_handle: Option<&str>,
     models: &[ProviderModel],
     fallback: &str,
 ) -> String {
-    if let Some(handle) = source_handle {
+    if let Some(handle) = target_handle {
         if let Some(model_id) = handle.strip_prefix("model-") {
             if let Some(model) = models.iter().find(|m| m.id == model_id) {
                 return model.name.clone();
@@ -262,8 +230,8 @@ pub enum CompileError {
     DefaultEdgeNotFound(String),
     #[error("edge points to missing node '{0}'")]
     EdgeToMissingNode(String),
-    #[error("source node '{0}' is not a Provider node")]
-    SourceNotProvider(String),
+    #[error("target node '{0}' is not a Provider node")]
+    TargetNotProvider(String),
     #[error("failed to deserialize data for node '{0}': {1}")]
     NodeDataDeserializeFailed(String, String),
 }
@@ -273,7 +241,7 @@ mod tests {
     use super::*;
     use crate::dag::types::{
         DAGEdge, DAGDocument, DAGNode, MatchType as DagMatchType, NodeType, Position,
-        ProviderModel, ProviderNodeData, RouterEntry, RouterNodeData, TerminalNodeData,
+        ProviderModel, ProviderNodeData, RouterEntry, RouterNodeData, ApplicationNodeData,
         ApiType as DagApiType,
     };
     use crate::proxy::types::MatchType as ProxyMatchType;
@@ -290,7 +258,7 @@ mod tests {
         DAGNode {
             id: id.to_string(),
             node_type: NodeType::Provider,
-            position: Position { x: 0.0, y: 0.0 },
+            position: Position { x: 400.0, y: 0.0 },
             data: serde_json::to_value(ProviderNodeData {
                 label: label.to_string(),
                 description: None,
@@ -318,12 +286,12 @@ mod tests {
         }
     }
 
-    fn make_terminal(id: &str, label: &str, app_type: &str) -> DAGNode {
+    fn make_application(id: &str, label: &str, app_type: &str) -> DAGNode {
         DAGNode {
             id: id.to_string(),
-            node_type: NodeType::Terminal,
-            position: Position { x: 400.0, y: 0.0 },
-            data: serde_json::to_value(TerminalNodeData {
+            node_type: NodeType::Application,
+            position: Position { x: 0.0, y: 0.0 },
+            data: serde_json::to_value(ApplicationNodeData {
                 label: label.to_string(),
                 description: None,
                 app_type: app_type.to_string(),
@@ -344,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_to_router_to_terminal() {
+    fn test_application_to_router_to_provider() {
         let model_id = "model-1";
         let entry_id = "entry-1";
 
@@ -366,15 +334,15 @@ mod tests {
             false,
         );
 
-        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+        let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            make_edge("e1", "p1", "r1", Some(&format!("model-{}", model_id)), Some(&format!("entry-{}", entry_id))),
-            make_edge("e2", "r1", "t1", Some("output"), Some("input")),
+            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
+            make_edge("e2", "r1", "p1", Some(&format!("entry-{}", entry_id)), Some(&format!("model-{}", model_id))),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![provider, router, terminal],
+            nodes: vec![application, router, provider],
             edges,
             ..Default::default()
         };
@@ -386,13 +354,13 @@ mod tests {
         assert_eq!(table.routes[0].pattern, "gpt-4o");
         assert_eq!(table.routes[0].upstream_url, "https://api.openai.com");
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
-        // target_model is resolved from the Provider model sub-handle ("model-model-1" → "gpt-4o")
+        // target_model is resolved from the Provider model target handle ("model-model-1" → "gpt-4o")
         assert_eq!(table.routes[0].target_model, "gpt-4o");
         assert!(table.default_route.is_none());
     }
 
     #[test]
-    fn test_provider_to_router_with_default() {
+    fn test_application_to_router_with_default() {
         let entry_id = "entry-1";
 
         let provider_a = make_provider(
@@ -419,16 +387,16 @@ mod tests {
             true,
         );
 
-        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+        let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            make_edge("e1", "pa", "r1", Some("model-m1"), Some(&format!("entry-{}", entry_id))),
-            make_edge("e2", "pb", "r1", Some("unified"), Some("default")),
-            make_edge("e3", "r1", "t1", Some("output"), Some("input")),
+            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
+            make_edge("e2", "r1", "pa", Some(&format!("entry-{}", entry_id)), Some("model-m1")),
+            make_edge("e3", "r1", "pb", Some("default"), Some("unified")),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![provider_a, provider_b, router, terminal],
+            nodes: vec![application, router, provider_a, provider_b],
             edges,
             ..Default::default()
         };
@@ -442,21 +410,21 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_direct_to_terminal() {
+    fn test_application_direct_to_provider() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
             "https://api.openai.com", "sk-test",
             vec![],
         );
 
-        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+        let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            make_edge("e1", "p1", "t1", Some("unified"), Some("input")),
+            make_edge("e1", "a1", "p1", Some("output"), Some("unified")),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![provider, terminal],
+            nodes: vec![application, provider],
             edges,
             ..Default::default()
         };
@@ -487,9 +455,9 @@ mod tests {
             false,
         );
 
-        // No edge connecting provider to router entry
+        // No edge connecting router entry to provider
         let doc = DAGDocument {
-            nodes: vec![provider, router],
+            nodes: vec![router, provider],
             edges: vec![],
             ..Default::default()
         };
@@ -507,14 +475,14 @@ mod tests {
 
         let router = make_router("r1", vec![], true);
 
-        // No edge connecting provider to router default or input
+        // No edge connecting router default or input to provider
         let doc = DAGDocument {
-            nodes: vec![provider, router],
+            nodes: vec![router, provider],
             edges: vec![],
             ..Default::default()
         };
 
-        // Now default route is optional, should compile successfully with no default
+        // Default route is optional, should compile successfully with no default
         let table = compile(&doc, &default_settings()).unwrap();
         assert!(table.routes.is_empty());
         assert!(table.default_route.is_none());
@@ -555,16 +523,16 @@ mod tests {
             false,
         );
 
-        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+        let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            make_edge("e1", "p1", "r1", Some("model-m1"), Some("entry-entry-1")),
-            make_edge("e2", "p2", "r1", Some("model-m2"), Some("entry-entry-2")),
-            make_edge("e3", "r1", "t1", Some("output"), Some("input")),
+            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
+            make_edge("e2", "r1", "p1", Some("entry-entry-1"), Some("model-m1")),
+            make_edge("e3", "r1", "p2", Some("entry-entry-2"), Some("model-m2")),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![openai, anthropic, router, terminal],
+            nodes: vec![application, router, openai, anthropic],
             edges,
             ..Default::default()
         };
@@ -573,15 +541,15 @@ mod tests {
         assert_eq!(table.routes.len(), 2);
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
         assert_eq!(table.routes[1].api_type, Some(ApiType::Anthropic));
-        // target_model is resolved from Provider model sub-handle, not entry.target_model
-        // Route 0: edge from "model-m1" → model name "gpt-4o"
+        // target_model is resolved from Provider model target handle, not entry.target_model
+        // Route 0: edge target "model-m1" → model name "gpt-4o"
         assert_eq!(table.routes[0].target_model, "gpt-4o");
-        // Route 1: edge from "model-m2" → model name "claude-sonnet-4"
+        // Route 1: edge target "model-m2" → model name "claude-sonnet-4"
         assert_eq!(table.routes[1].target_model, "claude-sonnet-4");
     }
 
     #[test]
-    fn test_router_main_input_as_default() {
+    fn test_router_main_input_from_application() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
             "https://api.openai.com", "sk-test",
@@ -590,30 +558,29 @@ mod tests {
 
         let router = make_router("r1", vec![], false); // no entries, no explicit default
 
-        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+        let application = make_application("a1", "Claude Code", "claude_code");
 
-        // Connect provider unified output to router main input
+        // Connect application output to router input
         let edges = vec![
-            make_edge("e1", "p1", "r1", Some("unified"), Some("input")),
-            make_edge("e2", "r1", "t1", Some("output"), Some("input")),
+            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
+            // No edges from router to provider (no entries, no default)
         ];
 
         let doc = DAGDocument {
-            nodes: vec![provider, router, terminal],
+            nodes: vec![application, router, provider],
             edges,
             ..Default::default()
         };
 
         let table = compile(&doc, &default_settings()).unwrap();
         assert!(table.routes.is_empty());
-        // Main input should be used as default route
-        assert!(table.default_route.is_some());
-        assert_eq!(table.default_route.unwrap().upstream_url, "https://api.openai.com");
+        // No default route since router has no source handles going to provider
+        assert!(table.default_route.is_none());
     }
 
     #[test]
     fn test_single_provider_model_match_with_default_fallback() {
-        // Scenario: single Provider with both main and model connections to Router.
+        // Scenario: single Provider with both model and unified connections from Router.
         // - When entry pattern matches → replace model with Provider model sub-node's model
         // - When no match → forward via default route without model replacement
         let provider = make_provider(
@@ -631,28 +598,29 @@ mod tests {
                 pattern: "Pro/zai-org/GLM-4.7".to_string(),
                 target_model: String::new(), // NOT manually set — should be resolved from edge
             }],
-            false, // no explicit "default" handle
+            true, // has explicit "default" handle
         );
 
-        let terminal = make_terminal("t1", "Claude Code", "claude_code");
+        let application = make_application("a1", "Claude Code", "claude_code");
 
         let edges = vec![
-            // Provider model sub-handle → Router entry sub-handle (for matching rule)
-            make_edge("e1", "p1", "r1", Some("model-m1"), Some("entry-entry-1")),
-            // Provider unified handle → Router main input (for default/fallback)
-            make_edge("e2", "p1", "r1", Some("unified"), Some("input")),
-            make_edge("e3", "r1", "t1", Some("output"), Some("input")),
+            // Application output → Router main input
+            make_edge("e1", "a1", "r1", Some("output"), Some("input")),
+            // Router entry source handle → Provider model target handle (for matching rule)
+            make_edge("e2", "r1", "p1", Some("entry-entry-1"), Some("model-m1")),
+            // Router default source handle → Provider unified target handle (for default/fallback)
+            make_edge("e3", "r1", "p1", Some("default"), Some("unified")),
         ];
 
         let doc = DAGDocument {
-            nodes: vec![provider, router, terminal],
+            nodes: vec![application, router, provider],
             edges,
             ..Default::default()
         };
 
         let table = compile(&doc, &default_settings()).unwrap();
 
-        // Specific route: model match with target_model resolved from Provider model sub-handle
+        // Specific route: model match with target_model resolved from Provider model target handle
         assert_eq!(table.routes.len(), 1);
         assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
         assert_eq!(table.routes[0].pattern, "Pro/zai-org/GLM-4.7");

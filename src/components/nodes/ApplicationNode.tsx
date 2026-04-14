@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import type { TerminalNodeData } from '../../types';
+import type { ApplicationNodeData } from '../../types';
 
 const APP_TYPE_LABELS: Record<string, string> = {
   claude_code: 'Claude Code',
@@ -14,7 +14,7 @@ const APP_TYPE_ICONS: Record<string, string> = {
   custom: '🖥️',
 };
 
-function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
+function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
   const icon = APP_TYPE_ICONS[data.appType] || '🖥️';
   const appLabel = APP_TYPE_LABELS[data.appType] || data.appType || 'Custom';
 
@@ -31,25 +31,26 @@ function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
         boxSizing: 'border-box',
       }}
     >
-      {/* Input handle on the LEFT side */}
+      {/* Output handle on the RIGHT side */}
       <Handle
-        type="target"
-        position={Position.Left}
-        id="input"
+        type="source"
+        position={Position.Right}
+        id="output"
         style={{
           background: '#f97316',
           width: 12,
           height: 12,
-          left: -10,
+          right: -10,
           top: '50%',
           transform: 'translateY(-50%)',
           border: '3px solid #fff',
         }}
+        title="Output to Router or Provider"
       />
 
       {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151' }}>
-        {icon} {data.label || 'Terminal'}
+        {icon} {data.label || 'Application'}
       </div>
 
       {/* App type */}
@@ -69,4 +70,4 @@ function TerminalNode({ data, selected }: NodeProps<TerminalNodeData>) {
   );
 }
 
-export default memo(TerminalNode);
+export default memo(ApplicationNode);

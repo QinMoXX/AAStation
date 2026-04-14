@@ -1,5 +1,5 @@
 /** Node type discriminator. */
-export type NodeType = 'provider' | 'router' | 'terminal';
+export type NodeType = 'provider' | 'router' | 'application';
 
 /** API compatibility type for Provider nodes. */
 export type ApiType = 'anthropic' | 'openai';
@@ -51,9 +51,9 @@ export interface RouterNodeData extends BaseNodeData {
   hasDefault: boolean;
 }
 
-/** Terminal node: represents an end application/tool that uses the proxy. */
-export interface TerminalNodeData extends BaseNodeData {
-  nodeType: 'terminal';
+/** Application node: represents an end application/tool that uses the proxy. */
+export interface ApplicationNodeData extends BaseNodeData {
+  nodeType: 'application';
   /** Application type for display purposes. */
   appType: string; // 'claude_code' | 'openclaw' | 'custom'
 }
@@ -62,4 +62,4 @@ export interface TerminalNodeData extends BaseNodeData {
 export type AAStationNodeData =
   | ProviderNodeData
   | RouterNodeData
-  | TerminalNodeData;
+  | ApplicationNodeData;

@@ -29,8 +29,8 @@ pub enum ValidationErrorKind {
     ProviderNoApiKey,
     /// A router node has no routing entries.
     RouterNoEntries,
-    /// A terminal node has no incoming edges.
-    TerminalDisconnected,
+    /// An application node has no outgoing edges.
+    ApplicationDisconnected,
     /// Invalid edge: source or target node does not exist.
     EdgeToMissingNode,
     /// Invalid edge: connection type not allowed.
@@ -46,7 +46,7 @@ impl std::fmt::Display for ValidationErrorKind {
             ValidationErrorKind::ProviderNoBaseUrl => write!(f, "provider_no_base_url"),
             ValidationErrorKind::ProviderNoApiKey => write!(f, "provider_no_api_key"),
             ValidationErrorKind::RouterNoEntries => write!(f, "router_no_entries"),
-            ValidationErrorKind::TerminalDisconnected => write!(f, "terminal_disconnected"),
+            ValidationErrorKind::ApplicationDisconnected => write!(f, "application_disconnected"),
             ValidationErrorKind::EdgeToMissingNode => write!(f, "edge_to_missing_node"),
             ValidationErrorKind::InvalidEdgeType => write!(f, "invalid_edge_type"),
             ValidationErrorKind::NodeDataInvalid => write!(f, "node_data_invalid"),
@@ -158,13 +158,13 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
                     });
                 }
             }
-            NodeType::Terminal => {
-                // Check that Terminal has at least one incoming edge
-                let has_incoming = doc.edges.iter().any(|e| e.target == node.id);
-                if !has_incoming {
+            NodeType::Application => {
+                // Check that Application has at least one outgoing edge
+                let has_outgoing = doc.edges.iter().any(|e| e.source == node.id);
+                if !has_outgoing {
                     errors.push(ValidationError {
-                        kind: ValidationErrorKind::TerminalDisconnected,
-                        message: format!("Terminal node '{}' must have at least one incoming connection", node.id),
+                        kind: ValidationErrorKind::ApplicationDisconnected,
+                        message: format!("Application node '{}' must have at least one outgoing connection", node.id),
                     });
                 }
             }
@@ -174,14 +174,13 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
     errors
 }
 
-/// Check if an edge from source type to target type is valid.
-/// Allowed: Provider→Router, Provider→Terminal, Router→Terminal
+/// Allowed: Application→Router, Application→Provider, Router→Provider
 fn is_valid_edge(source: NodeType, target: NodeType) -> bool {
     matches!(
         (source, target),
-        (NodeType::Provider, NodeType::Router)
-            | (NodeType::Provider, NodeType::Terminal)
-            | (NodeType::Router, NodeType::Terminal)
+        (NodeType::Application, NodeType::Router)
+            | (NodeType::Application, NodeType::Provider)
+            | (NodeType::Router, NodeType::Provider)
     )
 }
 
@@ -221,13 +220,13 @@ mod tests {
         }
     }
 
-    fn make_terminal(id: &str) -> DAGNode {
+    fn make_application(id: &str) -> DAGNode {
         DAGNode {
             id: id.to_string(),
-            node_type: NodeType::Terminal,
+            node_type: NodeType::Application,
             position: Position { x: 0.0, y: 0.0 },
-            data: serde_json::to_value(TerminalNodeData {
-                label: "T".to_string(),
+            data: serde_json::to_value(ApplicationNodeData {
+                label: "A".to_string(),
                 description: None,
                 app_type: "custom".to_string(),
             })
@@ -250,23 +249,23 @@ mod tests {
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let t = make_terminal("t1");
-        let e = make_edge("e1", "p1", "t1");
+        let a = make_application("a1");
+        let e = make_edge("e1", "a1", "p1");
         DAGDocument {
-            nodes: vec![p, t],
+            nodes: vec![a, p],
             edges: vec![e],
             ..Default::default()
         }
     }
 
     #[test]
-    fn test_valid_provider_to_terminal() {
+    fn test_valid_provider_to_application() {
         let errors = validate(&valid_doc());
         assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
     }
 
     #[test]
-    fn test_valid_provider_router_terminal() {
+    fn test_valid_application_router_provider() {
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
@@ -277,11 +276,11 @@ mod tests {
             pattern: "gpt-4o".to_string(),
             target_model: String::new(),
         }], false);
-        let t = make_terminal("t1");
-        let e1 = make_edge("e1", "p1", "r1");
-        let e2 = make_edge("e2", "r1", "t1");
+        let a = make_application("a1");
+        let e1 = make_edge("e1", "a1", "r1");
+        let e2 = make_edge("e2", "r1", "p1");
         let doc = DAGDocument {
-            nodes: vec![p, r, t],
+            nodes: vec![a, r, p],
             edges: vec![e1, e2],
             ..Default::default()
         };
@@ -294,10 +293,10 @@ mod tests {
         let p = make_provider("p1", "", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let t = make_terminal("t1");
-        let e = make_edge("e1", "p1", "t1");
+        let a = make_application("a1");
+        let e = make_edge("e1", "a1", "p1");
         let doc = DAGDocument {
-            nodes: vec![p, t],
+            nodes: vec![a, p],
             edges: vec![e],
             ..Default::default()
         };
@@ -310,10 +309,10 @@ mod tests {
         let p = make_provider("p1", "https://api.openai.com", "", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let t = make_terminal("t1");
-        let e = make_edge("e1", "p1", "t1");
+        let a = make_application("a1");
+        let e = make_edge("e1", "a1", "p1");
         let doc = DAGDocument {
-            nodes: vec![p, t],
+            nodes: vec![a, p],
             edges: vec![e],
             ..Default::default()
         };
@@ -325,10 +324,10 @@ mod tests {
     fn test_provider_no_models_allowed() {
         // Provider without models should be valid (unified handle routes all models)
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![]);
-        let t = make_terminal("t1");
-        let e = make_edge("e1", "p1", "t1");
+        let a = make_application("a1");
+        let e = make_edge("e1", "a1", "p1");
         let doc = DAGDocument {
-            nodes: vec![p, t],
+            nodes: vec![a, p],
             edges: vec![e],
             ..Default::default()
         };
@@ -342,11 +341,11 @@ mod tests {
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
         let r = make_router("r1", vec![], false);
-        let t = make_terminal("t1");
-        let e1 = make_edge("e1", "p1", "r1");
-        let e2 = make_edge("e2", "r1", "t1");
+        let a = make_application("a1");
+        let e1 = make_edge("e1", "a1", "r1");
+        let e2 = make_edge("e2", "r1", "p1");
         let doc = DAGDocument {
-            nodes: vec![p, r, t],
+            nodes: vec![a, r, p],
             edges: vec![e1, e2],
             ..Default::default()
         };
@@ -355,29 +354,29 @@ mod tests {
     }
 
     #[test]
-    fn test_terminal_disconnected() {
+    fn test_application_disconnected() {
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let t = make_terminal("t1");
+        let a = make_application("a1");
         let doc = DAGDocument {
-            nodes: vec![p, t],
+            nodes: vec![a, p],
             edges: vec![],
             ..Default::default()
         };
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::TerminalDisconnected));
+        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ApplicationDisconnected));
     }
 
     #[test]
-    fn test_invalid_edge_type_terminal_to_provider() {
+    fn test_invalid_edge_type_application_to_provider() {
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
-        let t = make_terminal("t1");
-        let e = make_edge("e1", "t1", "p1"); // Terminal → Provider (invalid)
+        let a = make_application("a1");
+        let e = make_edge("e1", "p1", "a1"); // Provider → Application (invalid)
         let doc = DAGDocument {
-            nodes: vec![p, t],
+            nodes: vec![a, p],
             edges: vec![e],
             ..Default::default()
         };
