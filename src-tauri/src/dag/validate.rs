@@ -228,7 +228,9 @@ mod tests {
             data: serde_json::to_value(ApplicationNodeData {
                 label: "A".to_string(),
                 description: None,
-                app_type: "custom".to_string(),
+                app_type: "listener".to_string(),
+                application_handler: String::new(),
+                unpublish_handler: String::new(),
             })
             .unwrap(),
         }

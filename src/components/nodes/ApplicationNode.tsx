@@ -3,20 +3,16 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import type { ApplicationNodeData } from '../../types';
 
 const APP_TYPE_LABELS: Record<string, string> = {
-  claude_code: 'Claude Code',
-  openclaw: 'OpenClaw',
-  custom: 'Custom',
+  listener: '自定义监听',
 };
 
 const APP_TYPE_ICONS: Record<string, string> = {
-  claude_code: '💻',
-  openclaw: '🔧',
-  custom: '🖥️',
+  listener: '📡',
 };
 
 function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
   const icon = APP_TYPE_ICONS[data.appType] || '🖥️';
-  const appLabel = APP_TYPE_LABELS[data.appType] || data.appType || 'Custom';
+  const appLabel = APP_TYPE_LABELS[data.appType] || data.appType || 'Application';
 
   return (
     <div
@@ -50,7 +46,7 @@ function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
 
       {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151' }}>
-        {icon} {data.label || 'Application'}
+        {icon} {data.label || 'Listener'}
       </div>
 
       {/* App type */}

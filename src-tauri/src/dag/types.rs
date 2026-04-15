@@ -232,15 +232,28 @@ pub struct ApplicationNodeData {
     #[serde(default)]
     pub description: Option<String>,
     /// Application type for display purposes.
+    #[serde(default = "default_app_type")]
     pub app_type: String,
+    /// Handler code executed on publish. Reserved for future use — currently empty.
+    #[serde(default)]
+    pub application_handler: String,
+    /// Handler code executed on unpublish (stop or app close). Reserved for future use — currently empty.
+    #[serde(default)]
+    pub unpublish_handler: String,
+}
+
+fn default_app_type() -> String {
+    "listener".to_string()
 }
 
 impl Default for ApplicationNodeData {
     fn default() -> Self {
         Self {
-            label: "Application".to_string(),
+            label: "Listener".to_string(),
             description: None,
-            app_type: "custom".to_string(),
+            app_type: default_app_type(),
+            application_handler: String::new(),
+            unpublish_handler: String::new(),
         }
     }
 }

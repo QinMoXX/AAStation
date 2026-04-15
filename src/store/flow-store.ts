@@ -50,8 +50,8 @@ export function defaultSwitcherData(): SwitcherNodeData {
 export function defaultApplicationData(): ApplicationNodeData {
   return {
     nodeType: 'application',
-    label: 'Application',
-    appType: 'custom',
+    label: 'Listener',
+    appType: 'listener',
   };
 }
 

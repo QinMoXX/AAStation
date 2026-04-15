@@ -165,13 +165,152 @@ function ProviderDropdownButton() {
 }
 
 // ---------------------------------------------------------------------------
-// Add-node button data
+// Middleware Dropdown Component
 // ---------------------------------------------------------------------------
 
-const NODE_ADD_OPTIONS: { type: NodeType; label: string; icon: string; color: string }[] = [
-  { type: 'switcher', label: 'Switcher', icon: '🔀', color: '#f59e0b' },
-  { type: 'application', label: 'Application', icon: '🖥️', color: '#16a34a' },
+/** Available middleware sub-types. */
+const MIDDLEWARE_OPTIONS: { type: NodeType; label: string; icon: string; description: string }[] = [
+  { type: 'switcher', label: 'Switcher', icon: '🔀', description: '按匹配规则路由请求' },
 ];
+
+function MiddlewareDropdownButton() {
+  const addNode = useFlowStore((s) => s.addNode);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = useCallback(
+    (type: NodeType) => {
+      addNode(type);
+      setIsOpen(false);
+    },
+    [addNode],
+  );
+
+  return (
+    <div style={{ position: 'relative' }} ref={dropdownRef}>
+      <button
+        style={{ ...btnStyle, borderColor: '#f59e0b', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 4 }}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
+          🔧
+        </span>
+        Middleware ▾
+      </button>
+      {isOpen && (
+        <div style={dropdownStyle}>
+          <div style={dropdownSectionHeaderStyle}>中间件类型</div>
+          {MIDDLEWARE_OPTIONS.map(({ type, label, icon, description }) => (
+            <div
+              key={type}
+              style={{ ...dropdownItemStyle, borderBottom: 'none' }}
+              onClick={() => handleSelect(type)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f1f5f9';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', fontSize: 14 }}>
+                {icon}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 500 }}>{label}</div>
+                <div style={{ fontSize: 10, color: '#94a3b8' }}>{description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Application Dropdown Component
+// ---------------------------------------------------------------------------
+
+/** Available application sub-types. */
+const APPLICATION_OPTIONS: { type: NodeType; label: string; icon: string; description: string }[] = [
+  { type: 'application', label: '自定义监听', icon: '📡', description: '监听默认端口的请求入口' },
+];
+
+function ApplicationDropdownButton() {
+  const addNode = useFlowStore((s) => s.addNode);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = useCallback(
+    (type: NodeType) => {
+      addNode(type);
+      setIsOpen(false);
+    },
+    [addNode],
+  );
+
+  return (
+    <div style={{ position: 'relative' }} ref={dropdownRef}>
+      <button
+        style={{ ...btnStyle, borderColor: '#16a34a', color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
+          🖥️
+        </span>
+        Application ▾
+      </button>
+      {isOpen && (
+        <div style={dropdownStyle}>
+          <div style={dropdownSectionHeaderStyle}>应用类型</div>
+          {APPLICATION_OPTIONS.map(({ type, label, icon, description }) => (
+            <div
+              key={type}
+              style={{ ...dropdownItemStyle, borderBottom: 'none' }}
+              onClick={() => handleSelect(type)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f1f5f9';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', fontSize: 14 }}>
+                {icon}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 500 }}>{label}</div>
+                <div style={{ fontSize: 10, color: '#94a3b8' }}>{description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -179,14 +318,6 @@ const NODE_ADD_OPTIONS: { type: NodeType; label: string; icon: string; color: st
 
 export default function CanvasToolbar() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
-
-  const handleAddNode = useCallback(
-    (type: NodeType) => {
-      const addNode = useFlowStore.getState().addNode;
-      addNode(type);
-    },
-    [],
-  );
 
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2 });
@@ -197,16 +328,11 @@ export default function CanvasToolbar() {
       {/* Provider dropdown */}
       <ProviderDropdownButton />
 
-      {/* Add node buttons */}
-      {NODE_ADD_OPTIONS.map(({ type, label, icon, color }) => (
-        <button
-          key={type}
-          style={{ ...btnStyle, borderColor: color, color }}
-          onClick={() => handleAddNode(type)}
-        >
-          {icon} {label}
-        </button>
-      ))}
+      {/* Middleware dropdown */}
+      <MiddlewareDropdownButton />
+
+      {/* Application dropdown */}
+      <ApplicationDropdownButton />
 
       <div style={separatorStyle} />
 

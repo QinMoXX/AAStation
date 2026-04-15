@@ -481,18 +481,6 @@ function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpda
           onChange={(e) => onUpdate({ label: e.target.value })}
         />
       </div>
-      <div style={fieldGap}>
-        <label style={labelStyle}>Application Type</label>
-        <select
-          style={inputStyle}
-          value={data.appType}
-          onChange={(e) => onUpdate({ appType: e.target.value })}
-        >
-          <option value="claude_code">Claude Code</option>
-          <option value="openclaw">OpenClaw</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
     </>
   );
 }

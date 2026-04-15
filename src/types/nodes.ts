@@ -55,7 +55,7 @@ export interface SwitcherNodeData extends BaseNodeData {
 export interface ApplicationNodeData extends BaseNodeData {
   nodeType: 'application';
   /** Application type for display purposes. */
-  appType: string; // 'claude_code' | 'openclaw' | 'custom'
+  appType: string; // 'listener'
 }
 
 /** Union of all node data types. */

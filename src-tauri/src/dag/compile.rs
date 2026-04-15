@@ -293,6 +293,8 @@ mod tests {
                 label: label.to_string(),
                 description: None,
                 app_type: app_type.to_string(),
+                application_handler: String::new(),
+                unpublish_handler: String::new(),
             })
             .unwrap(),
         }

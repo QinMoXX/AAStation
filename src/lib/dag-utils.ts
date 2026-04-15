@@ -198,8 +198,8 @@ function nodeDataToFrontend(
     case 'terminal': // backward compatibility with older data files
       return {
         nodeType: 'application',
-        label: (camelData.label as string) || 'Application',
-        appType: (camelData.appType as string) || 'custom',
+        label: (camelData.label as string) || 'Listener',
+        appType: (camelData.appType as string) || 'listener',
         description: camelData.description as string | undefined,
       } as ApplicationNodeData;
     default:
