@@ -7,17 +7,20 @@ import { useReactFlow } from 'reactflow';
 
 const toolbarStyle: React.CSSProperties = {
   position: 'absolute',
-  top: 12,
+  bottom: 12,
   left: 12,
   zIndex: 10,
   display: 'flex',
+  flexDirection: 'column',
   gap: 6,
   alignItems: 'center',
 };
 
 const btnStyle: React.CSSProperties = {
-  padding: '6px 12px',
-  fontSize: 12,
+  width: 32,
+  height: 32,
+  padding: 0,
+  fontSize: 16,
   fontWeight: 500,
   border: '1px solid #374151',
   borderRadius: 6,
@@ -25,14 +28,9 @@ const btnStyle: React.CSSProperties = {
   color: '#d1d5db',
   cursor: 'pointer',
   boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-  whiteSpace: 'nowrap' as const,
-};
-
-const separatorStyle: React.CSSProperties = {
-  width: 1,
-  height: 20,
-  background: '#374151',
-  margin: '0 4px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 
 // ---------------------------------------------------------------------------
@@ -48,8 +46,6 @@ export default function CanvasToolbar() {
 
   return (
     <div style={toolbarStyle}>
-      <div style={separatorStyle} />
-
       {/* Zoom controls */}
       <button style={btnStyle} onClick={() => zoomIn()} title="Zoom In">
         +

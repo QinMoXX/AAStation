@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import ReactFlow, {
   Background,
+  MiniMap,
   type NodeTypes,
   type EdgeTypes,
   type IsValidConnection,
@@ -152,6 +153,18 @@ export default function FlowCanvas() {
         snapGrid={[16, 16]}
       >
         <Background gap={16} size={0} color="#333" />
+        <MiniMap
+          nodeColor={(node) => {
+            switch (node.data?.nodeType) {
+              case 'provider': return '#3b82f6';
+              case 'switcher': return '#f97316';
+              case 'application': return '#22c55e';
+              default: return '#6b7280';
+            }
+          }}
+          maskColor="rgba(0,0,0,0.7)"
+          style={{ background: '#1a1a1a', border: '1px solid #374151', borderRadius: 6 }}
+        />
       </ReactFlow>
     </div>
   );

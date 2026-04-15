@@ -1,6 +1,5 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useFlowStore, PRESET_PROVIDERS } from '../../store/flow-store';
-import { useNavStore } from '../../store/nav-store';
 import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
 
 // ---------------------------------------------------------------------------
@@ -19,60 +18,54 @@ const panelStyle: React.CSSProperties = {
 };
 
 const panelHeaderStyle: React.CSSProperties = {
-  padding: '20px 24px 16px',
+  padding: '20px 16px 12px',
 };
 
 const panelTitleStyle: React.CSSProperties = {
-  fontSize: 18,
+  fontSize: 14,
   fontWeight: 600,
-  color: '#111827',
-  marginBottom: 12,
+  color: '#374151',
 };
-
-const tabRowStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 2,
-  marginBottom: 4,
-};
-
-const tabBtnStyle = (active: boolean): React.CSSProperties => ({
-  flex: 1,
-  padding: '6px 0',
-  fontSize: 12,
-  fontWeight: active ? 600 : 500,
-  border: 'none',
-  borderRadius: 6,
-  background: active ? '#fff' : 'transparent',
-  color: active ? '#111827' : '#6b7280',
-  cursor: 'pointer',
-  boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-  transition: 'all 0.15s',
-});
 
 const sectionStyle: React.CSSProperties = {
-  padding: '4px 12px',
+  padding: '0 8px 8px',
 };
 
-const sectionHeaderStyle: React.CSSProperties = {
-  fontSize: 11,
+const categoryHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 8px',
+  fontSize: 12,
   fontWeight: 600,
+  color: '#374151',
+  cursor: 'pointer',
+  borderRadius: 6,
+  userSelect: 'none',
+  transition: 'background 0.15s',
+};
+
+const chevronStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  fontSize: 13,
+  fontWeight: 400,
   color: '#9ca3af',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  padding: '8px 12px 4px',
+  width: 14,
+  textAlign: 'center',
+  fontFamily: 'monospace',
+  lineHeight: 1,
 };
 
 const itemStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '6px 12px',
+  gap: 8,
+  padding: '5px 8px 5px 28px',
   fontSize: 13,
   color: '#374151',
-  borderRadius: 8,
+  borderRadius: 6,
   cursor: 'pointer',
   transition: 'background 0.15s',
-  gap: 8,
 };
 
 const itemHoverBg = '#e5e7eb';
@@ -80,182 +73,214 @@ const itemHoverBg = '#e5e7eb';
 const itemCountStyle: React.CSSProperties = {
   fontSize: 11,
   color: '#9ca3af',
+  marginLeft: 'auto',
+};
+
+const categoryIconStyle: React.CSSProperties = {
+  width: 16,
+  height: 16,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
 };
 
 // ---------------------------------------------------------------------------
-// Provider Panel Content
+// Category Data
 // ---------------------------------------------------------------------------
 
-function ProviderPanelContent() {
-  const addNode = useFlowStore((s) => s.addNode);
-  const addPresetProviderNode = useFlowStore((s) => s.addPresetProviderNode);
-
-  const handleAddPreset = useCallback(
-    (presetId: string) => {
-      addPresetProviderNode(presetId);
-    },
-    [addPresetProviderNode]
-  );
-
-  const handleAddCustom = useCallback(() => {
-    addNode('provider');
-  }, [addNode]);
-
-  return (
-    <>
-      <div style={sectionHeaderStyle}>预设 Providers</div>
-      <div style={sectionStyle}>
-        {PRESET_PROVIDERS.map((preset) => {
-          const Icon = getProviderIcon(preset.icon);
-          return (
-            <div
-              key={preset.id}
-              style={itemStyle}
-              onClick={() => handleAddPreset(preset.id)}
-              onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
-                  {Icon && <Icon style={{ width: 16, height: 16 }} />}
-                </span>
-                <span style={{ fontWeight: 500 }}>{preset.name}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={sectionHeaderStyle}>自定义</div>
-      <div style={sectionStyle}>
-        <div
-          style={itemStyle}
-          onClick={handleAddCustom}
-          onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
-              <CustomProviderIcon style={{ width: 16, height: 16 }} />
-            </span>
-            <span style={{ fontWeight: 500 }}>Custom Provider</span>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+interface CategoryDef {
+  id: string;
+  label: string;
+  color: string;
+  icon: React.ReactNode;
 }
 
-// ---------------------------------------------------------------------------
-// Middleware Panel Content
-// ---------------------------------------------------------------------------
-
-function MiddlewarePanelContent() {
-  const addNode = useFlowStore((s) => s.addNode);
-  const nodes = useFlowStore((s) => s.nodes);
-
-  const switcherCount = nodes.filter((n) => n.data.nodeType === 'switcher').length;
-
-  const handleAddSwitcher = useCallback(() => {
-    addNode('switcher');
-  }, [addNode]);
-
-  return (
-    <>
-      <div style={sectionHeaderStyle}>中间件类型</div>
-      <div style={sectionStyle}>
-        <div
-          style={itemStyle}
-          onClick={handleAddSwitcher}
-          onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
-            </svg>
-            <span style={{ fontWeight: 500 }}>Switcher</span>
-          </div>
-          {switcherCount > 0 && <span style={itemCountStyle}>{switcherCount}</span>}
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Application Panel Content
-// ---------------------------------------------------------------------------
-
-function ApplicationPanelContent() {
-  const addNode = useFlowStore((s) => s.addNode);
-  const nodes = useFlowStore((s) => s.nodes);
-
-  const appCount = nodes.filter((n) => n.data.nodeType === 'application').length;
-
-  const handleAddApplication = useCallback(() => {
-    addNode('application');
-  }, [addNode]);
-
-  return (
-    <>
-      <div style={sectionHeaderStyle}>应用类型</div>
-      <div style={sectionStyle}>
-        <div
-          style={itemStyle}
-          onClick={handleAddApplication}
-          onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
-            </svg>
-            <span style={{ fontWeight: 500 }}>自定义监听</span>
-          </div>
-          {appCount > 0 && <span style={itemCountStyle}>{appCount}</span>}
-        </div>
-      </div>
-    </>
-  );
-}
+const CATEGORIES: CategoryDef[] = [
+  {
+    id: 'application',
+    label: '应用',
+    color: '#22c55e',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
+      </svg>
+    ),
+  },
+  {
+    id: 'middleware',
+    label: '中间件',
+    color: '#f97316',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
+      </svg>
+    ),
+  },
+  {
+    id: 'provider',
+    label: '供应商',
+    color: '#3b82f6',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+      </svg>
+    ),
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function HomeSubNav() {
-  const { homeSubTab, setHomeSubTab } = useNavStore();
+  const addNode = useFlowStore((s) => s.addNode);
+  const addPresetProviderNode = useFlowStore((s) => s.addPresetProviderNode);
+  const nodes = useFlowStore((s) => s.nodes);
+
+  const switcherCount = nodes.filter((n) => n.data.nodeType === 'switcher').length;
+  const appCount = nodes.filter((n) => n.data.nodeType === 'application').length;
+  const providerCount = nodes.filter((n) => n.data.nodeType === 'provider').length;
+
+  // Track which categories are expanded (all open by default)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    application: true,
+    middleware: true,
+    provider: true,
+  });
+
+  const toggleCategory = useCallback((id: string) => {
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const handleAddPreset = useCallback(
+    (presetId: string) => {
+      addPresetProviderNode(presetId);
+    },
+    [addPresetProviderNode],
+  );
+
+  const handleAddCustom = useCallback(() => {
+    addNode('provider');
+  }, [addNode]);
+
+  const getCategoryCount = useCallback(
+    (id: string) => {
+      switch (id) {
+        case 'application': return appCount;
+        case 'middleware': return switcherCount;
+        case 'provider': return providerCount;
+        default: return 0;
+      }
+    },
+    [appCount, switcherCount, providerCount],
+  );
 
   return (
     <div style={panelStyle}>
       <div style={panelHeaderStyle} data-tauri-drag-region>
-        <h2 style={panelTitleStyle}>节点组件</h2>
-        <div style={tabRowStyle}>
-          <button
-            style={tabBtnStyle(homeSubTab === 'provider')}
-            onClick={() => setHomeSubTab('provider')}
-          >
-            Provider
-          </button>
-          <button
-            style={tabBtnStyle(homeSubTab === 'middleware')}
-            onClick={() => setHomeSubTab('middleware')}
-          >
-            Middleware
-          </button>
-          <button
-            style={tabBtnStyle(homeSubTab === 'application')}
-            onClick={() => setHomeSubTab('application')}
-          >
-            App
-          </button>
-        </div>
+        <div style={panelTitleStyle}>节点组件</div>
       </div>
 
-      {homeSubTab === 'provider' && <ProviderPanelContent />}
-      {homeSubTab === 'middleware' && <MiddlewarePanelContent />}
-      {homeSubTab === 'application' && <ApplicationPanelContent />}
+      <div style={sectionStyle}>
+        {CATEGORIES.map((cat, catIdx) => {
+          const isOpen = expanded[cat.id];
+          const count = getCategoryCount(cat.id);
+
+          return (
+            <div key={cat.id} style={{ marginBottom: 8 }}>
+              {/* Category header - clickable to expand/collapse */}
+              <div
+                style={categoryHeaderStyle}
+                onClick={() => toggleCategory(cat.id)}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#e5e7eb'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={chevronStyle}>{isOpen ? '−' : '+'}</span>
+                <span style={categoryIconStyle}>{cat.icon}</span>
+                <span>{cat.label}</span>
+                {count > 0 && <span style={itemCountStyle}>{count}</span>}
+              </div>
+
+              {/* Category items */}
+              {isOpen && (
+                <div>
+                  {/* Application items */}
+                  {cat.id === 'application' && (
+                    <div
+                      style={itemStyle}
+                      onClick={() => addNode('application')}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <span style={categoryIconStyle}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
+                        </svg>
+                      </span>
+                      <span style={{ fontWeight: 500 }}>自定义监听</span>
+                    </div>
+                  )}
+
+                  {/* Middleware items */}
+                  {cat.id === 'middleware' && (
+                    <div
+                      style={itemStyle}
+                      onClick={() => addNode('switcher')}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <span style={categoryIconStyle}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
+                        </svg>
+                      </span>
+                      <span style={{ fontWeight: 500 }}>Switcher</span>
+                    </div>
+                  )}
+
+                  {/* Provider items */}
+                  {cat.id === 'provider' && (
+                    <>
+                      {PRESET_PROVIDERS.map((preset) => {
+                        const Icon = getProviderIcon(preset.icon);
+                        return (
+                          <div
+                            key={preset.id}
+                            style={itemStyle}
+                            onClick={() => handleAddPreset(preset.id)}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <span style={categoryIconStyle}>
+                              {Icon && <Icon style={{ width: 14, height: 14 }} />}
+                            </span>
+                            <span style={{ fontWeight: 500 }}>{preset.name}</span>
+                          </div>
+                        );
+                      })}
+                      <div
+                        style={itemStyle}
+                        onClick={handleAddCustom}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span style={categoryIconStyle}>
+                          <CustomProviderIcon style={{ width: 14, height: 14 }} />
+                        </span>
+                        <span style={{ fontWeight: 500 }}>Custom Provider</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              {catIdx < CATEGORIES.length - 1 && (
+                <div style={{ height: 1, background: '#e5e7eb', margin: '6px 8px 0' }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
