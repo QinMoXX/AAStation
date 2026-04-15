@@ -10,10 +10,10 @@ const barStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '0 16px',
-  background: '#1e293b',
-  color: '#94a3b8',
+  background: '#1a1a1a',
+  color: '#9ca3af',
   fontSize: 11,
-  borderTop: '1px solid #334155',
+  borderTop: '1px solid #2b2b2b',
   flexShrink: 0,
 };
 
@@ -62,7 +62,7 @@ export default function StatusBar() {
           </>
         )}
         {!proxyStatus.running && (
-          <span style={{ color: '#64748b' }}>Proxy offline</span>
+          <span style={{ color: '#6b7280' }}>Proxy offline</span>
         )}
       </div>
     </footer>

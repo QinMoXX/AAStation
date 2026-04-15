@@ -5,41 +5,26 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 // Styles
 // ---------------------------------------------------------------------------
 
-const titleBarStyle: React.CSSProperties = {
-  height: 32,
+const containerStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 8,
+  right: 12,
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
-  background: '#0f172a',
-  color: '#94a3b8',
-  fontSize: 12,
-  paddingLeft: 12,
-  flexShrink: 0,
+  gap: 8,
+  zIndex: 9999,
 };
 
-const titleStyle: React.CSSProperties = {
-  fontWeight: 500,
-  userSelect: 'none',
-};
-
-const windowControlsStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  height: '100%',
-};
-
-const controlBtnBase: React.CSSProperties = {
-  width: 46,
-  height: '100%',
+const btnStyle: React.CSSProperties = {
+  width: 14,
+  height: 14,
+  borderRadius: '50%',
+  border: 'none',
+  cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  border: 'none',
-  background: 'transparent',
-  color: '#94a3b8',
-  cursor: 'pointer',
-  fontSize: 12,
-  transition: 'background 0.15s',
+  transition: 'all 0.15s',
 };
 
 // ---------------------------------------------------------------------------
@@ -48,6 +33,7 @@ const controlBtnBase: React.CSSProperties = {
 
 export default function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -81,45 +67,37 @@ export default function TitleBar() {
   };
 
   return (
-    <div style={titleBarStyle} data-tauri-drag-region>
-      <span style={titleStyle} data-tauri-drag-region>
-        AAStation
-      </span>
-      <div style={windowControlsStyle}>
-        <button
-          style={controlBtnBase}
-          onClick={handleMinimize}
-          title="最小化"
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-        >
-          ─
-        </button>
-        <button
-          style={controlBtnBase}
-          onClick={handleToggleMaximize}
-          title={isMaximized ? '还原' : '最大化'}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-        >
-          {isMaximized ? '❐' : '□'}
-        </button>
-        <button
-          style={controlBtnBase}
-          onClick={handleClose}
-          title="关闭"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#dc2626';
-            e.currentTarget.style.color = '#fff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = '#94a3b8';
-          }}
-        >
-          ✕
-        </button>
-      </div>
+    <div style={containerStyle}>
+      <button
+        style={{
+          ...btnStyle,
+          background: hovered === 'min' ? '#fbbf24' : '#6b7280',
+        }}
+        onClick={handleMinimize}
+        title="最小化"
+        onMouseEnter={() => setHovered('min')}
+        onMouseLeave={() => setHovered(null)}
+      />
+      <button
+        style={{
+          ...btnStyle,
+          background: hovered === 'max' ? '#22c55e' : '#6b7280',
+        }}
+        onClick={handleToggleMaximize}
+        title={isMaximized ? '还原' : '最大化'}
+        onMouseEnter={() => setHovered('max')}
+        onMouseLeave={() => setHovered(null)}
+      />
+      <button
+        style={{
+          ...btnStyle,
+          background: hovered === 'close' ? '#dc2626' : '#6b7280',
+        }}
+        onClick={handleClose}
+        title="关闭"
+        onMouseEnter={() => setHovered('close')}
+        onMouseLeave={() => setHovered(null)}
+      />
     </div>
   );
 }

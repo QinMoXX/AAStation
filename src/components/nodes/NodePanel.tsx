@@ -21,18 +21,18 @@ const panelStyle: React.CSSProperties = {
   right: 0,
   width: 320,
   height: '100%',
-  background: '#fff',
-  borderLeft: '1px solid #e2e8f0',
+  background: '#1f2937',
+  borderLeft: '1px solid #374151',
   overflowY: 'auto',
   padding: 16,
   zIndex: 10,
-  boxShadow: '-2px 0 8px rgba(0,0,0,0.06)',
+  boxShadow: '-2px 0 8px rgba(0,0,0,0.2)',
 };
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
-  color: '#475569',
+  color: '#9ca3af',
   marginBottom: 8,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
@@ -41,7 +41,7 @@ const sectionTitle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 12,
-  color: '#64748b',
+  color: '#9ca3af',
   marginBottom: 4,
 };
 
@@ -49,9 +49,11 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '6px 8px',
   fontSize: 13,
-  border: '1px solid #cbd5e1',
+  border: '1px solid #374151',
   borderRadius: 6,
   outline: 'none',
+  background: '#111827',
+  color: '#f9fafb',
   boxSizing: 'border-box' as const,
 };
 
@@ -68,8 +70,8 @@ const API_TYPE_LABELS: Record<string, string> = {
 
 const readonlyInputStyle: React.CSSProperties = {
   ...inputStyle,
-  background: '#f1f5f9',
-  color: '#64748b',
+  background: '#1f2937',
+  color: '#6b7280',
   cursor: 'not-allowed',
 };
 
@@ -135,11 +137,11 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
             style={{
               marginBottom: 12,
               padding: '6px 10px',
-              background: '#fef3c7',
-              border: '1px solid #fcd34d',
+              background: '#78350f',
+              border: '1px solid #92400e',
               borderRadius: 6,
               fontSize: 11,
-              color: '#92400e',
+              color: '#fbbf24',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
@@ -215,8 +217,8 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
                 padding: '2px 6px',
                 border: '1px solid #3b82f6',
                 borderRadius: 4,
-                background: '#eff6ff',
-                color: '#1e40af',
+                background: '#1e3a5f',
+                color: '#93c5fd',
                 cursor: 'pointer',
               }}
               value=""
@@ -239,8 +241,8 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
               padding: '2px 10px',
               border: '1px solid #3b82f6',
               borderRadius: 4,
-              background: '#eff6ff',
-              color: '#1e40af',
+              background: '#1e3a5f',
+              color: '#93c5fd',
               cursor: 'pointer',
             }}
           >
@@ -250,7 +252,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
       </div>
 
       {data.models.length === 0 && (
-        <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
           No models yet. {isPreset ? 'Use Quick Add or ' : ''}Click "+ Custom" to create one.
         </div>
       )}
@@ -262,12 +264,12 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
             marginBottom: 8,
             padding: 8,
             borderRadius: 6,
-            border: '1px solid #bfdbfe',
-            background: '#eff6ff',
+            border: '1px solid #1e40af',
+            background: '#1e3a5f',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#1e40af' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#93c5fd' }}>
               Model #{index + 1}
             </span>
             <button
@@ -275,10 +277,10 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
               style={{
                 fontSize: 11,
                 padding: '1px 6px',
-                border: '1px solid #fca5a5',
+                border: '1px solid #7f1d1d',
                 borderRadius: 3,
-                background: '#fef2f2',
-                color: '#dc2626',
+                background: '#7f1d1d',
+                color: '#fca5a5',
                 cursor: 'pointer',
               }}
             >
@@ -302,7 +304,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
               checked={model.enabled}
               onChange={(e) => updateModel(model.id, { enabled: e.target.checked })}
             />
-            <span style={{ fontSize: 11, color: '#64748b' }}>Enabled</span>
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>Enabled</span>
           </div>
         </div>
       ))}
@@ -359,7 +361,7 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
           checked={data.hasDefault}
           onChange={(e) => onUpdate({ hasDefault: e.target.checked })}
         />
-        <span style={{ fontSize: 12, color: '#64748b' }}>启用默认路由</span>
+        <span style={{ fontSize: 12, color: '#9ca3af' }}>启用默认路由</span>
       </div>
 
       {/* Entries section */}
@@ -372,8 +374,8 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
             padding: '2px 10px',
             border: '1px solid #f59e0b',
             borderRadius: 4,
-            background: '#fffbeb',
-            color: '#92400e',
+            background: '#78350f',
+            color: '#fbbf24',
             cursor: 'pointer',
           }}
         >
@@ -382,7 +384,7 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
       </div>
 
       {data.entries.length === 0 && (
-        <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
           还没有匹配器。点击"+ 添加"创建一个。
         </div>
       )}
@@ -394,12 +396,12 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
             marginBottom: 10,
             padding: 8,
             borderRadius: 6,
-            border: '1px solid #fde68a',
-            background: '#fffbeb',
+            border: '1px solid #92400e',
+            background: '#78350f',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#92400e' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24' }}>
               匹配器 #{index + 1}
             </span>
             <button
@@ -407,10 +409,10 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
               style={{
                 fontSize: 11,
                 padding: '1px 6px',
-                border: '1px solid #fca5a5',
+                border: '1px solid #7f1d1d',
                 borderRadius: 3,
-                background: '#fef2f2',
-                color: '#dc2626',
+                background: '#7f1d1d',
+                color: '#fca5a5',
                 cursor: 'pointer',
               }}
             >

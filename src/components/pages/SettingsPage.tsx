@@ -9,7 +9,7 @@ const pageStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
-  background: '#f8fafc',
+  background: '#111827',
   overflow: 'auto',
 };
 
@@ -21,16 +21,17 @@ const containerStyle: React.CSSProperties = {
 };
 
 const cardStyle: React.CSSProperties = {
-  background: '#fff',
+  background: '#1f2937',
   borderRadius: 12,
   padding: 24,
-  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+  border: '1px solid #374151',
 };
 
 const titleStyle: React.CSSProperties = {
   fontSize: 20,
   fontWeight: 600,
-  color: '#1e293b',
+  color: '#f9fafb',
   marginBottom: 24,
 };
 
@@ -42,7 +43,7 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 13,
   fontWeight: 500,
-  color: '#374151',
+  color: '#d1d5db',
   marginBottom: 6,
 };
 
@@ -50,7 +51,9 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 12px',
   borderRadius: 6,
-  border: '1px solid #d1d5db',
+  border: '1px solid #374151',
+  background: '#111827',
+  color: '#f9fafb',
   fontSize: 14,
   boxSizing: 'border-box',
 };

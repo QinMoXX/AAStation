@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
 import TitleBar from './TitleBar';
-import Header from './Header';
-import StatusBar from './StatusBar';
 import SidebarNav from './SidebarNav';
 import HomeSubNav from './HomeSubNav';
 import ToastContainer from '../common/ToastContainer';
@@ -20,12 +18,30 @@ const layoutStyle: React.CSSProperties = {
   width: '100vw',
   height: '100vh',
   overflow: 'hidden',
+  position: 'relative',
 };
 
 const mainAreaStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
+  overflow: 'hidden',
+  position: 'relative',
+};
+
+const dragRegionStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: 32,
+  zIndex: 100,
+  WebkitAppRegion: 'drag',
+} as React.CSSProperties;
+
+const contentRowStyle: React.CSSProperties = {
+  flex: 1,
+  display: 'flex',
   overflow: 'hidden',
 };
 
@@ -57,10 +73,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
     switch (activeTab) {
       case 'home':
         return (
-          <>
+          <div style={contentRowStyle}>
             <HomeSubNav />
             <div style={canvasAreaStyle}>{children}</div>
-          </>
+          </div>
         );
       case 'monitor':
         return <MonitorPage />;
@@ -75,12 +91,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div style={layoutStyle}>
       <SidebarNav />
       <div style={mainAreaStyle}>
-        <TitleBar />
-        <Header />
+        <div style={dragRegionStyle} data-tauri-drag-region />
         {renderContent()}
-        <StatusBar />
-        <ToastContainer />
       </div>
+      <TitleBar />
+      <ToastContainer />
     </div>
   );
 }

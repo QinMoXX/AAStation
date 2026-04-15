@@ -19,19 +19,19 @@ const btnStyle: React.CSSProperties = {
   padding: '6px 12px',
   fontSize: 12,
   fontWeight: 500,
-  border: '1px solid #cbd5e1',
+  border: '1px solid #374151',
   borderRadius: 6,
-  background: '#fff',
-  color: '#334155',
+  background: '#2b2b2b',
+  color: '#d1d5db',
   cursor: 'pointer',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
   whiteSpace: 'nowrap' as const,
 };
 
 const separatorStyle: React.CSSProperties = {
   width: 1,
   height: 20,
-  background: '#e2e8f0',
+  background: '#374151',
   margin: '0 4px',
 };
 

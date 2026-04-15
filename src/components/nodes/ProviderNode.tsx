@@ -36,12 +36,13 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
       style={{
         padding: '12px 16px',
         borderRadius: 8,
-        border: selected ? '2px solid #f97316' : '2px solid transparent',
-        background: '#eff0eb',
+        border: selected ? '2px solid #f97316' : '2px solid #e5e7eb',
+        background: '#fff',
         minWidth: 220,
         fontSize: 13,
         position: 'relative',
         boxSizing: 'border-box',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       }}
     >
       {/* Unified input handle - centered on left side of node */}

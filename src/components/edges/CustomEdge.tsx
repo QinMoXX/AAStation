@@ -45,7 +45,7 @@ export default function CustomEdge({
         path={edgePath}
         style={{
           ...style,
-          stroke: selected ? '#3b82f6' : '#94a3b8',
+          stroke: selected ? '#3b82f6' : '#6b7280',
           strokeWidth: selected ? 3 : 2,
         }}
         markerEnd={selected ? 'url(#selected-arrow)' : undefined}

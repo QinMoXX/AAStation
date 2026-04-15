@@ -14,11 +14,11 @@ const headerStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '0 16px',
-  background: '#1e293b',
-  color: '#f1f5f9',
+  background: '#1a1a1a',
+  color: '#f9fafb',
   fontSize: 14,
   fontWeight: 600,
-  borderBottom: '1px solid #334155',
+  borderBottom: '1px solid #2b2b2b',
   flexShrink: 0,
 };
 
@@ -32,7 +32,7 @@ const statusDotStyle = (running: boolean): React.CSSProperties => ({
   width: 8,
   height: 8,
   borderRadius: '50%',
-  background: running ? '#22c55e' : '#94a3b8',
+  background: running ? '#22c55e' : '#6b7280',
   boxShadow: running ? '0 0 6px #22c55e80' : 'none',
 });
 

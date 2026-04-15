@@ -56,13 +56,13 @@ export default function FlowCanvas() {
       bottom: '24px',
       left: '50%',
       transform: 'translateX(-50%)',
-      background: '#1e293b',
-      color: '#f8fafc',
+      background: '#2b2b2b',
+      color: '#f9fafb',
       padding: '10px 20px',
       borderRadius: '8px',
       fontSize: '13px',
       zIndex: '9999',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
       transition: 'opacity 0.3s',
     });
     document.body.appendChild(toast);
@@ -125,13 +125,13 @@ export default function FlowCanvas() {
     () => ({
       animated: true,
       type: 'default' as const,
-      style: { strokeWidth: 2, stroke: '#94a3b8' },
+      style: { strokeWidth: 2, stroke: '#6b7280' },
     }),
     [],
   );
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#dfdfd7' }}>
+    <div style={{ width: '100%', height: '100%', background: '#1a1a1a' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -151,7 +151,7 @@ export default function FlowCanvas() {
         snapToGrid
         snapGrid={[16, 16]}
       >
-        <Background gap={16} size={0} />
+        <Background gap={16} size={0} color="#333" />
       </ReactFlow>
     </div>
   );

@@ -19,12 +19,13 @@ function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
       style={{
         padding: '12px 16px',
         borderRadius: 8,
-        border: selected ? '2px solid #f97316' : '2px solid transparent',
-        background: '#eff0eb',
+        border: selected ? '2px solid #f97316' : '2px solid #e5e7eb',
+        background: '#fff',
         minWidth: 180,
         fontSize: 13,
         position: 'relative',
         boxSizing: 'border-box',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       }}
     >
       {/* Output handle on the RIGHT side */}

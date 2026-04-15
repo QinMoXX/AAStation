@@ -8,8 +8,8 @@ const pageStyle: React.CSSProperties = {
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#f8fafc',
-  color: '#94a3b8',
+  background: '#111827',
+  color: '#9ca3af',
   fontSize: 14,
 };
 
