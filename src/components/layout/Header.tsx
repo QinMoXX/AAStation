@@ -3,7 +3,6 @@ import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
 import { publishDag, startProxy, stopProxy, getProxyStatus } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
-import SettingsModal from '../settings/SettingsModal';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -83,17 +82,6 @@ const publishBtnDisabled: React.CSSProperties = {
   cursor: 'not-allowed',
 };
 
-const settingsBtnStyle: React.CSSProperties = {
-  padding: '4px 10px',
-  fontSize: 14,
-  border: '1px solid #475569',
-  borderRadius: 6,
-  cursor: 'pointer',
-  background: 'transparent',
-  color: '#94a3b8',
-  lineHeight: 1,
-};
-
 const toggleBtnBase: React.CSSProperties = {
   padding: '5px 14px',
   fontSize: 12,
@@ -134,7 +122,6 @@ export default function Header() {
   const [publishing, setPublishing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // -----------------------------------------------------------------------
   // Toggle proxy on/off (independent of publish)
@@ -209,60 +196,50 @@ export default function Header() {
   };
 
   return (
-    <>
-      <header style={headerStyle}>
-        <div style={leftStyle}>
-          <span style={{ fontSize: 16, fontWeight: 700 }}>AAStation</span>
-          {isDraft ? (
-            <span style={draftBadge}>Draft</span>
-          ) : lastPublishedAt ? (
-            <span style={publishedBadge}>
-              Published {formatTime(lastPublishedAt)}
-            </span>
-          ) : null}
-        </div>
-        <div style={rightStyle}>
-          {error && (
-            <span
-              style={{
-                fontSize: 11,
-                color: '#f87171',
-                maxWidth: 300,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-              title={error}
-            >
-              {error}
-            </span>
-          )}
-          <button
-            style={proxyStatus.running ? toggleBtnOn : toggleBtnOff}
-            onClick={handleToggleProxy}
-            disabled={toggling}
-            title={proxyStatus.running ? 'Stop proxy server' : 'Start proxy server'}
+    <header style={headerStyle}>
+      <div style={leftStyle}>
+        <span style={{ fontSize: 16, fontWeight: 700 }}>AAStation</span>
+        {isDraft ? (
+          <span style={draftBadge}>Draft</span>
+        ) : lastPublishedAt ? (
+          <span style={publishedBadge}>
+            Published {formatTime(lastPublishedAt)}
+          </span>
+        ) : null}
+      </div>
+      <div style={rightStyle}>
+        {error && (
+          <span
+            style={{
+              fontSize: 11,
+              color: '#f87171',
+              maxWidth: 300,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={error}
           >
-            <span style={statusDotStyle(proxyStatus.running)} />
-            {toggling ? '...' : proxyStatus.running ? 'Running' : 'Stopped'}
-          </button>
-          <button
-            style={settingsBtnStyle}
-            onClick={() => setSettingsOpen(true)}
-            title="Settings"
-          >
-            ⚙
-          </button>
-          <button
-            style={publishing ? publishBtnDisabled : isDraft ? publishBtn : publishBtnDisabled}
-            onClick={handlePublish}
-            disabled={!isDraft || publishing}
-          >
-            {publishing ? 'Publishing...' : 'Publish'}
-          </button>
-        </div>
-      </header>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </>
+            {error}
+          </span>
+        )}
+        <button
+          style={proxyStatus.running ? toggleBtnOn : toggleBtnOff}
+          onClick={handleToggleProxy}
+          disabled={toggling}
+          title={proxyStatus.running ? 'Stop proxy server' : 'Start proxy server'}
+        >
+          <span style={statusDotStyle(proxyStatus.running)} />
+          {toggling ? '...' : proxyStatus.running ? 'Running' : 'Stopped'}
+        </button>
+        <button
+          style={publishing ? publishBtnDisabled : isDraft ? publishBtn : publishBtnDisabled}
+          onClick={handlePublish}
+          disabled={!isDraft || publishing}
+        >
+          {publishing ? 'Publishing...' : 'Publish'}
+        </button>
+      </div>
+    </header>
   );
 }
