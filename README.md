@@ -1,7 +1,181 @@
-# Tauri + React + Typescript
+<p align="center">
+  <img src="src-tauri/icons/logo.png" alt="AAStation Logo" width="128" height="128" />
+</p>
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+<h1 align="center">AAStation</h1>
 
-## Recommended IDE Setup
+<p align="center">
+  <strong>可视化的 AI API 代理管理器</strong>
+</p>
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+<p align="center">
+  <a href="https://github.com/nicepkg/AAStation/releases">
+    <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="Version" />
+  </a>
+  <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
+  <img src="https://img.shields.io/badge/Tauri-2.0-orange" alt="Tauri" />
+  <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License" />
+</p>
+
+---
+
+**简体中文** | [English](#english)
+
+## AAStation 是什么？
+
+AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI API 路由管道**。无需手动编写复杂的代理配置，只需在画布上拖拽节点，就能定义 API 请求如何从应用程序经过智能路由规则到达 AI 服务提供商。
+
+无论你是需要根据模型名称、路径前缀还是 HTTP 请求头来路由请求，AAStation 都提供了直观的节点式界面来配置一切——然后在本地运行代理服务器，实时执行你的路由逻辑。
+
+## 主要特性
+
+### 可视化管道构建器
+
+- 基于 React Flow 的**节点画布** — 拖拽、连接、配置，一切可视化
+- **自动保存**（防抖），同时支持 `Ctrl+S` 手动保存
+- **连接校验** — 即时反馈，防止无效路由
+- **小地图** — 大型管道也能轻松导航
+
+### 三种节点类型
+
+| 节点 | 说明 |
+|------|------|
+| **Application** | 代表发送请求到代理的客户端应用或工具 |
+| **Switcher** | 根据路径前缀、HTTP 请求头或模型名称路由请求，支持默认回退 |
+| **Provider** | AI 服务端点，提供按模型和统一的输入端口 |
+
+### 内置服务商预设
+
+预配置主流 AI 服务，添加 API Key 即可使用：
+
+- **OpenAI** — GPT-4o, GPT-4 Turbo, o1 等
+- **Anthropic** — Claude Sonnet 4, Claude 3.5 Sonnet, Claude 3 Opus
+- **DeepSeek** — DeepSeek Chat, DeepSeek Reasoner
+- **Moonshot (Kimi)** — Moonshot V1 8K / 32K / 128K
+- **智谱 AI** — GLM-4 Plus, GLM-4 Air, GLM-4 Flash
+- **OpenRouter** — 多服务商网关（Claude, GPT, Gemini, Llama 等）
+
+### 本地代理服务器
+
+- 基于 Axum 在本机运行 HTTP 代理
+- 将可视化管道编译为可执行的路由规则
+- 同时支持 OpenAI 和 Anthropic API 格式
+- 内置 CORS 支持，兼容浏览器端客户端
+
+### 桌面体验
+
+- Tauri 构建的原生桌面应用 — 轻量、快速
+- 系统托盘集成 — 后台静默运行
+- 自定义标题栏，深色主题 UI
+- 实时状态监控和请求统计
+
+## 截图
+
+
+
+## 快速开始
+
+### 环境要求
+
+- [Node.js](https://nodejs.org/) v18+
+- [Rust](https://www.rust-lang.org/tools/install)（最新稳定版）
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)（Windows 桌面开发工作负载）
+
+### 安装与运行
+
+```bash
+# 克隆仓库
+git clone https://github.com/nicepkg/AAStation.git
+cd AAStation
+
+# 安装前端依赖
+npm install
+
+# 开发模式运行
+npm run tauri dev
+```
+
+### 生产构建
+
+```bash
+npm run tauri build
+```
+
+构建产物位于 `src-tauri/target/release/bundle/`。
+
+
+
+前端渲染节点画布，用户在画布上构建路由管道。管道在 Rust 后端被编译为 DAG（有向无环图），驱动本地代理服务器按照规则路由 API 请求。
+
+## 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 前端 | React 19, TypeScript, Vite 7 |
+| 画布 | React Flow 11 |
+| 状态管理 | Zustand 5 |
+| 后端 | Rust, Tauri 2 |
+| 代理服务器 | Axum, Reqwest |
+| 图标 | @lobehub/icons |
+
+## 路由工作原理
+
+1. **Application 节点**将请求发送到管道
+2. **Switcher 节点**根据路由规则匹配每个请求：
+   - **路径前缀** — 按 URL 路径匹配（如 `/v1/messages`）
+   - **请求头** — 按 HTTP 请求头匹配（如 `Authorization: Bearer sk-...`）
+   - **模型名称** — 按请求的模型名称匹配（如 `claude-sonnet-4`）
+3. 未匹配的请求走 Switcher 的默认路由（如果配置了的话）
+4. **Provider 节点**将请求转发到对应的 AI 服务
+
+## 参与贡献
+
+欢迎贡献！你可以：
+
+- 提交 Issue 报告问题或建议功能
+- 提交 Pull Request 改进代码
+- 帮助完善文档
+
+## 许可证
+
+MIT License
+
+---
+
+<a name="english"></a>
+
+## English
+
+### What is AAStation?
+
+AAStation is a desktop application that lets you **build AI API routing pipelines visually**. Instead of writing complex proxy configurations by hand, you drag and drop nodes on a canvas to define how API requests flow from your applications through intelligent routing rules to AI service providers.
+
+Whether you need to route requests based on model names, path prefixes, or HTTP headers, AAStation provides an intuitive node-based interface to configure it all — then runs a local proxy server that executes your routing logic in real time.
+
+### Features
+
+- **Visual Pipeline Builder** — Node-based canvas powered by React Flow, with auto-save, connection validation, and mini-map
+- **Three Node Types** — Application (entry point), Switcher (smart routing), Provider (AI service endpoint)
+- **Built-in Provider Presets** — OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu AI, OpenRouter ready to use
+- **Local Proxy Server** — High-performance proxy powered by Axum, supporting both OpenAI and Anthropic API formats
+- **Desktop Experience** — Native app built with Tauri, system tray integration, dark theme UI
+
+### Quick Start
+
+```bash
+git clone https://github.com/nicepkg/AAStation.git
+cd AAStation
+npm install
+npm run tauri dev
+```
+
+### How Routing Works
+
+1. **Application nodes** emit requests into the pipeline
+2. **Switcher nodes** evaluate routing rules against each request (path prefix / header / model name)
+3. Unmatched requests follow the Switcher's default route (if configured)
+4. **Provider nodes** forward the request to the corresponding AI service
+
+### License
+
+MIT License
