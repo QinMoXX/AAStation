@@ -18,6 +18,7 @@ import type {
   SwitcherNodeData,
   ApplicationNodeData,
   NodeType,
+  AppType,
   ProviderPreset,
 } from '../types';
 import type { DAGDocument } from '../types/dag';
@@ -47,11 +48,11 @@ export function defaultSwitcherData(): SwitcherNodeData {
   };
 }
 
-export function defaultApplicationData(): ApplicationNodeData {
+export function defaultApplicationData(appType: AppType = 'listener'): ApplicationNodeData {
   return {
     nodeType: 'application',
-    label: 'Listener',
-    appType: 'listener',
+    label: appType === 'claude_code' ? 'Claude Code' : 'Listener',
+    appType,
   };
 }
 
@@ -107,7 +108,7 @@ interface FlowState {
   onConnect: OnConnect;
 
   // CRUD
-  addNode: (type: NodeType, position?: { x: number; y: number }) => string;
+  addNode: (type: NodeType, position?: { x: number; y: number }, appType?: AppType) => string;
   /** Add a preset Provider node by preset ID. */
   addPresetProviderNode: (presetId: string, position?: { x: number; y: number }) => string;
   updateNodeData: (nodeId: string, data: Partial<AAStationNodeData>) => void;
@@ -148,9 +149,11 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   // CRUD operations
   // -----------------------------------------------------------------------
 
-  addNode: (type: NodeType, position?: { x: number; y: number }) => {
+  addNode: (type: NodeType, position?: { x: number; y: number }, appType?: AppType) => {
     const id = nextNodeId();
-    const data = DEFAULT_DATA_MAP[type]();
+    const data = type === 'application' && appType
+      ? defaultApplicationData(appType)
+      : DEFAULT_DATA_MAP[type]();
     const node: AAStationNode = {
       id,
       type, // maps to React Flow nodeTypes key

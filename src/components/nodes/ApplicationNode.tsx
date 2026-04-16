@@ -4,10 +4,12 @@ import type { ApplicationNodeData } from '../../types';
 
 const APP_TYPE_LABELS: Record<string, string> = {
   listener: '自定义监听',
+  claude_code: 'Claude Code',
 };
 
 const APP_TYPE_ICONS: Record<string, string> = {
   listener: '📡',
+  claude_code: '🤖',
 };
 
 function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {

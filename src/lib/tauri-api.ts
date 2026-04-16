@@ -100,3 +100,19 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// App configuration commands
+// ---------------------------------------------------------------------------
+
+/** Configure Claude Code to use the local proxy. */
+export async function configureClaudeCode(proxyUrl: string): Promise<void> {
+  return invoke<void>('configure_claude_code', {
+    proxyUrl,
+  });
+}
+
+/** Remove Claude Code proxy configuration. */
+export async function unconfigureClaudeCode(): Promise<void> {
+  return invoke<void>('unconfigure_claude_code');
+}

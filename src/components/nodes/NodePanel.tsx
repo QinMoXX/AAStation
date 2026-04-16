@@ -483,6 +483,12 @@ function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpda
           onChange={(e) => onUpdate({ label: e.target.value })}
         />
       </div>
+
+      {data.appType === 'claude_code' && (
+        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
+          发布后将自动配置 Claude Code 使用本地代理，API Key 由 Provider 节点提供。
+        </div>
+      )}
     </>
   );
 }

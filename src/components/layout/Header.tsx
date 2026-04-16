@@ -3,6 +3,7 @@ import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
 import { publishDag, startProxy, stopProxy, getProxyStatus } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
+import ClaudeCodeDialog, { type ClaudeCodeAppInfo } from '../common/ClaudeCodeDialog';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -122,6 +123,10 @@ export default function Header() {
   const [publishing, setPublishing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [claudeCodeDialog, setClaudeCodeDialog] = useState<{
+    apps: ClaudeCodeAppInfo[];
+    proxyUrl: string;
+  } | null>(null);
 
   // -----------------------------------------------------------------------
   // Toggle proxy on/off (independent of publish)
@@ -162,7 +167,7 @@ export default function Header() {
     try {
       // 1. Publish DAG (validate → compile → hot-load routes)
       const doc = getDocument();
-      await publishDag(doc);
+      const routeTable = await publishDag(doc);
 
       // 2. Start proxy server (if not already running)
       if (!proxyStatus.running) {
@@ -176,6 +181,22 @@ export default function Header() {
 
       toast.success('Published successfully');
       console.log('[Header] Published and started proxy on port', status.port);
+
+      // 4. Check for Claude Code application nodes
+      const claudeCodeApps: ClaudeCodeAppInfo[] = doc.nodes
+        .filter((n) => n.data.nodeType === 'application' && (n.data as any).appType === 'claude_code')
+        .map((n) => {
+          const data = n.data as any;
+          return {
+            nodeId: n.id,
+            label: data.label || 'Claude Code',
+          };
+        });
+
+      if (claudeCodeApps.length > 0) {
+        const proxyUrl = `http://${routeTable.listen_address}:${routeTable.listen_port}`;
+        setClaudeCodeDialog({ apps: claudeCodeApps, proxyUrl });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -240,6 +261,15 @@ export default function Header() {
           {publishing ? 'Publishing...' : 'Publish'}
         </button>
       </div>
+
+      {/* Claude Code configuration dialog */}
+      {claudeCodeDialog && (
+        <ClaudeCodeDialog
+          apps={claudeCodeDialog.apps}
+          proxyUrl={claudeCodeDialog.proxyUrl}
+          onClose={() => setClaudeCodeDialog(null)}
+        />
+      )}
     </header>
   );
 }

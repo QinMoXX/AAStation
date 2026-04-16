@@ -1,4 +1,4 @@
-export type { NodeType, HandleType, ApiType, ProviderModel, ProviderNodeData, SwitcherEntry, SwitcherNodeData, ApplicationNodeData, AAStationNodeData } from './nodes';
+export type { NodeType, HandleType, ApiType, AppType, ProviderModel, ProviderNodeData, SwitcherEntry, SwitcherNodeData, ApplicationNodeData, AAStationNodeData } from './nodes';
 export type { ProviderPreset, PresetModel } from './preset';
 export type { AAStationEdgeData, AAStationNode, AAStationEdge, DAGDocument } from './dag';
 export type { ProxyStatus, RouteTable, CompiledRoute } from './proxy';

@@ -1,3 +1,4 @@
+mod claude_config;
 mod commands;
 mod dag;
 mod dag_store;
@@ -42,6 +43,8 @@ pub fn run() {
             commands::proxy_commands::reload_routes,
             commands::settings_commands::load_settings,
             commands::settings_commands::save_settings,
+            commands::app_commands::configure_claude_code,
+            commands::app_commands::unconfigure_claude_code,
         ])
         .setup(|app| {
             // Setup system tray

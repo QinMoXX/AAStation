@@ -51,11 +51,14 @@ export interface SwitcherNodeData extends BaseNodeData {
   hasDefault: boolean;
 }
 
+/** Application type discriminator. */
+export type AppType = 'listener' | 'claude_code';
+
 /** Application node: represents an end application/tool that uses the proxy. */
 export interface ApplicationNodeData extends BaseNodeData {
   nodeType: 'application';
   /** Application type for display purposes. */
-  appType: string; // 'listener'
+  appType: AppType;
 }
 
 /** Union of all node data types. */

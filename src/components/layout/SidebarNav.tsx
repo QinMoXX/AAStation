@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
 import { publishDag, startProxy, stopProxy, getProxyStatus } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
+import ClaudeCodeDialog, { type ClaudeCodeAppInfo } from '../common/ClaudeCodeDialog';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -175,6 +176,10 @@ export default function SidebarNav() {
 
   const [toggling, setToggling] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [claudeCodeDialog, setClaudeCodeDialog] = useState<{
+    apps: ClaudeCodeAppInfo[];
+    proxyUrl: string;
+  } | null>(null);
 
   // -----------------------------------------------------------------------
   // Toggle proxy on/off
@@ -211,7 +216,7 @@ export default function SidebarNav() {
     setPublishing(true);
     try {
       const doc = getDocument();
-      await publishDag(doc);
+      const routeTable = await publishDag(doc);
       if (!proxyStatus.running) {
         await startProxy();
       }
@@ -219,6 +224,22 @@ export default function SidebarNav() {
       const status = await getProxyStatus();
       setProxyStatus(status);
       toast.success('Published successfully');
+
+      // Check for Claude Code application nodes
+      const claudeCodeApps: ClaudeCodeAppInfo[] = doc.nodes
+        .filter((n) => n.data.nodeType === 'application' && (n.data as any).appType === 'claude_code')
+        .map((n) => {
+          const data = n.data as any;
+          return {
+            nodeId: n.id,
+            label: data.label || 'Claude Code',
+          };
+        });
+
+      if (claudeCodeApps.length > 0) {
+        const proxyUrl = `http://${routeTable.listen_address}:${routeTable.listen_port}`;
+        setClaudeCodeDialog({ apps: claudeCodeApps, proxyUrl });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Publish failed: ${msg}`);
@@ -315,6 +336,15 @@ export default function SidebarNav() {
         </div>
       ) : (
         <div style={statusTextStyle}>offline</div>
+      )}
+
+      {/* Claude Code configuration dialog */}
+      {claudeCodeDialog && (
+        <ClaudeCodeDialog
+          apps={claudeCodeDialog.apps}
+          proxyUrl={claudeCodeDialog.proxyUrl}
+          onClose={() => setClaudeCodeDialog(null)}
+        />
       )}
     </nav>
   );
