@@ -45,6 +45,7 @@ pub fn run() {
             commands::settings_commands::save_settings,
             commands::app_commands::configure_claude_code,
             commands::app_commands::unconfigure_claude_code,
+            commands::app_commands::restore_claude_config,
         ])
         .setup(|app| {
             // Setup system tray
@@ -53,6 +54,14 @@ pub fn run() {
             // Setup window close handler - minimize to tray instead of closing
             if let Some(window) = app.get_webview_window("main") {
                 tray::on_window_close(&window);
+            }
+
+            // Sync proxy auth token from AppState to ProxyServer at startup
+            let state = app.state::<AppState>();
+            let auth_token = state.proxy_auth_token.blocking_read().clone();
+            {
+                let proxy = state.proxy.blocking_read();
+                *proxy.proxy_auth_token.blocking_write() = auth_token;
             }
 
             // Start background task to update tray status periodically

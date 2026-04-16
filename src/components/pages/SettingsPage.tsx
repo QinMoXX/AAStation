@@ -81,6 +81,7 @@ export default function SettingsPage() {
   const { settings, saveSettings } = useSettingsStore();
   const [port, setPort] = useState(settings.listenPort);
   const [address, setAddress] = useState(settings.listenAddress);
+  const [tokenVisible, setTokenVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -91,13 +92,18 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveSettings({ listenPort: port, listenAddress: address });
+      await saveSettings({ listenPort: port, listenAddress: address, proxyAuthToken: settings.proxyAuthToken });
     } catch (err) {
       console.error('Failed to save settings:', err);
     } finally {
       setSaving(false);
     }
   };
+
+  const authToken = settings.proxyAuthToken || '(未加载)';
+  const maskedToken = authToken.length > 12
+    ? authToken.slice(0, 8) + '••••••••' + authToken.slice(-4)
+    : '••••••••';
 
   return (
     <div style={pageStyle}>
@@ -127,6 +133,60 @@ export default function SettingsPage() {
               onChange={(e) => setAddress(e.target.value)}
               style={inputStyle}
             />
+          </div>
+
+          {/* Proxy Auth Token (read-only) */}
+          <div style={fieldStyle}>
+            <label style={labelStyle}>
+              代理认证令牌
+              <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>
+                只读 · 客户端通过此令牌向代理认证
+              </span>
+            </label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type={tokenVisible ? 'text' : 'password'}
+                value={tokenVisible ? authToken : maskedToken}
+                readOnly
+                style={{
+                  ...inputStyle,
+                  flex: 1,
+                  color: tokenVisible ? '#f9fafb' : '#6b7280',
+                  cursor: 'default',
+                  userSelect: 'all',
+                }}
+              />
+              <button
+                onClick={() => setTokenVisible(!tokenVisible)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #374151',
+                  background: '#1f2937',
+                  color: '#d1d5db',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {tokenVisible ? '隐藏' : '显示'}
+              </button>
+              <button
+                onClick={() => { navigator.clipboard.writeText(authToken); }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #374151',
+                  background: '#1f2937',
+                  color: '#d1d5db',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                复制
+              </button>
+            </div>
           </div>
 
           {/* Actions */}

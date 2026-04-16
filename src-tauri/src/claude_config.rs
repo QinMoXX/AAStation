@@ -1,16 +1,25 @@
 #![allow(dead_code, unused_imports)]
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::error::AppError;
 
 /// Claude Code settings file: `~/.claude/settings.json`
+///
+/// We parse the full JSON as a `serde_json::Value` so that any keys we don't
+/// know about (e.g. `permissions`, `allowedTools`, etc.) are preserved when we
+/// write the file back.  We only touch the `env` sub-object.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClaudeSettings {
+    /// The raw JSON object — we keep all fields intact.
+    #[serde(flatten)]
+    pub extra: HashMap<String, Value>,
+    /// Environment variables set by Claude Code.
     #[serde(default)]
-    pub env: HashMap<String, serde_json::Value>,
+    pub env: HashMap<String, Value>,
 }
 
 /// Claude Code onboarding file: `~/.claude.json`
@@ -18,7 +27,21 @@ pub struct ClaudeSettings {
 pub struct ClaudeOnboarding {
     #[serde(default)]
     pub has_completed_onboarding: bool,
+    /// Catch any other fields so they are preserved.
+    #[serde(flatten)]
+    pub extra: HashMap<String, Value>,
 }
+
+/// Keys that AAStation manages inside the `env` object of `settings.json`.
+const AASTATION_MANAGED_KEYS: &[&str] = &[
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_AUTH_TOKEN",
+    "API_TIMEOUT_MS",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+];
+
+/// Suffix appended to config files when creating backups.
+const BACKUP_SUFFIX: &str = ".aastation-backup";
 
 /// Cross-platform home directory resolution.
 fn dirs_home_dir() -> Result<PathBuf, AppError> {
@@ -57,12 +80,16 @@ fn claude_onboarding_path() -> Result<PathBuf, AppError> {
 /// Configure Claude Code to use the local proxy.
 ///
 /// This writes two files:
-/// 1. `~/.claude/settings.json` — sets `ANTHROPIC_BASE_URL` and other env vars
+/// 1. `~/.claude/settings.json` — sets `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, and other env vars
 /// 2. `~/.claude.json` — sets `hasCompletedOnboarding: true`
 ///
-/// API Key is NOT set here — it is provided by the Provider node during proxy forwarding.
+/// The `ANTHROPIC_AUTH_TOKEN` is the AAStation proxy auth token — it is used only for
+/// authenticating with the local proxy. The proxy will NOT forward this token to upstream;
+/// instead it uses the Provider node's API key for upstream authentication.
+///
 /// If the files already exist, they are merged (existing keys are preserved, our keys are updated).
-pub fn configure_claude_code(proxy_url: &str) -> Result<(), AppError> {
+/// A backup of the original file is saved as `<filename>.aastation-backup` before any modification.
+pub fn configure_claude_code(proxy_url: &str, auth_token: &str) -> Result<(), AppError> {
     // --- Write ~/.claude/settings.json ---
     let settings_path = claude_settings_path()?;
 
@@ -74,60 +101,69 @@ pub fn configure_claude_code(proxy_url: &str) -> Result<(), AppError> {
     // Read existing settings or create new
     let mut settings: ClaudeSettings = if settings_path.exists() {
         let content = std::fs::read_to_string(&settings_path)?;
+        // Backup the original file before we modify it
+        backup_file(&settings_path)?;
         serde_json::from_str(&content).unwrap_or(ClaudeSettings {
             env: HashMap::new(),
+            extra: HashMap::new(),
         })
     } else {
         ClaudeSettings {
             env: HashMap::new(),
+            extra: HashMap::new(),
         }
     };
 
     // Set the proxy URL — this is the only required setting for AAStation
     settings.env.insert(
         "ANTHROPIC_BASE_URL".to_string(),
-        serde_json::Value::String(proxy_url.to_string()),
+        Value::String(proxy_url.to_string()),
+    );
+
+    // Set the AAStation proxy auth token — used by Claude Code to authenticate
+    // with the local proxy. NOT forwarded to upstream (Provider key is used instead).
+    settings.env.insert(
+        "ANTHROPIC_AUTH_TOKEN".to_string(),
+        Value::String(auth_token.to_string()),
     );
 
     // Set timeout
     settings.env.insert(
         "API_TIMEOUT_MS".to_string(),
-        serde_json::Value::String("3000000".to_string()),
+        Value::String("3000000".to_string()),
     );
 
     // Disable non-essential traffic
     settings.env.insert(
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC".to_string(),
-        serde_json::Value::Number(1.into()),
+        Value::Number(1.into()),
     );
 
     // Write settings (atomic)
-    let tmp_path = settings_path.with_extension("json.tmp");
-    let content = serde_json::to_string_pretty(&settings)?;
-    std::fs::write(&tmp_path, &content)?;
-    std::fs::rename(&tmp_path, &settings_path)?;
+    atomic_write_json(&settings_path, &settings)?;
 
     // --- Write ~/.claude.json ---
     let onboarding_path = claude_onboarding_path()?;
 
     let mut onboarding: ClaudeOnboarding = if onboarding_path.exists() {
         let content = std::fs::read_to_string(&onboarding_path)?;
+        // Backup the original file before we modify it
+        backup_file(&onboarding_path)?;
         serde_json::from_str(&content).unwrap_or(ClaudeOnboarding {
             has_completed_onboarding: false,
+            extra: HashMap::new(),
         })
     } else {
         ClaudeOnboarding {
             has_completed_onboarding: false,
+            extra: HashMap::new(),
         }
     };
 
     onboarding.has_completed_onboarding = true;
 
     // Write onboarding (atomic)
-    let tmp_path = onboarding_path.with_extension("json.tmp");
-    let content = serde_json::to_string_pretty(&onboarding)?;
-    std::fs::write(&tmp_path, &content)?;
-    std::fs::rename(&tmp_path, &onboarding_path)?;
+    atomic_write_json(&onboarding_path, &onboarding)?;
 
     Ok(())
 }
@@ -147,23 +183,78 @@ pub fn unconfigure_claude_code() -> Result<(), AppError> {
     let content = std::fs::read_to_string(&settings_path)?;
     let mut settings: ClaudeSettings = serde_json::from_str(&content).unwrap_or(ClaudeSettings {
         env: HashMap::new(),
+        extra: HashMap::new(),
     });
 
-    let keys_to_remove = [
-        "ANTHROPIC_BASE_URL",
-        "API_TIMEOUT_MS",
-        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
-    ];
-
-    for key in &keys_to_remove {
+    for key in AASTATION_MANAGED_KEYS {
         settings.env.remove(*key);
     }
 
     // Write settings (atomic)
-    let tmp_path = settings_path.with_extension("json.tmp");
-    let content = serde_json::to_string_pretty(&settings)?;
-    std::fs::write(&tmp_path, &content)?;
-    std::fs::rename(&tmp_path, &settings_path)?;
+    atomic_write_json(&settings_path, &settings)?;
 
+    Ok(())
+}
+
+/// Restore Claude Code configuration from backup files.
+///
+/// If a `.aastation-backup` file exists for either config file, it is
+/// restored (copied back to the original path).
+pub fn restore_claude_config() -> Result<(), AppError> {
+    let settings_path = claude_settings_path()?;
+    let onboarding_path = claude_onboarding_path()?;
+
+    if backup_path(&settings_path).exists() {
+        restore_file(&settings_path)?;
+    }
+
+    if backup_path(&onboarding_path).exists() {
+        restore_file(&onboarding_path)?;
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/// Compute the backup path for a given file path.
+fn backup_path(path: &PathBuf) -> PathBuf {
+    let mut p = path.clone();
+    let mut name = p.file_name().map(|n| n.to_owned()).unwrap_or_default();
+    name.push(BACKUP_SUFFIX);
+    p.set_file_name(name);
+    p
+}
+
+/// Create a backup of the file at `path` as `<path>.aastation-backup`.
+///
+/// Only creates a backup if one does not already exist (so the original
+/// pre-AAStation content is always preserved even across multiple configure calls).
+fn backup_file(path: &PathBuf) -> Result<(), AppError> {
+    let bk = backup_path(path);
+    if !bk.exists() && path.exists() {
+        std::fs::copy(path, &bk)?;
+    }
+    Ok(())
+}
+
+/// Restore a file from its `.aastation-backup` backup, then remove the backup.
+fn restore_file(path: &PathBuf) -> Result<(), AppError> {
+    let bk = backup_path(path);
+    if bk.exists() {
+        std::fs::copy(&bk, path)?;
+        std::fs::remove_file(&bk)?;
+    }
+    Ok(())
+}
+
+/// Atomically write a serializable value as pretty-printed JSON.
+fn atomic_write_json<T: Serialize>(path: &PathBuf, data: &T) -> Result<(), AppError> {
+    let tmp_path = path.with_extension("json.tmp");
+    let content = serde_json::to_string_pretty(data)?;
+    std::fs::write(&tmp_path, &content)?;
+    std::fs::rename(&tmp_path, path)?;
     Ok(())
 }

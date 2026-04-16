@@ -23,6 +23,8 @@ pub struct ProxyState {
 pub struct ProxyServer {
     pub state: ProxyState,
     pub config: Arc<RwLock<ProxyConfig>>,
+    /// Proxy auth token — shared with HandlerState for request verification.
+    pub proxy_auth_token: Arc<RwLock<String>>,
 }
 
 /// Shared state injected into each axum handler via extension.
@@ -32,6 +34,9 @@ pub struct HandlerState {
     pub route_table: Arc<RwLock<RouteTable>>,
     pub request_counter: Arc<std::sync::atomic::AtomicU64>,
     pub http_client: reqwest::Client,
+    /// Auth token for verifying client requests.
+    /// Updated when settings are saved (via ProxyServer::update_auth_token).
+    pub proxy_auth_token: Arc<RwLock<String>>,
 }
 
 impl ProxyServer {
@@ -46,7 +51,14 @@ impl ProxyServer {
                 server_handle: Arc::new(RwLock::new(None)),
             },
             config: Arc::new(RwLock::new(ProxyConfig::default())),
+            proxy_auth_token: Arc::new(RwLock::new(String::new())),
         }
+    }
+
+    /// Update the proxy auth token (called when settings are saved).
+    pub async fn update_auth_token(&self, new_token: String) {
+        let mut token = self.proxy_auth_token.write().await;
+        *token = new_token;
     }
 
     /// Start the axum proxy server.
@@ -83,6 +95,7 @@ impl ProxyServer {
                 .timeout(std::time::Duration::from_secs(300))
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
+            proxy_auth_token: Arc::clone(&self.proxy_auth_token),
         };
 
         // Build axum router with catch-all handler

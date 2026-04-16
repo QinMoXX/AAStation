@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { configureClaudeCode } from '../../lib/tauri-api';
+import { useSettingsStore } from '../../store/settings-store';
 import { toast } from '../../store/toast-store';
 
 // ---------------------------------------------------------------------------
@@ -140,6 +141,7 @@ const checkStyle: React.CSSProperties = {
 export default function ClaudeCodeDialog({ apps, proxyUrl, onClose }: ClaudeCodeDialogProps) {
   const [configuring, setConfiguring] = useState(false);
   const [configured, setConfigured] = useState(false);
+  const [tokenVisible, setTokenVisible] = useState(false);
 
   const handleConfigure = useCallback(async () => {
     if (configuring) return;
@@ -160,11 +162,19 @@ export default function ClaudeCodeDialog({ apps, proxyUrl, onClose }: ClaudeCode
 
   const displayProxyUrl = proxyUrl.replace(/\/$/, '');
 
+  // Get auth token from settings store
+  const settings = useSettingsStore((s) => s.settings);
+  const authToken = settings?.proxyAuthToken || '';
+  const maskedToken = authToken.length > 12
+    ? authToken.slice(0, 8) + '••••••••' + authToken.slice(-4)
+    : '••••••••';
+
   // Build the settings.json content to display
   const settingsJson = JSON.stringify(
     {
       env: {
         ANTHROPIC_BASE_URL: displayProxyUrl,
+        ANTHROPIC_AUTH_TOKEN: tokenVisible ? authToken : maskedToken,
         API_TIMEOUT_MS: '3000000',
         CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: 1,
       },
@@ -184,8 +194,8 @@ export default function ClaudeCodeDialog({ apps, proxyUrl, onClose }: ClaudeCode
       <div style={dialogStyle}>
         <div style={titleStyle}>🤖 Claude Code 代理配置</div>
         <div style={subtitleStyle}>
-          检测到 {apps.length} 个 Claude Code 应用节点。发布后需要将本地代理 URL 写入 Claude Code 配置文件，
-          使其通过 AAStation 代理转发请求。API Key 由已连接的 Provider 节点提供，无需在 Claude Code 中配置。
+          检测到 {apps.length} 个 Claude Code 应用节点。发布后需要将本地代理 URL 和认证令牌写入 Claude Code 配置文件，
+          使其通过 AAStation 代理转发请求。认证令牌仅用于代理验证，不会转发到上游 API；上游 API Key 由 Provider 节点提供。
         </div>
 
         {apps.map((app) => (
@@ -204,8 +214,22 @@ export default function ClaudeCodeDialog({ apps, proxyUrl, onClose }: ClaudeCode
         ))}
 
         <div style={cardStyle}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af', marginBottom: 8 }}>
-            将写入以下配置文件：
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>将写入以下配置文件：</span>
+            <button
+              onClick={() => setTokenVisible(!tokenVisible)}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                border: '1px solid #374151',
+                background: 'transparent',
+                color: '#9ca3af',
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              {tokenVisible ? '隐藏令牌' : '显示令牌'}
+            </button>
           </div>
           <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
             ~/.claude/settings.json

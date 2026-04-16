@@ -27,6 +27,7 @@ interface SettingsState {
 const DEFAULT_SETTINGS: AppSettings = {
   listenPort: 9527,
   listenAddress: '127.0.0.1',
+  proxyAuthToken: '',
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({

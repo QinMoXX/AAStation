@@ -1,0 +1,22 @@
+{
+  "claude_code": {
+    "label": "Claude Model Router",
+    "entries": [
+      {
+        "label": "Claude Sonnet 4",
+        "matchType": "model",
+        "pattern": "claude-sonnet-4-20250514"
+      },
+      {
+        "label": "Claude 3.5 Sonnet",
+        "matchType": "model",
+        "pattern": "claude-3-5-sonnet-20241022"
+      },
+      {
+        "label": "Claude 3.5 Haiku",
+        "matchType": "model",
+        "pattern": "claude-3-5-haiku-20241022"
+      }
+    ]
+  }
+}

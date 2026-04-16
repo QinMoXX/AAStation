@@ -84,10 +84,11 @@ export async function getProxyStatus(): Promise<ProxyStatus> {
 
 /** Load application settings from disk. Returns defaults if no file exists. */
 export async function loadSettings(): Promise<AppSettings> {
-  const raw = await invoke<{ listen_port: number; listen_address: string }>('load_settings');
+  const raw = await invoke<{ listen_port: number; listen_address: string; proxy_auth_token: string }>('load_settings');
   return {
     listenPort: raw.listen_port,
     listenAddress: raw.listen_address,
+    proxyAuthToken: raw.proxy_auth_token,
   };
 }
 
@@ -97,6 +98,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
     settings: {
       listen_port: settings.listenPort,
       listen_address: settings.listenAddress,
+      proxy_auth_token: settings.proxyAuthToken,
     },
   });
 }
@@ -115,4 +117,9 @@ export async function configureClaudeCode(proxyUrl: string): Promise<void> {
 /** Remove Claude Code proxy configuration. */
 export async function unconfigureClaudeCode(): Promise<void> {
   return invoke<void>('unconfigure_claude_code');
+}
+
+/** Restore Claude Code configuration from backup files. */
+export async function restoreClaudeConfig(): Promise<void> {
+  return invoke<void>('restore_claude_config');
 }

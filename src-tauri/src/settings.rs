@@ -15,6 +15,31 @@ pub struct AppSettings {
     pub listen_port: u16,
     /// Address the proxy binds to (default "127.0.0.1").
     pub listen_address: String,
+    /// Unique auth token for proxy access verification.
+    /// Generated on first run, stored persistently. Read-only in UI.
+    /// Used by client apps (e.g. Claude Code) to authenticate with the proxy.
+    /// NOT used for upstream forwarding — Provider node API keys are used instead.
+    #[serde(default = "generate_auth_token")]
+    pub proxy_auth_token: String,
+}
+
+pub fn generate_auth_token() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    format!("aast_{:016x}{:016x}", seed, rand_value(seed))
+}
+
+/// Simple deterministic pseudo-random value for token generation.
+fn rand_value(seed: u64) -> u64 {
+    // xorshift64
+    let mut x = seed.wrapping_add(0x9e3779b97f4a7c15);
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    x
 }
 
 impl Default for AppSettings {
@@ -22,6 +47,7 @@ impl Default for AppSettings {
         Self {
             listen_port: 9527,
             listen_address: "127.0.0.1".to_string(),
+            proxy_auth_token: generate_auth_token(),
         }
     }
 }
@@ -55,13 +81,20 @@ fn settings_path() -> Result<PathBuf, AppError> {
 }
 
 /// Load settings from disk. Returns default settings if file doesn't exist.
+/// Ensures `proxy_auth_token` is always present (generates one if missing from old configs).
 pub fn load_settings() -> Result<AppSettings, AppError> {
     let path = settings_path()?;
     if !path.exists() {
         return Ok(AppSettings::default());
     }
     let content = std::fs::read_to_string(&path)?;
-    let settings: AppSettings = serde_json::from_str(&content)?;
+    let mut settings: AppSettings = serde_json::from_str(&content)?;
+    // Ensure auth token exists (for configs created before this field was added)
+    if settings.proxy_auth_token.is_empty() {
+        settings.proxy_auth_token = generate_auth_token();
+        // Persist the generated token
+        save_settings(&settings)?;
+    }
     Ok(settings)
 }
 

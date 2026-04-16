@@ -20,9 +20,11 @@ import type {
   NodeType,
   AppType,
   ProviderPreset,
+  SwitcherDefaultsMap,
 } from '../types';
 import type { DAGDocument } from '../types/dag';
 import presets from '../data/provider-presets.json';
+import switcherDefaults from '../data/switcher-defaults.json';
 
 // ---------------------------------------------------------------------------
 // Default node data factories
@@ -67,6 +69,9 @@ const DEFAULT_DATA_MAP: Record<NodeType, () => AAStationNodeData> = {
 // ---------------------------------------------------------------------------
 
 export const PRESET_PROVIDERS = presets as ProviderPreset[];
+
+/** Default Switcher entries per appType, loaded from JSON config. */
+export const SWITCHER_DEFAULTS = switcherDefaults as SwitcherDefaultsMap;
 
 export function createPresetProviderData(preset: ProviderPreset): ProviderNodeData {
   return {
@@ -142,7 +147,55 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   },
 
   onConnect: (connection: Connection) => {
-    set({ edges: addEdge(connection, get().edges) });
+    const { nodes, edges } = get();
+    const newEdges = addEdge(connection, edges);
+
+    // Auto-populate Switcher with default entries when an Application connects to it
+    const sourceNode = nodes.find((n) => n.id === connection.source);
+    const targetNode = nodes.find((n) => n.id === connection.target);
+
+    if (
+      sourceNode?.data.nodeType === 'application' &&
+      targetNode?.data.nodeType === 'switcher'
+    ) {
+      const appType = (sourceNode.data as ApplicationNodeData).appType;
+      const defaultConfig = SWITCHER_DEFAULTS[appType];
+
+      if (defaultConfig) {
+        const switcherData = targetNode.data as SwitcherNodeData;
+        const existingPatterns = new Set(switcherData.entries.map((e) => e.pattern));
+
+        // Only add entries that don't already exist (by pattern)
+        const newEntries = defaultConfig.entries
+          .filter((e) => !existingPatterns.has(e.pattern))
+          .map((e) => ({
+            id: crypto.randomUUID(),
+            label: e.label,
+            matchType: e.matchType,
+            pattern: e.pattern,
+          }));
+
+        if (newEntries.length > 0) {
+          set({
+            edges: newEdges,
+            nodes: nodes.map((n) =>
+              n.id === targetNode.id
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      entries: [...switcherData.entries, ...newEntries],
+                    } as SwitcherNodeData,
+                  }
+                : n,
+            ),
+          });
+          return;
+        }
+      }
+    }
+
+    set({ edges: newEdges });
   },
 
   // -----------------------------------------------------------------------
