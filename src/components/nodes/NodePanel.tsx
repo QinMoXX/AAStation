@@ -189,7 +189,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
         <input
           style={isPreset ? readonlyInputStyle : inputStyle}
           value={data.baseUrl}
-          placeholder="https://api.openai.com"
+          placeholder="https://api.openai.com/v1"
           onChange={(e) => onUpdate({ baseUrl: e.target.value })}
           disabled={isPreset}
         />

@@ -1,21 +1,25 @@
 #![allow(dead_code, unused_imports)]
 
 use axum::http::{HeaderMap, HeaderValue, Method};
-use axum::body::Body;
-use axum::response::Response;
 
-use super::body_parser::replace_model;
+use super::body_parser::{adapt_request_body, adapt_request_path, detect_request_protocol, extract_model};
 use super::error::ProxyError;
-use super::server::HandlerState;
-use super::types::{ApiType, CompiledRoute};
+use super::types::{ApiType, CompiledRoute, RequestProtocol};
+
+/// Quick model extraction for logging (returns "N/A" if not found).
+fn extract_model_quick(body: &[u8]) -> String {
+    extract_model(body).unwrap_or_else(|| "N/A".to_string())
+}
 
 /// Forward the request to the matched upstream route.
-/// Builds a reqwest request with the same method/headers/body,
-/// injects auth based on the route's api_type, then sends it.
 ///
-/// If `route.target_model` is set, replaces the `model` field in the request body.
+/// This function performs protocol adaptation:
+/// 1. Detects the client's request protocol (OpenAI or Anthropic) from the path
+/// 2. Adapts the request path to match the provider's API type
+/// 3. Adapts the request body (field conversion between protocols)
+/// 4. Injects auth based on the provider's api_type
 ///
-/// Returns the upstream response (streaming or buffered).
+/// The client is completely unaware of the provider's API style.
 pub async fn forward_request(
     client: &reqwest::Client,
     route: &CompiledRoute,
@@ -24,14 +28,27 @@ pub async fn forward_request(
     headers: HeaderMap<HeaderValue>,
     body: bytes::Bytes,
 ) -> Result<reqwest::Response, ProxyError> {
-    let url = format!("{}{}", route.upstream_url.trim_end_matches('/'), path);
+    // Detect client's request protocol from the original path
+    let source_protocol = detect_request_protocol(path);
 
-    // Replace model in body if target_model is specified
-    let body = if !route.target_model.is_empty() {
-        replace_model(&body, &route.target_model).map(bytes::Bytes::from).unwrap_or(body)
-    } else {
-        body
-    };
+    // Determine the target API type from the compiled route
+    let target_api_type = route.api_type.unwrap_or(ApiType::OpenAI);
+
+    // Adapt the request path to match the provider's API type
+    let upstream_path = adapt_request_path(path, target_api_type);
+
+    // Build the upstream URL
+    let url = format!("{}{}", route.upstream_url.trim_end_matches('/'), upstream_path);
+
+    tracing::info!(
+        "Proxying {} {} → {} (protocol: {:?} → {:?}, model: {:?} → {:?})",
+        method, path, url, source_protocol, target_api_type,
+        extract_model_quick(&body), if route.target_model.is_empty() { "(keep)" } else { &route.target_model },
+    );
+
+    // Adapt the request body: protocol conversion + model replacement
+    let body = adapt_request_body(&body, source_protocol, target_api_type, &route.target_model);
+    let body = bytes::Bytes::from(body);
 
     let mut req_builder = client.request(method, &url).body(body);
 
@@ -42,6 +59,7 @@ pub async fn forward_request(
         if name == axum::http::header::HOST
             || name == axum::http::header::AUTHORIZATION
             || name == "x-api-key"
+            || name == "anthropic-version"
             || name == axum::http::header::CONTENT_LENGTH
             || name == axum::http::header::TRANSFER_ENCODING
             || name == axum::http::header::CONNECTION
@@ -52,13 +70,13 @@ pub async fn forward_request(
         req_builder = req_builder.header(name, value);
     }
 
-    // Inject auth based on API type
-    match route.api_type {
-        Some(ApiType::Anthropic) => {
+    // Inject auth based on provider's API type
+    match target_api_type {
+        ApiType::Anthropic => {
             req_builder = req_builder.header("x-api-key", &route.api_key);
             req_builder = req_builder.header("anthropic-version", "2023-06-01");
         }
-        Some(ApiType::OpenAI) | None => {
+        ApiType::OpenAI => {
             req_builder = req_builder.bearer_auth(&route.api_key);
         }
     }

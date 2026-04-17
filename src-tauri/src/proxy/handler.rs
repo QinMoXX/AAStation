@@ -12,8 +12,15 @@ use super::router::match_route;
 use super::server::HandlerState;
 use super::stream::{is_sse_response, LoggedStream};
 
-/// Catch-all proxy handler: reads body → matches route → forwards → returns response.
+/// Catch-all proxy handler: reads body → matches route → adapts protocol → forwards → returns response.
 /// SSE streaming detection and passthrough is handled here.
+///
+/// The local proxy accepts two standard API styles:
+/// - OpenAI style: POST /v1/chat/completions with Authorization: Bearer <token>
+/// - Anthropic style: POST /v1/messages with x-api-key: <token>
+///
+/// Protocol adaptation is performed transparently in the forwarder — the client
+/// is completely unaware of the upstream provider's API style.
 ///
 /// For connectivity/health-check requests (e.g. Claude Code startup probe),
 /// returns a simple 200 OK so the client knows the proxy is reachable.
@@ -78,10 +85,21 @@ pub async fn proxy_handler(
 
     // Match route
     let route_table = state.route_table.read().await;
+    tracing::info!(
+        "Incoming request: {} {} (model: {:?}, routes: {}, has_default: {})",
+        method, path, model,
+        route_table.routes.len(),
+        route_table.default_route.is_some(),
+    );
+
     let match_result = match_route(&route_table.routes, &route_table.default_route, &path, &headers, model.as_deref());
     let matched_route = match match_result {
         Ok(r) => r,
         Err(e) => {
+            tracing::warn!(
+                "Route match failed for {} {} (model: {:?}): no matching route and no default",
+                method, path, model,
+            );
             drop(route_table);
             return e.into_response();
         }
@@ -129,14 +147,22 @@ fn is_connectivity_check(method: &axum::http::Method, path: &str) -> bool {
     }
 
     let trimmed = path.trim_end_matches('/');
+    let trimmed = trimmed.strip_prefix('/').unwrap_or(trimmed);
 
     // Root path
-    if trimmed.is_empty() || trimmed == "/" {
+    if trimmed.is_empty() {
         return true;
     }
 
     // Version-only paths like /v1, /v1/
-    if trimmed == "/v1" {
+    if trimmed == "v1" {
+        return true;
+    }
+
+    // Known lightweight health-check / discovery endpoints that don't need forwarding
+    // OpenAI-style: /v1/models
+    // Anthropic-style: no specific endpoint, but some clients probe /v1
+    if trimmed == "v1/models" {
         return true;
     }
 
@@ -177,9 +203,10 @@ fn verify_auth_token(headers: &HeaderMap, expected: &str) -> bool {
 /// interpret the response as "service is reachable".
 fn connectivity_check_response(path: &str) -> Response {
     let trimmed = path.trim_end_matches('/');
+    let trimmed_stripped = trimmed.strip_prefix('/').unwrap_or(trimmed);
 
     // For root path, return a simple Anthropic-style welcome response
-    if trimmed.is_empty() || trimmed == "/" {
+    if trimmed_stripped.is_empty() {
         let body = r#"{"type":"api","version":"2023-06-01"}"#;
         return (
             StatusCode::OK,
@@ -193,7 +220,21 @@ fn connectivity_check_response(path: &str) -> Response {
     }
 
     // For /v1, return a minimal valid response
-    if trimmed == "/v1" {
+    if trimmed_stripped == "v1" {
+        let body = r#"{"object":"list","data":[]}"#;
+        return (
+            StatusCode::OK,
+            [
+                ("content-type", "application/json"),
+                ("x-powered-by", "AAStation"),
+            ],
+            body,
+        )
+            .into_response();
+    }
+
+    // For /v1/models (OpenAI-style model list probe), return empty list
+    if trimmed_stripped == "v1/models" {
         let body = r#"{"object":"list","data":[]}"#;
         return (
             StatusCode::OK,

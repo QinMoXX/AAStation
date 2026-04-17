@@ -249,6 +249,7 @@ mod tests {
         AppSettings {
             listen_port: 9527,
             listen_address: "127.0.0.1".to_string(),
+            proxy_auth_token: String::new(),
         }
     }
 
@@ -318,7 +319,7 @@ mod tests {
 
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
-            "https://api.openai.com", "sk-test",
+            "https://api.openai.com/v1", "sk-test",
             vec![ProviderModel { id: model_id.to_string(), name: "gpt-4o".to_string(), enabled: true }],
         );
 
@@ -351,7 +352,7 @@ mod tests {
         assert_eq!(table.routes.len(), 1);
         assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
         assert_eq!(table.routes[0].pattern, "gpt-4o");
-        assert_eq!(table.routes[0].upstream_url, "https://api.openai.com");
+        assert_eq!(table.routes[0].upstream_url, "https://api.openai.com/v1");
         assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
         // target_model is resolved from the Provider model target handle ("model-m1" → "gpt-4o")
         assert_eq!(table.routes[0].target_model, "gpt-4o");
@@ -364,13 +365,13 @@ mod tests {
 
         let provider_a = make_provider(
             "pa", "OpenAI", DagApiType::OpenAI,
-            "https://api.openai.com", "sk-openai",
+            "https://api.openai.com/v1", "sk-openai",
             vec![ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true }],
         );
 
         let provider_b = make_provider(
             "pb", "Anthropic", DagApiType::Anthropic,
-            "https://api.anthropic.com", "sk-ant-key",
+            "https://api.anthropic.com/v1", "sk-ant-key",
             vec![],
         );
 
@@ -403,7 +404,7 @@ mod tests {
         assert_eq!(table.routes.len(), 1);
         assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
         assert!(table.default_route.is_some());
-        assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.anthropic.com");
+        assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.anthropic.com/v1");
         assert_eq!(table.default_route.as_ref().unwrap().api_type, Some(ApiType::Anthropic));
     }
 
@@ -411,7 +412,7 @@ mod tests {
     fn test_application_direct_to_provider() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
-            "https://api.openai.com", "sk-test",
+            "https://api.openai.com/v1", "sk-test",
             vec![],
         );
 
@@ -430,14 +431,14 @@ mod tests {
         let table = compile(&doc, &default_settings()).unwrap();
         assert!(table.routes.is_empty());
         assert!(table.default_route.is_some());
-        assert_eq!(table.default_route.unwrap().upstream_url, "https://api.openai.com");
+        assert_eq!(table.default_route.unwrap().upstream_url, "https://api.openai.com/v1");
     }
 
     #[test]
     fn test_entry_edge_not_found() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
-            "https://api.openai.com", "sk-test",
+            "https://api.openai.com/v1", "sk-test",
             vec![],
         );
 
@@ -466,7 +467,7 @@ mod tests {
     fn test_default_edge_not_found_but_optional() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
-            "https://api.openai.com", "sk-test",
+            "https://api.openai.com/v1", "sk-test",
             vec![],
         );
 
@@ -489,13 +490,13 @@ mod tests {
     fn test_multiple_providers_different_api_types() {
         let openai = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
-            "https://api.openai.com", "sk-openai",
+            "https://api.openai.com/v1", "sk-openai",
             vec![ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true }],
         );
 
         let anthropic = make_provider(
             "p2", "Anthropic", DagApiType::Anthropic,
-            "https://api.anthropic.com", "sk-ant-key",
+            "https://api.anthropic.com/v1", "sk-ant-key",
             vec![ProviderModel { id: "m2".to_string(), name: "claude-sonnet-4".to_string(), enabled: true }],
         );
 
@@ -547,7 +548,7 @@ mod tests {
     fn test_switcher_main_input_from_application() {
         let provider = make_provider(
             "p1", "OpenAI", DagApiType::OpenAI,
-            "https://api.openai.com", "sk-test",
+            "https://api.openai.com/v1", "sk-test",
             vec![],
         );
 
@@ -580,7 +581,7 @@ mod tests {
         // - When no match → forward via default route without model replacement
         let provider = make_provider(
             "p1", "SiliconFlow", DagApiType::OpenAI,
-            "api.siliconflow.cn", "sk-sf-key",
+            "https://api.siliconflow.cn/v1", "sk-sf-key",
             vec![ProviderModel { id: "m1".to_string(), name: "Qwen/Qwen2.5-7B-Instruct".to_string(), enabled: true }],
         );
 
@@ -619,11 +620,11 @@ mod tests {
         assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
         assert_eq!(table.routes[0].pattern, "Pro/zai-org/GLM-4.7");
         assert_eq!(table.routes[0].target_model, "Qwen/Qwen2.5-7B-Instruct");
-        assert_eq!(table.routes[0].upstream_url, "https://api.siliconflow.cn");
+        assert_eq!(table.routes[0].upstream_url, "https://api.siliconflow.cn/v1");
 
         // Default route: no model replacement, forward as-is
         assert!(table.default_route.is_some());
-        assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.siliconflow.cn");
+        assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.siliconflow.cn/v1");
         assert_eq!(table.default_route.as_ref().unwrap().target_model, "");
     }
 

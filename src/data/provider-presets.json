@@ -4,7 +4,7 @@
     "name": "OpenAI",
     "icon": "[lobehub:OpenAI]",
     "apiType": "openai",
-    "baseUrl": "https://api.openai.com",
+    "baseUrl": "https://api.openai.com/v1",
     "defaultLabel": "OpenAI",
     "models": [
       { "name": "gpt-4o", "label": "GPT-4o" },
@@ -21,7 +21,7 @@
     "name": "Anthropic",
     "icon": "[lobehub:Anthropic]",
     "apiType": "anthropic",
-    "baseUrl": "https://api.anthropic.com",
+    "baseUrl": "https://api.anthropic.com/v1",
     "defaultLabel": "Anthropic",
     "models": [
       { "name": "claude-sonnet-4-20250514", "label": "Claude Sonnet 4" },
@@ -35,7 +35,7 @@
     "name": "DeepSeek",
     "icon": "[lobehub:DeepSeek]",
     "apiType": "openai",
-    "baseUrl": "https://api.deepseek.com",
+    "baseUrl": "https://api.deepseek.com/v1",
     "defaultLabel": "DeepSeek",
     "models": [
       { "name": "deepseek-chat", "label": "DeepSeek Chat" },
@@ -47,7 +47,7 @@
     "name": "Moonshot (Kimi)",
     "icon": "[lobehub:Moonshot]",
     "apiType": "openai",
-    "baseUrl": "https://api.moonshot.cn",
+    "baseUrl": "https://api.moonshot.cn/v1",
     "defaultLabel": "Moonshot",
     "models": [
       { "name": "moonshot-v1-8k", "label": "Moonshot V1 8K" },
@@ -60,7 +60,7 @@
     "name": "Zhipu AI",
     "icon": "[lobehub:Zhipu]",
     "apiType": "openai",
-    "baseUrl": "https://open.bigmodel.cn",
+    "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
     "defaultLabel": "Zhipu AI",
     "models": [
       { "name": "glm-4-plus", "label": "GLM-4 Plus" },
@@ -74,7 +74,7 @@
     "name": "OpenRouter",
     "icon": "[lobehub:OpenRouter]",
     "apiType": "openai",
-    "baseUrl": "https://openrouter.ai",
+    "baseUrl": "https://openrouter.ai/api/v1",
     "defaultLabel": "OpenRouter",
     "models": [
       { "name": "anthropic/claude-sonnet-4", "label": "Claude Sonnet 4" },

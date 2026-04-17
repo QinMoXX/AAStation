@@ -11,6 +11,16 @@ pub enum ApiType {
     OpenAI,
 }
 
+/// The protocol style of an incoming client request, detected from the request path.
+/// This determines how the request body is interpreted before protocol adaptation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RequestProtocol {
+    /// OpenAI-style: POST /v1/chat/completions, body has "messages"
+    OpenAI,
+    /// Anthropic-style: POST /v1/messages, body has "messages" + "max_tokens"
+    Anthropic,
+}
+
 /// Compiled routing table — output of DAG compilation.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RouteTable {
