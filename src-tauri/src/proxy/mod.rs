@@ -4,6 +4,7 @@ pub mod forwarder;
 pub mod handler;
 pub mod router;
 pub mod server;
+pub mod sse_patch;
 pub mod stream;
 pub mod types;
 

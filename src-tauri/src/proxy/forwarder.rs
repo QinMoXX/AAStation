@@ -67,6 +67,13 @@ pub async fn forward_request(
     let body = adapt_request_body(&body, source_protocol, effective_api_type, &route.target_model);
     let body = bytes::Bytes::from(body);
 
+    // Log the outgoing request body
+    if let Ok(body_str) = std::str::from_utf8(&body) {
+        tracing::info!("→ Upstream request body ({} {}): {}", method, url, body_str);
+    } else {
+        tracing::info!("→ Upstream request body ({} {}): [{} bytes, non-UTF8]", method, url, body.len());
+    }
+
     let mut req_builder = client.request(method, &url).body(body);
 
     // Copy original headers, excluding hop-by-hop headers and content-length

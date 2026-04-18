@@ -5,12 +5,14 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 
-use super::body_parser::extract_model;
+use super::body_parser::{detect_request_protocol, extract_model};
 use super::error::ProxyError;
 use super::forwarder::forward_request;
 use super::router::match_route;
 use super::server::HandlerState;
+use super::sse_patch::AnthropicSsePatchStream;
 use super::stream::{is_sse_response, LoggedStream};
+use super::types::RequestProtocol;
 
 /// Catch-all proxy handler: reads body → matches route → adapts protocol → forwards → returns response.
 /// SSE streaming detection and passthrough is handled here.
@@ -80,8 +82,18 @@ pub async fn proxy_handler(
         }
     };
 
+    // Log the incoming request body
+    if let Ok(body_str) = std::str::from_utf8(&body_bytes) {
+        tracing::info!("← Client request body ({} {}): {}", method, path, body_str);
+    } else {
+        tracing::info!("← Client request body ({} {}): [{} bytes, non-UTF8]", method, path, body_bytes.len());
+    }
+
     // Extract model field from body for model-based routing
     let model = extract_model(&body_bytes);
+
+    // Detect client's request protocol (needed for response adaptation)
+    let source_protocol = detect_request_protocol(&path);
 
     // Match route
     let route_table = state.route_table.read().await;
@@ -126,7 +138,7 @@ pub async fn proxy_handler(
     drop(route_table);
 
     // Build the downstream response from upstream response
-    build_response(upstream_resp).await
+    build_response(upstream_resp, source_protocol).await
 }
 
 /// Determine if this request is a connectivity/health-check probe.
@@ -253,7 +265,9 @@ fn connectivity_check_response(path: &str) -> Response {
 
 /// Convert an upstream reqwest::Response into an axum Response.
 /// SSE responses are streamed through; non-SSE responses are buffered fully.
-async fn build_response(upstream: reqwest::Response) -> Response {
+/// When the client is using Anthropic protocol, SSE streams are patched to ensure
+/// compatibility (e.g. adding missing `input_tokens` in `message_start` usage).
+async fn build_response(upstream: reqwest::Response, source_protocol: RequestProtocol) -> Response {
     let status = StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
 
     // Copy response headers
@@ -268,8 +282,15 @@ async fn build_response(upstream: reqwest::Response) -> Response {
 
     // SSE detection: stream passthrough
     if is_sse_response(&upstream.headers()) {
-        let logged = LoggedStream::new(upstream.bytes_stream());
-        let body = Body::from_stream(logged);
+        tracing::info!("← Upstream SSE stream response (status: {})", status);
+        let body = if source_protocol == RequestProtocol::Anthropic {
+            // Patch Anthropic SSE to fix missing fields (e.g. input_tokens in usage)
+            let patched = AnthropicSsePatchStream::new(upstream.bytes_stream());
+            Body::from_stream(patched)
+        } else {
+            let logged = LoggedStream::new(upstream.bytes_stream());
+            Body::from_stream(logged)
+        };
         return (status, response_headers, body).into_response();
     }
 
@@ -284,6 +305,13 @@ async fn build_response(upstream: reqwest::Response) -> Response {
                 .into_response();
         }
     };
+
+    // Log the upstream response body
+    if let Ok(body_str) = std::str::from_utf8(&body_bytes) {
+        tracing::info!("← Upstream response body (status: {}): {}", status, body_str);
+    } else {
+        tracing::info!("← Upstream response body (status: {}): [{} bytes, non-UTF8]", status, body_bytes.len());
+    }
 
     (status, response_headers, body_bytes.to_vec()).into_response()
 }
