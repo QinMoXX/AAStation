@@ -41,8 +41,15 @@ pub fn match_route<'a>(
     // 3. Try model matches
     if let Some(req_model) = model {
         for route in routes {
-            if matches!(route.match_type, MatchType::Model) && route.pattern == req_model {
-                return Ok(route);
+            if matches!(route.match_type, MatchType::Model) {
+                let matched = if route.fuzzy_match {
+                    req_model.contains(&route.pattern)
+                } else {
+                    route.pattern == req_model
+                };
+                if matched {
+                    return Ok(route);
+                }
             }
         }
     }
@@ -67,11 +74,13 @@ mod tests {
             match_type,
             pattern: pattern.to_string(),
             upstream_url: "https://upstream.example.com".to_string(),
+            anthropic_upstream_url: None,
             api_key: "test-key".to_string(),
             extra_headers: HashMap::new(),
             is_default: false,
             api_type: None,
             target_model: String::new(),
+            fuzzy_match: false,
         }
     }
 
@@ -81,11 +90,13 @@ mod tests {
             match_type: MatchType::PathPrefix,
             pattern: String::new(),
             upstream_url: "https://default.example.com".to_string(),
+            anthropic_upstream_url: None,
             api_key: "default-key".to_string(),
             extra_headers: HashMap::new(),
             is_default: true,
             api_type: None,
             target_model: String::new(),
+            fuzzy_match: false,
         }
     }
 
@@ -228,6 +239,58 @@ mod tests {
         let headers = HeaderMap::new();
 
         let result = match_route(&routes, &default, "/other/path", &headers, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_model_fuzzy_match_substring() {
+        let mut route = make_route("r1", MatchType::Model, "claude-haiku");
+        route.fuzzy_match = true;
+        let routes = vec![route];
+        let default = None;
+        let headers = HeaderMap::new();
+
+        // "claude-haiku-4-5-20251001" contains "claude-haiku" → match
+        let result = match_route(&routes, &default, "/v1/messages", &headers, Some("claude-haiku-4-5-20251001"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().id, "r1");
+    }
+
+    #[test]
+    fn test_model_fuzzy_match_exact_still_works() {
+        let mut route = make_route("r1", MatchType::Model, "claude-haiku");
+        route.fuzzy_match = true;
+        let routes = vec![route];
+        let default = None;
+        let headers = HeaderMap::new();
+
+        // Exact match with fuzzy_match enabled should still work
+        let result = match_route(&routes, &default, "/v1/messages", &headers, Some("claude-haiku"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().id, "r1");
+    }
+
+    #[test]
+    fn test_model_fuzzy_match_no_match() {
+        let mut route = make_route("r1", MatchType::Model, "claude-haiku");
+        route.fuzzy_match = true;
+        let routes = vec![route];
+        let default = None;
+        let headers = HeaderMap::new();
+
+        // "gpt-4o" does not contain "claude-haiku" → no match
+        let result = match_route(&routes, &default, "/v1/messages", &headers, Some("gpt-4o"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_model_exact_match_no_fuzzy() {
+        let routes = vec![make_route("r1", MatchType::Model, "claude-haiku")];
+        let default = None;
+        let headers = HeaderMap::new();
+
+        // Without fuzzy_match, substring is not enough → no match
+        let result = match_route(&routes, &default, "/v1/messages", &headers, Some("claude-haiku-4-5-20251001"));
         assert!(result.is_err());
     }
 }

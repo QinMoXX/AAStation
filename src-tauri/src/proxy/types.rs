@@ -43,6 +43,10 @@ pub struct CompiledRoute {
     pub match_type: MatchType,
     pub pattern: String,
     pub upstream_url: String,
+    /// Anthropic-compatible upstream URL (optional). When set, Anthropic-style client
+    /// requests will be forwarded to this URL instead of upstream_url.
+    #[serde(default)]
+    pub anthropic_upstream_url: Option<String>,
     pub api_key: String,
     #[serde(default)]
     pub extra_headers: HashMap<String, String>,
@@ -54,6 +58,12 @@ pub struct CompiledRoute {
     /// If empty, the original model is kept.
     #[serde(default)]
     pub target_model: String,
+    /// Whether to use substring matching for model patterns.
+    /// When true, pattern matches if it is a substring of the request model.
+    /// This is used for Claude Code connections where model names like
+    /// "claude-haiku-4-5-20251001" should match pattern "claude-haiku".
+    #[serde(default)]
+    pub fuzzy_match: bool,
 }
 
 /// Route match strategy.

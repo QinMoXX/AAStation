@@ -150,6 +150,11 @@ pub struct ProviderNodeData {
     pub api_type: ApiType,
     /// Base URL for the API (e.g. "https://api.anthropic.com").
     pub base_url: String,
+    /// Anthropic-compatible base URL (optional). When set, Anthropic-style client
+    /// requests will be forwarded to this URL instead of base_url, avoiding the
+    /// need for response format conversion.
+    #[serde(default)]
+    pub anthropic_base_url: Option<String>,
     /// API key for authentication.
     pub api_key: String,
     /// Model entries, each with its own right-side output handle.
@@ -163,6 +168,7 @@ impl Default for ProviderNodeData {
             description: None,
             api_type: ApiType::OpenAI,
             base_url: String::new(),
+            anthropic_base_url: None,
             api_key: String::new(),
             models: Vec::new(),
         }

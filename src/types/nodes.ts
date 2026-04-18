@@ -25,7 +25,11 @@ export interface ProviderNodeData extends BaseNodeData {
   /** Preset ID if created from a preset (apiType/baseUrl become read-only). */
   presetId?: string;
   apiType: ApiType;
-  baseUrl: string; // e.g. "https://api.anthropic.com"
+  baseUrl: string; // e.g. "https://api.openai.com/v1"
+  /** Anthropic-compatible base URL (optional). When set, Anthropic-style client
+   *  requests will be forwarded to this URL instead of baseUrl, avoiding the
+   *  need for response format conversion. */
+  anthropicBaseUrl?: string; // e.g. "https://open.bigmodel.cn/api/anthropic"
   apiKey: string;
   /** Model entries, each with its own right-side output handle. */
   models: ProviderModel[];

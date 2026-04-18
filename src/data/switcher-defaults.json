@@ -3,19 +3,19 @@
     "label": "Claude Model Router",
     "entries": [
       {
-        "label": "Claude Sonnet 4",
+        "label": "Claude Sonnet",
         "matchType": "model",
-        "pattern": "claude-sonnet-4-20250514"
+        "pattern": "claude-sonnet"
       },
       {
-        "label": "Claude 3.5 Sonnet",
+        "label": "Claude Opus",
         "matchType": "model",
-        "pattern": "claude-3-5-sonnet-20241022"
+        "pattern": "claude-opus"
       },
       {
-        "label": "Claude 3.5 Haiku",
+        "label": "Claude Haiku",
         "matchType": "model",
-        "pattern": "claude-3-5-haiku-20241022"
+        "pattern": "claude-haiku"
       }
     ]
   }

@@ -61,6 +61,7 @@
     "icon": "[lobehub:Zhipu]",
     "apiType": "openai",
     "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+    "anthropicBaseUrl": "https://open.bigmodel.cn/api/anthropic",
     "defaultLabel": "Zhipu AI",
     "models": [
       { "name": "glm-4-plus", "label": "GLM-4 Plus" },

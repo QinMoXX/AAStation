@@ -12,6 +12,7 @@ const API_TYPE_LABELS: Record<string, string> = {
 function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
   const hasApiKey = data.apiKey && data.apiKey.length > 0;
   const hasBaseUrl = data.baseUrl && data.baseUrl.length > 0;
+  const hasAnthropicUrl = !!(data.anthropicBaseUrl && data.anthropicBaseUrl.length > 0);
 
   const displayUrl = hasBaseUrl
     ? data.baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -90,18 +91,34 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
       </div>
 
       {/* API Type badge */}
-      <div
-        style={{
-          display: 'inline-block',
-          fontSize: 11,
-          padding: '2px 8px',
-          borderRadius: 4,
-          background: '#ffffff',
-          color: '#4b5563',
-          marginBottom: 6,
-        }}
-      >
-        {API_TYPE_LABELS[data.apiType] || data.apiType}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6 }}>
+        <div
+          style={{
+            display: 'inline-block',
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 4,
+            background: '#ffffff',
+            color: '#4b5563',
+          }}
+        >
+          {API_TYPE_LABELS[data.apiType] || data.apiType}
+        </div>
+        {hasAnthropicUrl && (
+          <div
+            style={{
+              display: 'inline-block',
+              fontSize: 10,
+              padding: '1px 6px',
+              borderRadius: 4,
+              background: '#fef3c7',
+              color: '#92400e',
+            }}
+            title={`Anthropic URL: ${data.anthropicBaseUrl}`}
+          >
+            +Anthropic
+          </div>
+        )}
       </div>
 
       {/* URL */}

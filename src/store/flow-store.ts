@@ -80,6 +80,7 @@ export function createPresetProviderData(preset: ProviderPreset): ProviderNodeDa
     label: preset.defaultLabel,
     apiType: preset.apiType,
     baseUrl: preset.baseUrl,
+    anthropicBaseUrl: preset.anthropicBaseUrl,
     apiKey: '',
     models: [],
   };

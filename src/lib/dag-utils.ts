@@ -173,6 +173,7 @@ function nodeDataToFrontend(
         label: (camelData.label as string) || 'Provider',
         apiType: (camelData.apiType as ProviderNodeData['apiType']) || 'openai',
         baseUrl: (camelData.baseUrl as string) || '',
+        anthropicBaseUrl: camelData.anthropicBaseUrl as string | undefined,
         apiKey: (camelData.apiKey as string) || '',
         models: (camelData.models as ProviderNodeData['models']) || [],
         description: camelData.description as string | undefined,

@@ -150,7 +150,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
             <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
               {Icon && <Icon style={{ width: 16, height: 16 }} />}
             </span>
-            <strong>{preset.name}</strong> Preset — API Type and Base URL are fixed
+            <strong>{preset.name}</strong> Preset — API Type, Base URL, and Anthropic URL are fixed
           </div>
         );
       })()}
@@ -193,6 +193,20 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           onChange={(e) => onUpdate({ baseUrl: e.target.value })}
           disabled={isPreset}
         />
+      </div>
+
+      <div style={fieldGap}>
+        <label style={labelStyle}>Anthropic Base URL <span style={{ color: '#6b7280', fontWeight: 400 }}>(optional)</span></label>
+        <input
+          style={isPreset ? readonlyInputStyle : inputStyle}
+          value={data.anthropicBaseUrl || ''}
+          placeholder="https://open.bigmodel.cn/api/anthropic"
+          onChange={(e) => onUpdate({ anthropicBaseUrl: e.target.value || undefined })}
+          disabled={isPreset}
+        />
+        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+          When set, Anthropic-style requests will use this URL instead
+        </div>
       </div>
 
       <div style={fieldGap}>

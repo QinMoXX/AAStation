@@ -6,7 +6,8 @@ use crate::proxy::types::{ApiType, CompiledRoute, MatchType, RouteTable};
 use crate::settings::AppSettings;
 
 use super::types::{
-    DAGDocument, DAGEdge, DAGNode, NodeType, ProviderModel, ProviderNodeData, SwitcherNodeData,
+    ApplicationNodeData, DAGDocument, DAGEdge, DAGNode, NodeType, ProviderModel,
+    ProviderNodeData, SwitcherNodeData,
 };
 
 /// Normalize a base URL by ensuring it has a scheme (http:// or https://).
@@ -46,6 +47,9 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
         })
         .collect();
 
+    // Determine which Switcher nodes are fed by a claude_code Application
+    let claude_code_switchers = find_claude_code_switchers(doc, &node_map);
+
     let mut routes: Vec<CompiledRoute> = Vec::new();
     let mut default_route: Option<CompiledRoute> = None;
 
@@ -56,6 +60,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
         }
 
         let switcher_data: SwitcherNodeData = deserialize_node_data(node)?;
+        let is_claude_code = claude_code_switchers.contains(&node.id.as_str());
 
         // Process each matcher entry
         for entry in &switcher_data.entries {
@@ -88,6 +93,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                 },
                 pattern: entry.pattern.clone(),
                 upstream_url: normalize_base_url(&provider_data.base_url),
+                anthropic_upstream_url: provider_data.anthropic_base_url.as_deref().map(normalize_base_url),
                 api_key: provider_data.api_key,
                 extra_headers: HashMap::new(),
                 is_default: false,
@@ -96,6 +102,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     super::types::ApiType::OpenAI => ApiType::OpenAI,
                 }),
                 target_model,
+                fuzzy_match: is_claude_code && matches!(entry.match_type, super::types::MatchType::Model),
             });
         }
 
@@ -112,6 +119,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     match_type: MatchType::PathPrefix,
                     pattern: String::new(),
                     upstream_url: normalize_base_url(&provider_data.base_url),
+                    anthropic_upstream_url: provider_data.anthropic_base_url.as_deref().map(normalize_base_url),
                     api_key: provider_data.api_key,
                     extra_headers: HashMap::new(),
                     is_default: true,
@@ -120,6 +128,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                         super::types::ApiType::OpenAI => ApiType::OpenAI,
                     }),
                     target_model: String::new(),
+                    fuzzy_match: false,
                 });
             }
         }
@@ -152,6 +161,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                             match_type: MatchType::PathPrefix,
                             pattern: String::new(),
                             upstream_url: normalize_base_url(&provider_data.base_url),
+                            anthropic_upstream_url: provider_data.anthropic_base_url.as_deref().map(normalize_base_url),
                             api_key: provider_data.api_key,
                             extra_headers: HashMap::new(),
                             is_default: true,
@@ -160,6 +170,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                                 super::types::ApiType::OpenAI => ApiType::OpenAI,
                             }),
                             target_model: String::new(),
+                            fuzzy_match: false,
                         });
                     }
                 }
@@ -189,6 +200,64 @@ fn resolve_provider<'a>(
     }
 
     Ok(*node)
+}
+
+/// Find all Switcher node IDs that are reachable from a `claude_code` Application node.
+///
+/// This is used to determine which Switcher routes should use fuzzy (substring) matching
+/// for model patterns, since Claude Code may send model names like
+/// "claude-haiku-4-5-20251001" that should match pattern "claude-haiku".
+fn find_claude_code_switchers<'a>(
+    doc: &'a DAGDocument,
+    node_map: &HashMap<&str, &'a DAGNode>,
+) -> std::collections::HashSet<&'a str> {
+    let mut result = std::collections::HashSet::new();
+
+    // Build source→targets edge map for BFS traversal
+    let mut outgoing: HashMap<&str, Vec<&str>> = HashMap::new();
+    for e in &doc.edges {
+        outgoing.entry(e.source.as_str()).or_default().push(e.target.as_str());
+    }
+
+    for node in &doc.nodes {
+        if node.node_type != NodeType::Application {
+            continue;
+        }
+        // Check if this is a claude_code application
+        let app_data: Result<ApplicationNodeData, _> = serde_json::from_value(node.data.clone());
+        if let Ok(data) = &app_data {
+            if data.app_type != "claude_code" {
+                continue;
+            }
+        } else {
+            continue;
+        }
+
+        // BFS from this Application node to find all reachable Switcher nodes
+        let mut visited = std::collections::HashSet::new();
+        let mut queue = vec![node.id.as_str()];
+        while let Some(current_id) = queue.pop() {
+            if !visited.insert(current_id) {
+                continue;
+            }
+
+            if let Some(targets) = outgoing.get(current_id) {
+                for target_id in targets {
+                    if let Some(target_node) = node_map.get(target_id) {
+                        if target_node.node_type == NodeType::Switcher {
+                            result.insert(target_node.id.as_str());
+                        }
+                        // Continue traversing through non-Provider nodes
+                        if target_node.node_type != NodeType::Provider {
+                            queue.push(target_id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    result
 }
 
 /// Resolve the target model name from an edge's target handle.
@@ -263,6 +332,7 @@ mod tests {
                 description: None,
                 api_type,
                 base_url: base_url.to_string(),
+                anthropic_base_url: None,
                 api_key: api_key.to_string(),
                 models,
             })

@@ -12,6 +12,9 @@ export interface ProviderPreset {
   apiType: ApiType;
   /** Base URL for API requests (immutable for presets). */
   baseUrl: string;
+  /** Anthropic-compatible base URL (optional). When set, Anthropic-style client
+   *  requests will be forwarded to this URL instead of baseUrl. */
+  anthropicBaseUrl?: string;
   /** Default label for new nodes (user can modify). */
   defaultLabel: string;
   /** Available models for quick selection. */

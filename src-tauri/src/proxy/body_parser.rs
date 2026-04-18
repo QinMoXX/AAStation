@@ -36,7 +36,9 @@ pub fn replace_model(body: &[u8], new_model: &str) -> Option<Vec<u8>> {
 /// - `/v1/chat/completions` → OpenAI
 /// - Other paths → defaults to OpenAI
 pub fn detect_request_protocol(path: &str) -> RequestProtocol {
-    let trimmed = path.trim_end_matches('/');
+    // Strip query string before matching (e.g. "/v1/messages?beta=true" → "/v1/messages")
+    let path_only = path.split_once('?').map(|(p, _)| p).unwrap_or(path);
+    let trimmed = path_only.trim_end_matches('/');
     if trimmed == "/v1/messages" || trimmed.starts_with("/v1/messages/") {
         RequestProtocol::Anthropic
     } else {
@@ -79,7 +81,7 @@ pub fn adapt_request_body(
 
     // Protocol adaptation
     match (source_protocol, target_api_type) {
-        // OpenAI → Anthropic: ensure max_tokens exists
+        // OpenAI → Anthropic: convert tools, ensure max_tokens exists
         (RequestProtocol::OpenAI, ApiType::Anthropic) => {
             // Anthropic requires max_tokens
             if value.get("max_tokens").is_none() {
@@ -87,8 +89,48 @@ pub fn adapt_request_body(
                     serde_json::Number::from(4096),
                 );
             }
-            // Remove OpenAI-specific fields that Anthropic doesn't understand
             if let Some(obj) = value.as_object_mut() {
+                // Convert OpenAI-style tools to Anthropic-style
+                // OpenAI:    {"type":"function","function":{"name":"x","description":"...","parameters":{...}}}
+                // Anthropic: {"name":"x","description":"...","input_schema":{...}}
+                if let Some(tools) = obj.get_mut("tools").and_then(|t| t.as_array_mut()) {
+                    let converted: Vec<serde_json::Value> = tools.drain(..).filter_map(|tool| {
+                        let tool_obj = tool.as_object()?;
+                        let func = tool_obj.get("function")?.as_object()?;
+                        let name = func.get("name")?.as_str()?.to_string();
+                        let description = func.get("description").and_then(|d| d.as_str()).unwrap_or("").to_string();
+                        let input_schema = func.get("parameters").cloned().unwrap_or(serde_json::Value::Object(Default::default()));
+                        let mut anth_tool = serde_json::Map::new();
+                        anth_tool.insert("name".to_string(), serde_json::Value::String(name));
+                        anth_tool.insert("description".to_string(), serde_json::Value::String(description));
+                        anth_tool.insert("input_schema".to_string(), input_schema);
+                        Some(serde_json::Value::Object(anth_tool))
+                    }).collect();
+                    obj.insert("tools".to_string(), serde_json::Value::Array(converted));
+                }
+
+                // Convert OpenAI system message to Anthropic system field
+                if let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut()) {
+                    let mut system_parts: Vec<String> = Vec::new();
+                    let mut i = 0;
+                    while i < messages.len() {
+                        if let Some(role) = messages[i].get("role").and_then(|r| r.as_str()) {
+                            if role == "system" {
+                                if let Some(content) = messages[i].get("content").and_then(|c| c.as_str()) {
+                                    system_parts.push(content.to_string());
+                                }
+                                messages.remove(i);
+                                continue;
+                            }
+                        }
+                        i += 1;
+                    }
+                    if !system_parts.is_empty() {
+                        obj.insert("system".to_string(), serde_json::Value::String(system_parts.join("\n")));
+                    }
+                }
+
+                // Remove OpenAI-specific fields that Anthropic doesn't understand
                 obj.remove("frequency_penalty");
                 obj.remove("presence_penalty");
                 obj.remove("logprobs");
@@ -100,17 +142,54 @@ pub fn adapt_request_body(
             }
         }
 
-        // Anthropic → OpenAI: remove Anthropic-specific fields
+        // Anthropic → OpenAI: convert tools, system, and remove Anthropic-specific fields
         (RequestProtocol::Anthropic, ApiType::OpenAI) => {
             if let Some(obj) = value.as_object_mut() {
-                // "max_tokens" in Anthropic is not the same as OpenAI's.
-                // OpenAI uses "max_tokens" too (for completions), but it's not required.
-                // Keep max_tokens as-is since OpenAI also supports it.
+                // Convert Anthropic-style tools to OpenAI-style
+                // Anthropic: {"name":"x","description":"...","input_schema":{...}}
+                // OpenAI:    {"type":"function","function":{"name":"x","description":"...","parameters":{...}}}
+                if let Some(tools) = obj.get_mut("tools").and_then(|t| t.as_array_mut()) {
+                    let converted: Vec<serde_json::Value> = tools.drain(..).filter_map(|tool| {
+                        let tool_obj = tool.as_object()?;
+                        let name = tool_obj.get("name")?.as_str()?.to_string();
+                        let description = tool_obj.get("description").and_then(|d| d.as_str()).unwrap_or("").to_string();
+                        let parameters = tool_obj.get("input_schema").cloned().unwrap_or(serde_json::Value::Object(Default::default()));
+                        Some(serde_json::json!({
+                            "type": "function",
+                            "function": {
+                                "name": name,
+                                "description": description,
+                                "parameters": parameters,
+                            }
+                        }))
+                    }).collect();
+                    obj.insert("tools".to_string(), serde_json::Value::Array(converted));
+                }
+
+                // Convert Anthropic system prompt to OpenAI system message
+                // Anthropic: {"system": "You are helpful"}
+                // OpenAI: prepend {"role":"system","content":"You are helpful"} to messages
+                if let Some(system) = obj.remove("system") {
+                    if let Some(system_text) = system.as_str() {
+                        if let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut()) {
+                            messages.insert(0, serde_json::json!({"role": "system", "content": system_text}));
+                        }
+                    } else if let Some(system_blocks) = system.as_array() {
+                        // Anthropic system can be an array of content blocks
+                        let content: Vec<&str> = system_blocks.iter().filter_map(|b| {
+                            b.get("text").and_then(|t| t.as_str())
+                        }).collect();
+                        if !content.is_empty() {
+                            let system_text = content.join("\n");
+                            if let Some(messages) = obj.get_mut("messages").and_then(|m| m.as_array_mut()) {
+                                messages.insert(0, serde_json::json!({"role": "system", "content": system_text}));
+                            }
+                        }
+                    }
+                }
+
                 // Remove Anthropic-specific fields
                 obj.remove("metadata");
-                obj.remove("system"); // Anthropic system prompt field — not in OpenAI format
-                // Note: we keep "messages" as-is since both formats use it similarly
-                // (though Anthropic uses content blocks, most simple text messages are compatible)
             }
         }
 
@@ -285,6 +364,8 @@ mod tests {
         assert_eq!(detect_request_protocol("/v1/messages"), RequestProtocol::Anthropic);
         assert_eq!(detect_request_protocol("/v1/messages/"), RequestProtocol::Anthropic);
         assert_eq!(detect_request_protocol("/v1/messages/msg_123"), RequestProtocol::Anthropic);
+        assert_eq!(detect_request_protocol("/v1/messages?beta=true"), RequestProtocol::Anthropic);
+        assert_eq!(detect_request_protocol("/v1/messages/?beta=true"), RequestProtocol::Anthropic);
     }
 
     // --- Path adaptation tests ---
@@ -375,14 +456,62 @@ mod tests {
     }
 
     #[test]
-    fn test_adapt_body_anthropic_to_openai_removes_metadata() {
-        let body = br#"{"model":"gpt-4o","messages":[],"max_tokens":1024,"metadata":{"user_id":"123"},"system":"You are helpful"}"#;
+    fn test_adapt_body_anthropic_to_openai_converts_system_and_removes_metadata() {
+        let body = br#"{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}],"max_tokens":1024,"metadata":{"user_id":"123"},"system":"You are helpful"}"#;
         let result = adapt_request_body(body, RequestProtocol::Anthropic, ApiType::OpenAI, "");
         let v: serde_json::Value = serde_json::from_slice(&result).unwrap();
         assert!(v.get("metadata").is_none());
         assert!(v.get("system").is_none());
-        // max_tokens should be preserved since OpenAI also supports it
+        // system should be converted to a system message prepended to messages
+        let messages = v["messages"].as_array().unwrap();
+        assert_eq!(messages[0]["role"], "system");
+        assert_eq!(messages[0]["content"], "You are helpful");
+        assert_eq!(messages[1]["role"], "user");
         assert_eq!(v["max_tokens"], 1024);
+    }
+
+    #[test]
+    fn test_adapt_body_anthropic_to_openai_converts_tools() {
+        let body = br#"{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}],"tools":[{"name":"get_weather","description":"Get weather","input_schema":{"type":"object","properties":{"city":{"type":"string"}}}}]}"#;
+        let result = adapt_request_body(body, RequestProtocol::Anthropic, ApiType::OpenAI, "");
+        let v: serde_json::Value = serde_json::from_slice(&result).unwrap();
+        let tools = v["tools"].as_array().unwrap();
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0]["type"], "function");
+        assert_eq!(tools[0]["function"]["name"], "get_weather");
+        assert_eq!(tools[0]["function"]["description"], "Get weather");
+        assert_eq!(tools[0]["function"]["parameters"]["type"], "object");
+        // Should not have Anthropic-style fields
+        assert!(tools[0].get("name").is_none());
+        assert!(tools[0].get("input_schema").is_none());
+    }
+
+    #[test]
+    fn test_adapt_body_openai_to_anthropic_converts_tools() {
+        let body = br#"{"model":"claude-sonnet-4","messages":[],"tools":[{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]}"#;
+        let result = adapt_request_body(body, RequestProtocol::OpenAI, ApiType::Anthropic, "");
+        let v: serde_json::Value = serde_json::from_slice(&result).unwrap();
+        let tools = v["tools"].as_array().unwrap();
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0]["name"], "get_weather");
+        assert_eq!(tools[0]["description"], "Get weather");
+        assert_eq!(tools[0]["input_schema"]["type"], "object");
+        // Should not have OpenAI-style fields
+        assert!(tools[0].get("type").is_none());
+        assert!(tools[0].get("function").is_none());
+    }
+
+    #[test]
+    fn test_adapt_body_openai_to_anthropic_converts_system_message() {
+        let body = br#"{"model":"claude-sonnet-4","messages":[{"role":"system","content":"You are helpful"},{"role":"user","content":"hi"}]}"#;
+        let result = adapt_request_body(body, RequestProtocol::OpenAI, ApiType::Anthropic, "");
+        let v: serde_json::Value = serde_json::from_slice(&result).unwrap();
+        // System should be extracted to top-level "system" field
+        assert_eq!(v["system"], "You are helpful");
+        // Messages should no longer contain system message
+        let messages = v["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0]["role"], "user");
     }
 
     #[test]

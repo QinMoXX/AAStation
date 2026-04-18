@@ -34,20 +34,37 @@ pub async fn forward_request(
     // Determine the target API type from the compiled route
     let target_api_type = route.api_type.unwrap_or(ApiType::OpenAI);
 
+    // Choose upstream URL based on client protocol and available URLs.
+    // If the client sends Anthropic-style request and an anthropic_upstream_url is set,
+    // use that URL instead — this avoids the need for response format conversion
+    // when the provider offers an Anthropic-compatible endpoint.
+    let base_upstream_url = if source_protocol == RequestProtocol::Anthropic {
+        route.anthropic_upstream_url.as_deref().unwrap_or(&route.upstream_url)
+    } else {
+        &route.upstream_url
+    };
+
+    // When using anthropic_upstream_url, the target API type is effectively Anthropic
+    let effective_api_type = if source_protocol == RequestProtocol::Anthropic && route.anthropic_upstream_url.is_some() {
+        ApiType::Anthropic
+    } else {
+        target_api_type
+    };
+
     // Adapt the request path to match the provider's API type
-    let upstream_path = adapt_request_path(path, target_api_type);
+    let upstream_path = adapt_request_path(path, effective_api_type);
 
     // Build the upstream URL
-    let url = format!("{}{}", route.upstream_url.trim_end_matches('/'), upstream_path);
+    let url = format!("{}{}", base_upstream_url.trim_end_matches('/'), upstream_path);
 
     tracing::info!(
         "Proxying {} {} → {} (protocol: {:?} → {:?}, model: {:?} → {:?})",
-        method, path, url, source_protocol, target_api_type,
+        method, path, url, source_protocol, effective_api_type,
         extract_model_quick(&body), if route.target_model.is_empty() { "(keep)" } else { &route.target_model },
     );
 
     // Adapt the request body: protocol conversion + model replacement
-    let body = adapt_request_body(&body, source_protocol, target_api_type, &route.target_model);
+    let body = adapt_request_body(&body, source_protocol, effective_api_type, &route.target_model);
     let body = bytes::Bytes::from(body);
 
     let mut req_builder = client.request(method, &url).body(body);
@@ -70,8 +87,8 @@ pub async fn forward_request(
         req_builder = req_builder.header(name, value);
     }
 
-    // Inject auth based on provider's API type
-    match target_api_type {
+    // Inject auth based on effective API type
+    match effective_api_type {
         ApiType::Anthropic => {
             req_builder = req_builder.header("x-api-key", &route.api_key);
             req_builder = req_builder.header("anthropic-version", "2023-06-01");
