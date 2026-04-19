@@ -208,6 +208,8 @@ impl ProxyServer {
     /// Hot-reload the route table set: atomic swap for each port, in-flight requests are not interrupted.
     /// Also syncs listen_address from the route table set into ProxyConfig.
     pub async fn reload_routes(&self, new_set: RouteTableSet) {
+        let published_at = chrono::Utc::now().to_rfc3339();
+
         // Sync config
         {
             let mut config = self.state.config.write().await;
@@ -229,6 +231,7 @@ impl ProxyServer {
 
         let mut status = self.state.status.write().await;
         status.active_routes = total_routes;
+        status.published_at = Some(published_at);
     }
 
     /// Check if the proxy is currently running.

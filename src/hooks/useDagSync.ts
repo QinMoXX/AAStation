@@ -80,7 +80,7 @@ export function useDagSync() {
         console.log('[useDagSync] Saved');
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        toast.error(`Failed to save: ${msg}`);
+        toast.error(`保存失败：${msg}`);
         console.error('[useDagSync] Save failed:', err);
       }
     },

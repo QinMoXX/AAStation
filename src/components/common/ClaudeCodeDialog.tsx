@@ -153,10 +153,10 @@ export default function ClaudeCodeDialog({ apps, proxyUrl, onClose }: ClaudeCode
       const baseUrl = proxyUrl.replace(/\/$/, '');
       await configureClaudeCode(baseUrl);
       setConfigured(true);
-      toast.success('Claude Code 配置已写入');
+      toast.success('Claude Code 配置写入成功');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`配置失败: ${msg}`);
+      toast.error(`写入 Claude Code 配置失败：${msg}`);
     } finally {
       setConfiguring(false);
     }

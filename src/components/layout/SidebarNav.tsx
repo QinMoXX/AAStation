@@ -191,16 +191,16 @@ export default function SidebarNav() {
     try {
       if (proxyStatus.running) {
         await stopProxy();
-        toast.success('Proxy server stopped');
+        toast.success('代理服务已停止');
       } else {
         await startProxy();
-        toast.success('Proxy server started');
+        toast.success('代理服务已启动');
       }
       const status = await getProxyStatus();
       setProxyStatus(status);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Failed to toggle proxy: ${msg}`);
+      toast.error(`切换代理服务失败：${msg}`);
       console.error('[SidebarNav] Toggle proxy failed:', err);
     } finally {
       setToggling(false);
@@ -223,7 +223,7 @@ export default function SidebarNav() {
       markPublished();
       const status = await getProxyStatus();
       setProxyStatus(status);
-      toast.success('保存成功');
+      toast.success('发布并保存成功');
 
       // Check for Claude Code application nodes
       const claudeCodeApps: ClaudeCodeAppInfo[] = doc.nodes
@@ -248,7 +248,7 @@ export default function SidebarNav() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`保存失败: ${msg}`);
+      toast.error(`发布或保存失败：${msg}`);
       console.error('[SidebarNav] Publish failed:', err);
     } finally {
       setPublishing(false);

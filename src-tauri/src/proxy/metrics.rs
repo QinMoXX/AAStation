@@ -1,8 +1,11 @@
 use std::collections::{HashMap, VecDeque};
+use std::fs;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use super::types::{
@@ -11,14 +14,25 @@ use super::types::{
 };
 
 const MAX_RECENT_REQUESTS: usize = 5000;
+const APP_DIR: &str = ".aastation";
+const METRICS_FILE: &str = "metrics.json";
+const TMP_SUFFIX: &str = ".tmp";
 
-#[derive(Default)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 struct MetricsState {
     summary: ProxyMetricsSummary,
     applications: HashMap<String, ProxyMetricsEntitySummary>,
     providers: HashMap<String, ProxyMetricsEntitySummary>,
     app_provider_pairs: HashMap<String, ProxyMetricsPairSummary>,
     recent_requests: VecDeque<ProxyRequestMetric>,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize)]
+struct PersistedMetrics {
+    #[serde(default)]
+    next_id: u64,
+    #[serde(default)]
+    state: MetricsState,
 }
 
 #[derive(Clone, Default)]
@@ -29,7 +43,17 @@ pub struct MetricsStore {
 
 impl MetricsStore {
     pub fn new() -> Self {
-        Self::default()
+        let persisted = load_persisted_metrics().unwrap_or_default();
+        let mut state = persisted.state;
+        while state.recent_requests.len() > MAX_RECENT_REQUESTS {
+            state.recent_requests.pop_back();
+        }
+        let restored_next_id = persisted.next_id.max(state.summary.requests);
+
+        Self {
+            inner: Arc::new(RwLock::new(state)),
+            next_id: Arc::new(AtomicU64::new(restored_next_id)),
+        }
     }
 
     pub async fn record(&self, mut request: ProxyRequestMetric) {
@@ -82,6 +106,15 @@ impl MetricsStore {
         while state.recent_requests.len() > MAX_RECENT_REQUESTS {
             state.recent_requests.pop_back();
         }
+
+        // Keep monitoring records across app restarts.
+        let persisted = PersistedMetrics {
+            next_id: self.next_id.load(Ordering::Relaxed),
+            state: state.clone(),
+        };
+        if let Err(err) = save_persisted_metrics(&persisted) {
+            tracing::warn!("Failed to persist proxy metrics: {}", err);
+        }
     }
 
     pub async fn snapshot(&self) -> ProxyMetricsSnapshot {
@@ -121,6 +154,49 @@ impl MetricsStore {
             recent_requests: state.recent_requests.iter().cloned().collect(),
         }
     }
+}
+
+fn metrics_path() -> Result<PathBuf, String> {
+    let home = dirs_home_dir()?;
+    Ok(home.join(APP_DIR).join(METRICS_FILE))
+}
+
+fn dirs_home_dir() -> Result<PathBuf, String> {
+    if let Some(p) = std::env::var_os("HOME") {
+        return Ok(PathBuf::from(p));
+    }
+    if let Some(p) = std::env::var_os("USERPROFILE") {
+        return Ok(PathBuf::from(p));
+    }
+    if let (Some(drive), Some(path)) = (std::env::var_os("HOMEDRIVE"), std::env::var_os("HOMEPATH")) {
+        let mut buf = PathBuf::from(drive);
+        buf.push(path);
+        return Ok(buf);
+    }
+    Err("Cannot determine home directory".to_string())
+}
+
+fn load_persisted_metrics() -> Result<PersistedMetrics, String> {
+    let path = metrics_path()?;
+    if !path.exists() {
+        return Ok(PersistedMetrics::default());
+    }
+
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    serde_json::from_str::<PersistedMetrics>(&content).map_err(|e| e.to_string())
+}
+
+fn save_persisted_metrics(metrics: &PersistedMetrics) -> Result<(), String> {
+    let path = metrics_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    let tmp_path = path.with_extension(format!("json{}", TMP_SUFFIX));
+    let content = serde_json::to_string_pretty(metrics).map_err(|e| e.to_string())?;
+    fs::write(&tmp_path, content).map_err(|e| e.to_string())?;
+    fs::rename(&tmp_path, &path).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn accumulate_summary(summary: &mut ProxyMetricsSummary, request: &ProxyRequestMetric) {

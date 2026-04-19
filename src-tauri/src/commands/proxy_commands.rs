@@ -1,9 +1,20 @@
+use crate::commands::dag_commands;
 use crate::proxy::types::{ProxyMetricsSnapshot, ProxyStatus, RouteTableSet};
 use crate::store::AppState;
 use tauri::State;
 
 #[tauri::command]
 pub async fn start_proxy(state: State<'_, AppState>) -> Result<(), String> {
+    let needs_restore = {
+        let proxy = state.proxy.read().await;
+        let tables_by_port = proxy.state.route_tables_by_port.read().await;
+        tables_by_port.is_empty()
+    };
+
+    if needs_restore {
+        let _ = dag_commands::restore_persisted_routes(state.inner()).await?;
+    }
+
     let proxy = state.proxy.read().await;
     proxy.start().await.map_err(|e| e.to_string())
 }
