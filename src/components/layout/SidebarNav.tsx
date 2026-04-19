@@ -216,7 +216,7 @@ export default function SidebarNav() {
     setPublishing(true);
     try {
       const doc = getDocument();
-      const routeTable = await publishDag(doc);
+      await publishDag(doc);
       if (!proxyStatus.running) {
         await startProxy();
       }

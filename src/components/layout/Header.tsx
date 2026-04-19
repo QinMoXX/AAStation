@@ -167,7 +167,7 @@ export default function Header() {
     try {
       // 1. Publish DAG (validate → compile → hot-load routes)
       const doc = getDocument();
-      const routeTable = await publishDag(doc);
+      await publishDag(doc);
 
       // 2. Start proxy server (if not already running)
       if (!proxyStatus.running) {
