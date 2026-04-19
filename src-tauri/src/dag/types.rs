@@ -106,24 +106,6 @@ impl std::fmt::Display for NodeType {
 
 // --- Node-specific data structures (typed wrappers for `DAGNode.data`) ---
 
-/// API compatibility type for Provider nodes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ApiType {
-    #[serde(rename = "anthropic")]
-    Anthropic,
-    #[serde(rename = "openai")]
-    OpenAI,
-}
-
-impl std::fmt::Display for ApiType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ApiType::Anthropic => write!(f, "anthropic"),
-            ApiType::OpenAI => write!(f, "openai"),
-        }
-    }
-}
-
 /// A model entry within a Provider node.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderModel {
@@ -146,13 +128,13 @@ pub struct ProviderNodeData {
     pub label: String,
     #[serde(default)]
     pub description: Option<String>,
-    /// API compatibility type.
-    pub api_type: ApiType,
-    /// Base URL for the API (e.g. "https://api.anthropic.com").
+    /// OpenAI-compatible base URL. Should include version path prefix
+    /// (e.g. "https://api.openai.com/v1").
     pub base_url: String,
-    /// Anthropic-compatible base URL (optional). When set, Anthropic-style client
-    /// requests will be forwarded to this URL instead of base_url, avoiding the
-    /// need for response format conversion.
+    /// Anthropic-compatible base URL (optional). Should NOT include version path prefix
+    /// (e.g. "https://open.bigmodel.cn/api/anthropic").
+    /// When set, Anthropic-style client requests will be forwarded to this URL
+    /// instead of base_url, avoiding the need for response format conversion.
     #[serde(default)]
     pub anthropic_base_url: Option<String>,
     /// API key for authentication.
@@ -166,7 +148,6 @@ impl Default for ProviderNodeData {
         Self {
             label: "Provider".to_string(),
             description: None,
-            api_type: ApiType::OpenAI,
             base_url: String::new(),
             anthropic_base_url: None,
             api_key: String::new(),

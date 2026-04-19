@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::proxy::types::{ApiType, CompiledRoute, MatchType, RouteTable};
+use crate::proxy::types::{CompiledRoute, MatchType, RouteTable};
 use crate::settings::AppSettings;
 
 use super::types::{
@@ -97,10 +97,6 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                 api_key: provider_data.api_key,
                 extra_headers: HashMap::new(),
                 is_default: false,
-                api_type: Some(match provider_data.api_type {
-                    super::types::ApiType::Anthropic => ApiType::Anthropic,
-                    super::types::ApiType::OpenAI => ApiType::OpenAI,
-                }),
                 target_model,
                 fuzzy_match: is_claude_code && matches!(entry.match_type, super::types::MatchType::Model),
             });
@@ -123,10 +119,6 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                     api_key: provider_data.api_key,
                     extra_headers: HashMap::new(),
                     is_default: true,
-                    api_type: Some(match provider_data.api_type {
-                        super::types::ApiType::Anthropic => ApiType::Anthropic,
-                        super::types::ApiType::OpenAI => ApiType::OpenAI,
-                    }),
                     target_model: String::new(),
                     fuzzy_match: false,
                 });
@@ -165,10 +157,6 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTable, 
                             api_key: provider_data.api_key,
                             extra_headers: HashMap::new(),
                             is_default: true,
-                            api_type: Some(match provider_data.api_type {
-                                super::types::ApiType::Anthropic => ApiType::Anthropic,
-                                super::types::ApiType::OpenAI => ApiType::OpenAI,
-                            }),
                             target_model: String::new(),
                             fuzzy_match: false,
                         });
@@ -309,7 +297,6 @@ mod tests {
     use crate::dag::types::{
         DAGEdge, DAGDocument, DAGNode, MatchType as DagMatchType, NodeType, Position,
         ProviderModel, ProviderNodeData, SwitcherEntry, SwitcherNodeData, ApplicationNodeData,
-        ApiType as DagApiType,
     };
     use crate::proxy::types::MatchType as ProxyMatchType;
     use std::collections::HashMap;
@@ -322,7 +309,7 @@ mod tests {
         }
     }
 
-    fn make_provider(id: &str, label: &str, api_type: DagApiType, base_url: &str, api_key: &str, models: Vec<ProviderModel>) -> DAGNode {
+    fn make_provider(id: &str, label: &str, base_url: &str, api_key: &str, models: Vec<ProviderModel>) -> DAGNode {
         DAGNode {
             id: id.to_string(),
             node_type: NodeType::Provider,
@@ -330,7 +317,6 @@ mod tests {
             data: serde_json::to_value(ProviderNodeData {
                 label: label.to_string(),
                 description: None,
-                api_type,
                 base_url: base_url.to_string(),
                 anthropic_base_url: None,
                 api_key: api_key.to_string(),
@@ -388,7 +374,7 @@ mod tests {
         let entry_id = "entry-1";
 
         let provider = make_provider(
-            "p1", "OpenAI", DagApiType::OpenAI,
+            "p1", "OpenAI",
             "https://api.openai.com/v1", "sk-test",
             vec![ProviderModel { id: model_id.to_string(), name: "gpt-4o".to_string(), enabled: true }],
         );
@@ -423,7 +409,6 @@ mod tests {
         assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
         assert_eq!(table.routes[0].pattern, "gpt-4o");
         assert_eq!(table.routes[0].upstream_url, "https://api.openai.com/v1");
-        assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
         // target_model is resolved from the Provider model target handle ("model-m1" → "gpt-4o")
         assert_eq!(table.routes[0].target_model, "gpt-4o");
         assert!(table.default_route.is_none());
@@ -434,13 +419,13 @@ mod tests {
         let entry_id = "entry-1";
 
         let provider_a = make_provider(
-            "pa", "OpenAI", DagApiType::OpenAI,
+            "pa", "OpenAI",
             "https://api.openai.com/v1", "sk-openai",
             vec![ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true }],
         );
 
         let provider_b = make_provider(
-            "pb", "Anthropic", DagApiType::Anthropic,
+            "pb", "Anthropic",
             "https://api.anthropic.com/v1", "sk-ant-key",
             vec![],
         );
@@ -475,13 +460,12 @@ mod tests {
         assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
         assert!(table.default_route.is_some());
         assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.anthropic.com/v1");
-        assert_eq!(table.default_route.as_ref().unwrap().api_type, Some(ApiType::Anthropic));
     }
 
     #[test]
     fn test_application_direct_to_provider() {
         let provider = make_provider(
-            "p1", "OpenAI", DagApiType::OpenAI,
+            "p1", "OpenAI",
             "https://api.openai.com/v1", "sk-test",
             vec![],
         );
@@ -507,7 +491,7 @@ mod tests {
     #[test]
     fn test_entry_edge_not_found() {
         let provider = make_provider(
-            "p1", "OpenAI", DagApiType::OpenAI,
+            "p1", "OpenAI",
             "https://api.openai.com/v1", "sk-test",
             vec![],
         );
@@ -536,7 +520,7 @@ mod tests {
     #[test]
     fn test_default_edge_not_found_but_optional() {
         let provider = make_provider(
-            "p1", "OpenAI", DagApiType::OpenAI,
+            "p1", "OpenAI",
             "https://api.openai.com/v1", "sk-test",
             vec![],
         );
@@ -557,15 +541,15 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_providers_different_api_types() {
+    fn test_multiple_providers() {
         let openai = make_provider(
-            "p1", "OpenAI", DagApiType::OpenAI,
+            "p1", "OpenAI",
             "https://api.openai.com/v1", "sk-openai",
             vec![ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true }],
         );
 
         let anthropic = make_provider(
-            "p2", "Anthropic", DagApiType::Anthropic,
+            "p2", "Anthropic",
             "https://api.anthropic.com/v1", "sk-ant-key",
             vec![ProviderModel { id: "m2".to_string(), name: "claude-sonnet-4".to_string(), enabled: true }],
         );
@@ -605,8 +589,6 @@ mod tests {
 
         let table = compile(&doc, &default_settings()).unwrap();
         assert_eq!(table.routes.len(), 2);
-        assert_eq!(table.routes[0].api_type, Some(ApiType::OpenAI));
-        assert_eq!(table.routes[1].api_type, Some(ApiType::Anthropic));
         // target_model is resolved from Provider model target handle
         // Route 0: edge target "model-m1" → model name "gpt-4o"
         assert_eq!(table.routes[0].target_model, "gpt-4o");
@@ -617,7 +599,7 @@ mod tests {
     #[test]
     fn test_switcher_main_input_from_application() {
         let provider = make_provider(
-            "p1", "OpenAI", DagApiType::OpenAI,
+            "p1", "OpenAI",
             "https://api.openai.com/v1", "sk-test",
             vec![],
         );
@@ -650,7 +632,7 @@ mod tests {
         // - When entry pattern matches → replace model with Provider model sub-node's model
         // - When no match → forward via default route without model replacement
         let provider = make_provider(
-            "p1", "SiliconFlow", DagApiType::OpenAI,
+            "p1", "SiliconFlow",
             "https://api.siliconflow.cn/v1", "sk-sf-key",
             vec![ProviderModel { id: "m1".to_string(), name: "Qwen/Qwen2.5-7B-Instruct".to_string(), enabled: true }],
         );

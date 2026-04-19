@@ -3,7 +3,6 @@
     "id": "openai",
     "name": "OpenAI",
     "icon": "[lobehub:OpenAI]",
-    "apiType": "openai",
     "baseUrl": "https://api.openai.com/v1",
     "defaultLabel": "OpenAI",
     "models": [
@@ -20,7 +19,6 @@
     "id": "anthropic",
     "name": "Anthropic",
     "icon": "[lobehub:Anthropic]",
-    "apiType": "anthropic",
     "baseUrl": "https://api.anthropic.com/v1",
     "defaultLabel": "Anthropic",
     "models": [
@@ -34,7 +32,6 @@
     "id": "deepseek",
     "name": "DeepSeek",
     "icon": "[lobehub:DeepSeek]",
-    "apiType": "openai",
     "baseUrl": "https://api.deepseek.com/v1",
     "defaultLabel": "DeepSeek",
     "models": [
@@ -46,7 +43,6 @@
     "id": "moonshot",
     "name": "Moonshot (Kimi)",
     "icon": "[lobehub:Moonshot]",
-    "apiType": "openai",
     "baseUrl": "https://api.moonshot.cn/v1",
     "defaultLabel": "Moonshot",
     "models": [
@@ -59,22 +55,23 @@
     "id": "zhipu",
     "name": "Zhipu AI",
     "icon": "[lobehub:Zhipu]",
-    "apiType": "openai",
     "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
     "anthropicBaseUrl": "https://open.bigmodel.cn/api/anthropic",
     "defaultLabel": "Zhipu AI",
     "models": [
-      { "name": "glm-4-plus", "label": "GLM-4 Plus" },
-      { "name": "glm-4-0520", "label": "GLM-4 0520" },
-      { "name": "glm-4-air", "label": "GLM-4 Air" },
-      { "name": "glm-4-flash", "label": "GLM-4 Flash" }
+      { "name": "glm-5.1", "label": "GLM-5.1" },
+      { "name": "glm-5-turbo", "label": "GLM-5 Turbo" },
+      { "name": "glm-5", "label": "GLM-5" },
+      { "name": "glm-4.7", "label": "GLM-4.7" },
+      { "name": "glm-4.7-flash", "label": "GLM-4.7 Flash" },
+      { "name": "glm-4.6", "label": "GLM-4.6" },
+      { "name": "glm-4.5-air", "label": "GLM-4.5 Air" }
     ]
   },
   {
     "id": "openrouter",
     "name": "OpenRouter",
     "icon": "[lobehub:OpenRouter]",
-    "apiType": "openai",
     "baseUrl": "https://openrouter.ai/api/v1",
     "defaultLabel": "OpenRouter",
     "models": [

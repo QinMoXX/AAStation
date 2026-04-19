@@ -4,11 +4,6 @@ import type { ProviderNodeData } from '../../types';
 import { PRESET_PROVIDERS } from '../../store/flow-store';
 import { getProviderIcon } from '../icons/ProviderIcons';
 
-const API_TYPE_LABELS: Record<string, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-};
-
 function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
   const hasApiKey = data.apiKey && data.apiKey.length > 0;
   const hasBaseUrl = data.baseUrl && data.baseUrl.length > 0;
@@ -90,7 +85,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
         )}
       </div>
 
-      {/* API Type badge */}
+      {/* Protocol badges */}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6 }}>
         <div
           style={{
@@ -98,25 +93,25 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
             fontSize: 11,
             padding: '2px 8px',
             borderRadius: 4,
-            background: '#ffffff',
-            color: '#4b5563',
+            background: hasBaseUrl ? '#eff6ff' : '#fef2f2',
+            color: hasBaseUrl ? '#1e40af' : '#991b1b',
           }}
         >
-          {API_TYPE_LABELS[data.apiType] || data.apiType}
+          OpenAI
         </div>
         {hasAnthropicUrl && (
           <div
             style={{
               display: 'inline-block',
-              fontSize: 10,
-              padding: '1px 6px',
+              fontSize: 11,
+              padding: '2px 8px',
               borderRadius: 4,
               background: '#fef3c7',
               color: '#92400e',
             }}
             title={`Anthropic URL: ${data.anthropicBaseUrl}`}
           >
-            +Anthropic
+            Anthropic
           </div>
         )}
       </div>

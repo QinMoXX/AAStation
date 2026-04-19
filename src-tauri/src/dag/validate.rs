@@ -196,7 +196,6 @@ mod tests {
             data: serde_json::to_value(ProviderNodeData {
                 label: "P".to_string(),
                 description: None,
-                api_type: ApiType::OpenAI,
                 base_url: base_url.to_string(),
                 anthropic_base_url: None,
                 api_key: api_key.to_string(),

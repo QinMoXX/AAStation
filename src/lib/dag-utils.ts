@@ -171,7 +171,6 @@ function nodeDataToFrontend(
       return {
         nodeType: 'provider',
         label: (camelData.label as string) || 'Provider',
-        apiType: (camelData.apiType as ProviderNodeData['apiType']) || 'openai',
         baseUrl: (camelData.baseUrl as string) || '',
         anthropicBaseUrl: camelData.anthropicBaseUrl as string | undefined,
         apiKey: (camelData.apiKey as string) || '',
@@ -208,7 +207,6 @@ function nodeDataToFrontend(
       return {
         nodeType: 'provider',
         label: 'Unknown',
-        apiType: 'openai',
         baseUrl: '',
         apiKey: '',
         models: [],

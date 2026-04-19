@@ -4,7 +4,7 @@ use axum::http::{HeaderMap, HeaderValue, Method};
 
 use super::body_parser::{adapt_request_body, adapt_request_path, detect_request_protocol, extract_model};
 use super::error::ProxyError;
-use super::types::{ApiType, CompiledRoute, RequestProtocol};
+use super::types::{CompiledRoute, RequestProtocol};
 
 /// Quick model extraction for logging (returns "N/A" if not found).
 fn extract_model_quick(body: &[u8]) -> String {
@@ -33,13 +33,29 @@ fn has_version_suffix(url: &str) -> bool {
     last_segment.starts_with('v') && last_segment.len() >= 2 && last_segment[1..].chars().all(|c| c.is_ascii_digit())
 }
 
+/// Determine the target API type based on the request protocol and available upstream URLs.
+///
+/// The routing logic is:
+/// - If the client sends an Anthropic-style request AND an anthropic_upstream_url is set,
+///   the target is Anthropic (same-protocol forwarding, no conversion needed).
+/// - Otherwise, the target is OpenAI (the default protocol for baseUrl).
+fn determine_target_api_type(source_protocol: RequestProtocol, route: &CompiledRoute) -> RequestProtocol {
+    if source_protocol == RequestProtocol::Anthropic && route.anthropic_upstream_url.is_some() {
+        RequestProtocol::Anthropic
+    } else {
+        RequestProtocol::OpenAI
+    }
+}
+
 /// Forward the request to the matched upstream route.
 ///
 /// This function performs protocol adaptation:
 /// 1. Detects the client's request protocol (OpenAI or Anthropic) from the path
-/// 2. Adapts the request path to match the provider's API type
-/// 3. Adapts the request body (field conversion between protocols)
-/// 4. Injects auth based on the provider's api_type
+/// 2. Chooses the upstream URL based on the client's protocol:
+///    - OpenAI-style requests → upstream_url (baseUrl)
+///    - Anthropic-style requests → anthropic_upstream_url (if set), fallback to upstream_url
+/// 3. Adapts the request path and body based on the target protocol
+/// 4. Injects auth based on the target protocol
 ///
 /// The client is completely unaware of the provider's API style.
 pub async fn forward_request(
@@ -53,9 +69,6 @@ pub async fn forward_request(
     // Detect client's request protocol from the original path
     let source_protocol = detect_request_protocol(path);
 
-    // Determine the target API type from the compiled route
-    let target_api_type = route.api_type.unwrap_or(ApiType::OpenAI);
-
     // Choose upstream URL based on client protocol and available URLs.
     // If the client sends Anthropic-style request and an anthropic_upstream_url is set,
     // use that URL instead — this avoids the need for response format conversion
@@ -66,12 +79,8 @@ pub async fn forward_request(
         &route.upstream_url
     };
 
-    // When using anthropic_upstream_url, the target API type is effectively Anthropic
-    let effective_api_type = if source_protocol == RequestProtocol::Anthropic && route.anthropic_upstream_url.is_some() {
-        ApiType::Anthropic
-    } else {
-        target_api_type
-    };
+    // Determine the target protocol based on routing decision
+    let target_protocol = determine_target_api_type(source_protocol, route);
 
     // Determine whether to preserve the /v1 prefix in the upstream path.
     //
@@ -86,20 +95,26 @@ pub async fn forward_request(
     let base_trimmed = base_upstream_url.trim_end_matches('/');
     let preserve_v1_prefix = !has_version_suffix(base_trimmed);
 
+    // Map RequestProtocol to ApiType for path adaptation
+    let target_api_type = match target_protocol {
+        RequestProtocol::Anthropic => super::body_parser::ApiType::Anthropic,
+        RequestProtocol::OpenAI => super::body_parser::ApiType::OpenAI,
+    };
+
     // Adapt the request path to match the provider's API type
-    let upstream_path = adapt_request_path(path, effective_api_type, preserve_v1_prefix);
+    let upstream_path = adapt_request_path(path, target_api_type, preserve_v1_prefix);
 
     // Build the upstream URL
     let url = format!("{}{}", base_upstream_url.trim_end_matches('/'), upstream_path);
 
     tracing::info!(
         "Proxying {} {} → {} (protocol: {:?} → {:?}, model: {:?} → {:?})",
-        method, path, url, source_protocol, effective_api_type,
+        method, path, url, source_protocol, target_protocol,
         extract_model_quick(&body), if route.target_model.is_empty() { "(keep)" } else { &route.target_model },
     );
 
     // Adapt the request body: protocol conversion + model replacement
-    let body = adapt_request_body(&body, source_protocol, effective_api_type, &route.target_model);
+    let body = adapt_request_body(&body, source_protocol, target_api_type, &route.target_model);
     let body = bytes::Bytes::from(body);
 
     // Log the outgoing request body
@@ -129,13 +144,13 @@ pub async fn forward_request(
         req_builder = req_builder.header(name, value);
     }
 
-    // Inject auth based on effective API type
-    match effective_api_type {
-        ApiType::Anthropic => {
+    // Inject auth based on target protocol
+    match target_protocol {
+        RequestProtocol::Anthropic => {
             req_builder = req_builder.header("x-api-key", &route.api_key);
             req_builder = req_builder.header("anthropic-version", "2023-06-01");
         }
-        ApiType::OpenAI => {
+        RequestProtocol::OpenAI => {
             req_builder = req_builder.bearer_auth(&route.api_key);
         }
     }

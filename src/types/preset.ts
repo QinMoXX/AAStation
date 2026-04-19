@@ -1,5 +1,3 @@
-import type { ApiType } from './nodes';
-
 /** Preset Provider configuration - loaded from JSON file. */
 export interface ProviderPreset {
   /** Unique identifier for this preset. */
@@ -8,12 +6,11 @@ export interface ProviderPreset {
   name: string;
   /** Icon identifier - maps to SVG component in ProviderIcons.tsx. */
   icon: string;
-  /** API compatibility type (immutable for presets). */
-  apiType: ApiType;
-  /** Base URL for API requests (immutable for presets). */
+  /** OpenAI-compatible base URL (immutable for presets).
+   *  Should include version path prefix (e.g. "https://api.openai.com/v1"). */
   baseUrl: string;
-  /** Anthropic-compatible base URL (optional). When set, Anthropic-style client
-   *  requests will be forwarded to this URL instead of baseUrl. */
+  /** Anthropic-compatible base URL (optional, immutable for presets).
+   *  Should NOT include version path prefix (e.g. "https://open.bigmodel.cn/api/anthropic"). */
   anthropicBaseUrl?: string;
   /** Default label for new nodes (user can modify). */
   defaultLabel: string;

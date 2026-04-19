@@ -4,9 +4,6 @@ export type NodeType = 'provider' | 'switcher' | 'application';
 /** Handle type discriminator for connection validation. */
 export type HandleType = 'model' | 'any';
 
-/** API compatibility type for Provider nodes. */
-export type ApiType = 'anthropic' | 'openai';
-
 interface BaseNodeData {
   label: string;
   description?: string;
@@ -22,14 +19,16 @@ export interface ProviderModel {
 /** Provider node: an upstream API endpoint with model sub-nodes. */
 export interface ProviderNodeData extends BaseNodeData {
   nodeType: 'provider';
-  /** Preset ID if created from a preset (apiType/baseUrl become read-only). */
+  /** Preset ID if created from a preset (URLs become read-only). */
   presetId?: string;
-  apiType: ApiType;
-  baseUrl: string; // e.g. "https://api.openai.com/v1"
+  /** OpenAI-compatible base URL. Used for OpenAI-style requests.
+   *  Should include version path prefix (e.g. "https://api.openai.com/v1"). */
+  baseUrl: string;
   /** Anthropic-compatible base URL (optional). When set, Anthropic-style client
    *  requests will be forwarded to this URL instead of baseUrl, avoiding the
-   *  need for response format conversion. */
-  anthropicBaseUrl?: string; // e.g. "https://open.bigmodel.cn/api/anthropic"
+   *  need for response format conversion.
+   *  Should NOT include version path prefix (e.g. "https://open.bigmodel.cn/api/anthropic"). */
+  anthropicBaseUrl?: string;
   apiKey: string;
   /** Model entries, each with its own right-side output handle. */
   models: ProviderModel[];

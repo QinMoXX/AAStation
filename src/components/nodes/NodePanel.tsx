@@ -63,11 +63,6 @@ const fieldGap: React.CSSProperties = { marginBottom: 12 };
 // Provider form
 // ---------------------------------------------------------------------------
 
-const API_TYPE_LABELS: Record<string, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-};
-
 const readonlyInputStyle: React.CSSProperties = {
   ...inputStyle,
   background: '#1f2937',
@@ -150,7 +145,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
             <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
               {Icon && <Icon style={{ width: 16, height: 16 }} />}
             </span>
-            <strong>{preset.name}</strong> Preset — API Type, Base URL, and Anthropic URL are fixed
+            <strong>{preset.name}</strong> Preset — URLs are fixed
           </div>
         );
       })()}
@@ -165,27 +160,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
       </div>
 
       <div style={fieldGap}>
-        <label style={labelStyle}>API Type</label>
-        {isPreset ? (
-          <input
-            style={readonlyInputStyle}
-            value={API_TYPE_LABELS[data.apiType] || data.apiType}
-            disabled
-          />
-        ) : (
-          <select
-            style={inputStyle}
-            value={data.apiType}
-            onChange={(e) => onUpdate({ apiType: e.target.value as ProviderNodeData['apiType'] })}
-          >
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-          </select>
-        )}
-      </div>
-
-      <div style={fieldGap}>
-        <label style={labelStyle}>Base URL</label>
+        <label style={labelStyle}>OpenAI Base URL</label>
         <input
           style={isPreset ? readonlyInputStyle : inputStyle}
           value={data.baseUrl}
@@ -193,6 +168,9 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           onChange={(e) => onUpdate({ baseUrl: e.target.value })}
           disabled={isPreset}
         />
+        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+          Include version path (e.g. /v1). Used for OpenAI-style requests.
+        </div>
       </div>
 
       <div style={fieldGap}>
@@ -205,7 +183,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           disabled={isPreset}
         />
         <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          When set, Anthropic-style requests will use this URL instead
+          Without version path. When set, Anthropic-style requests use this URL directly.
         </div>
       </div>
 
@@ -215,7 +193,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           style={inputStyle}
           type="password"
           value={data.apiKey}
-          placeholder={data.apiType === 'anthropic' ? 'sk-ant-...' : 'sk-...'}
+          placeholder="sk-..."
           onChange={(e) => onUpdate({ apiKey: e.target.value })}
         />
       </div>

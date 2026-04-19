@@ -3,14 +3,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// API compatibility type for compiled routes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ApiType {
-    Anthropic,
-    OpenAI,
-}
-
 /// The protocol style of an incoming client request, detected from the request path.
 /// This determines how the request body is interpreted before protocol adaptation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +34,7 @@ pub struct CompiledRoute {
     pub id: String,
     pub match_type: MatchType,
     pub pattern: String,
+    /// OpenAI-compatible upstream URL. Used for OpenAI-style requests.
     pub upstream_url: String,
     /// Anthropic-compatible upstream URL (optional). When set, Anthropic-style client
     /// requests will be forwarded to this URL instead of upstream_url.
@@ -51,9 +44,6 @@ pub struct CompiledRoute {
     #[serde(default)]
     pub extra_headers: HashMap<String, String>,
     pub is_default: bool,
-    /// API compatibility type for request/response adaptation.
-    #[serde(default)]
-    pub api_type: Option<ApiType>,
     /// Target model name to replace in the request body when forwarding.
     /// If empty, the original model is kept.
     #[serde(default)]

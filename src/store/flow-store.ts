@@ -34,7 +34,6 @@ export function defaultProviderData(): ProviderNodeData {
   return {
     nodeType: 'provider',
     label: 'Provider',
-    apiType: 'openai',
     baseUrl: '',
     apiKey: '',
     models: [],
@@ -78,7 +77,6 @@ export function createPresetProviderData(preset: ProviderPreset): ProviderNodeDa
     nodeType: 'provider',
     presetId: preset.id,
     label: preset.defaultLabel,
-    apiType: preset.apiType,
     baseUrl: preset.baseUrl,
     anthropicBaseUrl: preset.anthropicBaseUrl,
     apiKey: '',

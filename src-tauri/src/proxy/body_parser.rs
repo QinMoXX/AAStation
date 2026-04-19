@@ -1,6 +1,14 @@
 #![allow(dead_code, unused_imports)]
 
-use super::types::{ApiType, RequestProtocol};
+use super::types::RequestProtocol;
+
+/// API compatibility type for path adaptation.
+/// Determines the target endpoint format when adapting request paths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiType {
+    Anthropic,
+    OpenAI,
+}
 
 /// Extract the `model` field from a JSON request body.
 ///
