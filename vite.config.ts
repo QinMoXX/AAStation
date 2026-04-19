@@ -7,6 +7,20 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@lobehub/icons")) return "vendor-icons";
+          if (id.includes("reactflow")) return "vendor-reactflow";
+          if (id.includes("@tauri-apps")) return "vendor-tauri";
+          return;
+        },
+      },
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

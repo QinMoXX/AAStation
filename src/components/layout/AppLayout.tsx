@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import TitleBar from './TitleBar';
 import SidebarNav from './SidebarNav';
 import HomeSubNav from './HomeSubNav';
 import ToastContainer from '../common/ToastContainer';
-import SettingsPage from '../pages/SettingsPage';
-import MonitorPage from '../pages/MonitorPage';
 import { useProxyStatus } from '../../hooks/useProxyStatus';
 import { useAppStore } from '../../store/app-store';
 import { useNavStore } from '../../store/nav-store';
+
+const SettingsPage = lazy(() => import('../pages/SettingsPage'));
+const MonitorPage = lazy(() => import('../pages/MonitorPage'));
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -51,6 +52,15 @@ const canvasAreaStyle: React.CSSProperties = {
   overflow: 'hidden',
 };
 
+const pageFallbackStyle: React.CSSProperties = {
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#94a3b8',
+  background: '#111827',
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -79,9 +89,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
         );
       case 'monitor':
-        return <MonitorPage />;
+        return (
+          <Suspense fallback={<div style={pageFallbackStyle}>页面加载中...</div>}>
+            <MonitorPage />
+          </Suspense>
+        );
       case 'settings':
-        return <SettingsPage />;
+        return (
+          <Suspense fallback={<div style={pageFallbackStyle}>页面加载中...</div>}>
+            <SettingsPage />
+          </Suspense>
+        );
       default:
         return null;
     }
