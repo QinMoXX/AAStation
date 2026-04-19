@@ -49,6 +49,8 @@ pub fn run() {
             commands::dag_commands::save_dag,
             commands::dag_commands::validate_dag,
             commands::dag_commands::publish_dag,
+            commands::dag_commands::allocate_port,
+            commands::dag_commands::auto_assign_ports,
             commands::proxy_commands::start_proxy,
             commands::proxy_commands::stop_proxy,
             commands::proxy_commands::get_proxy_status,

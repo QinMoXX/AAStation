@@ -1,4 +1,4 @@
-use crate::proxy::types::{ProxyStatus, RouteTable};
+use crate::proxy::types::{ProxyStatus, RouteTableSet};
 use crate::store::AppState;
 use tauri::State;
 
@@ -21,8 +21,8 @@ pub async fn get_proxy_status(state: State<'_, AppState>) -> Result<ProxyStatus,
 }
 
 #[tauri::command]
-pub async fn reload_routes(state: State<'_, AppState>, table: RouteTable) -> Result<(), String> {
+pub async fn reload_routes(state: State<'_, AppState>, table_set: RouteTableSet) -> Result<(), String> {
     let proxy = state.proxy.read().await;
-    proxy.reload_routes(table).await;
+    proxy.reload_routes(table_set).await;
     Ok(())
 }

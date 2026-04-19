@@ -23,6 +23,7 @@ import type {
   SwitcherDefaultsMap,
 } from '../types';
 import type { DAGDocument } from '../types/dag';
+import { allocatePort } from '../lib/tauri-api';
 import presets from '../data/provider-presets.json';
 import switcherDefaults from '../data/switcher-defaults.json';
 
@@ -54,6 +55,7 @@ export function defaultApplicationData(appType: AppType = 'listener'): Applicati
     nodeType: 'application',
     label: appType === 'claude_code' ? 'Claude Code' : 'Listener',
     appType,
+    listenPort: 0, // 0 = unassigned, will be auto-assigned
   };
 }
 
@@ -213,6 +215,24 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       data,
     };
     set({ nodes: [...get().nodes, node] });
+
+    // For Application nodes, auto-allocate a port from the range
+    if (type === 'application') {
+      // Get the document WITH the newly added node to compute used ports
+      const doc = get().getDocument();
+      allocatePort(doc).then((port) => {
+        set({
+          nodes: get().nodes.map((n) =>
+            n.id === id
+              ? { ...n, data: { ...n.data, listenPort: port } as ApplicationNodeData }
+              : n
+          ),
+        });
+      }).catch((err) => {
+        console.warn('Failed to auto-allocate port:', err);
+      });
+    }
+
     return id;
   },
 

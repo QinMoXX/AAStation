@@ -221,6 +221,10 @@ pub struct ApplicationNodeData {
     /// Application type for display purposes.
     #[serde(default = "default_app_type")]
     pub app_type: String,
+    /// The port this application listens on. Each Application node gets its own
+    /// port from the settings port range. 0 means unassigned (will be auto-assigned).
+    #[serde(default)]
+    pub listen_port: u16,
     /// Handler code executed on publish. Reserved for future use — currently empty.
     #[serde(default)]
     pub application_handler: String,
@@ -239,6 +243,7 @@ impl Default for ApplicationNodeData {
             label: "Listener".to_string(),
             description: None,
             app_type: default_app_type(),
+            listen_port: 0,
             application_handler: String::new(),
             unpublish_handler: String::new(),
         }

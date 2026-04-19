@@ -1,19 +1,33 @@
 /** Runtime status of the proxy server. */
 export interface ProxyStatus {
   running: boolean;
+  /** The first (primary) port. For full list, use `listen_ports`. */
   port: number;
+  /** All ports currently being listened on. */
+  listen_ports: number[];
   published_at: string | null;
   active_routes: number;
   total_requests: number;
   uptime_seconds: number;
 }
 
-/** Compiled route table returned by publish_dag. */
+/** A single application's compiled route table. */
 export interface RouteTable {
+  /** The Application node ID this route table belongs to. */
+  app_id: string;
+  /** The port this application's proxy listens on. */
   listen_port: number;
   listen_address: string;
   routes: CompiledRoute[];
   default_route: CompiledRoute | null;
+}
+
+/** The full set of compiled route tables, one per Application node. */
+export interface RouteTableSet {
+  /** Address all listeners bind to. */
+  listen_address: string;
+  /** Per-application route tables. */
+  tables: RouteTable[];
 }
 
 /** A single compiled route entry. */

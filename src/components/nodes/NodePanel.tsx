@@ -476,6 +476,22 @@ function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpda
         />
       </div>
 
+      <div style={fieldGap}>
+        <label style={labelStyle}>监听端口</label>
+        <input
+          style={inputStyle}
+          type="number"
+          value={data.listenPort || ''}
+          min={1}
+          max={65535}
+          placeholder="自动分配"
+          onChange={(e) => onUpdate({ listenPort: Number(e.target.value) || 0 })}
+        />
+        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+          0 = 自动从端口范围分配。每个应用节点监听独立端口。
+        </div>
+      </div>
+
       {data.appType === 'claude_code' && (
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
           发布后将自动配置 Claude Code 使用本地代理，API Key 由 Provider 节点提供。

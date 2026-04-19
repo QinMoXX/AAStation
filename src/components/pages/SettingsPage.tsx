@@ -79,20 +79,20 @@ const buttonBaseStyle: React.CSSProperties = {
 
 export default function SettingsPage() {
   const { settings, saveSettings } = useSettingsStore();
-  const [port, setPort] = useState(settings.listenPort);
+  const [portRange, setPortRange] = useState(settings.listenPortRange);
   const [address, setAddress] = useState(settings.listenAddress);
   const [tokenVisible, setTokenVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setPort(settings.listenPort);
+    setPortRange(settings.listenPortRange);
     setAddress(settings.listenAddress);
   }, [settings]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveSettings({ listenPort: port, listenAddress: address, proxyAuthToken: settings.proxyAuthToken });
+      await saveSettings({ listenPortRange: portRange, listenAddress: address, proxyAuthToken: settings.proxyAuthToken });
     } catch (err) {
       console.error('Failed to save settings:', err);
     } finally {
@@ -111,17 +111,19 @@ export default function SettingsPage() {
         <div style={cardStyle}>
           <h2 style={titleStyle}>代理设置</h2>
 
-          {/* Listen Port */}
+          {/* Listen Port Range */}
           <div style={fieldStyle}>
-            <label style={labelStyle}>监听端口</label>
+            <label style={labelStyle}>监听端口范围</label>
             <input
-              type="number"
-              value={port}
-              min={1}
-              max={65535}
-              onChange={(e) => setPort(Number(e.target.value))}
+              type="text"
+              value={portRange}
+              placeholder="9527-9537"
+              onChange={(e) => setPortRange(e.target.value)}
               style={inputStyle}
             />
+            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+              单端口如 "9527"，范围如 "9527-9537"。每个应用节点分配独立端口。
+            </div>
           </div>
 
           {/* Bind Address */}

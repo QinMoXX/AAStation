@@ -35,6 +35,7 @@ interface AppState {
 const DEFAULT_PROXY_STATUS: ProxyStatus = {
   running: false,
   port: 0,
+  listen_ports: [],
   published_at: null,
   active_routes: 0,
   total_requests: 0,

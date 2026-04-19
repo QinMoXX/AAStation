@@ -62,6 +62,8 @@ export interface ApplicationNodeData extends BaseNodeData {
   nodeType: 'application';
   /** Application type for display purposes. */
   appType: AppType;
+  /** The port this application listens on. Each Application node gets its own port. */
+  listenPort: number;
 }
 
 /** Union of all node data types. */

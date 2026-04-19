@@ -200,6 +200,7 @@ function nodeDataToFrontend(
         nodeType: 'application',
         label: (camelData.label as string) || 'Listener',
         appType: (camelData.appType as string) || 'listener',
+        listenPort: (camelData.listenPort as number) || 0,
         description: camelData.description as string | undefined,
       } as ApplicationNodeData;
     default:

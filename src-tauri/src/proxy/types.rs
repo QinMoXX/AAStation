@@ -14,9 +14,14 @@ pub enum RequestProtocol {
 }
 
 /// Compiled routing table — output of DAG compilation.
+/// Each Application node produces its own RouteTable with a dedicated listen port.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RouteTable {
+    /// The Application node ID this route table belongs to.
+    pub app_id: String,
+    /// The port this application's proxy listens on.
     pub listen_port: u16,
+    /// The address the proxy binds to.
     pub listen_address: String,
     pub routes: Vec<CompiledRoute>,
     pub default_route: Option<CompiledRoute>,
@@ -25,6 +30,27 @@ pub struct RouteTable {
 impl RouteTable {
     pub fn is_empty(&self) -> bool {
         self.routes.is_empty() && self.default_route.is_none()
+    }
+}
+
+/// The full set of compiled route tables, one per Application node.
+/// This is the output of DAG compilation and the unit hot-loaded into the proxy.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RouteTableSet {
+    /// Address all listeners bind to.
+    pub listen_address: String,
+    /// Per-application route tables.
+    pub tables: Vec<RouteTable>,
+}
+
+impl RouteTableSet {
+    pub fn is_empty(&self) -> bool {
+        self.tables.iter().all(|t| t.is_empty())
+    }
+    
+    /// Find the route table for a specific port.
+    pub fn table_for_port(&self, port: u16) -> Option<&RouteTable> {
+        self.tables.iter().find(|t| t.listen_port == port)
     }
 }
 
@@ -68,14 +94,12 @@ pub enum MatchType {
 /// Proxy server configuration (derived from settings at publish time).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
-    pub listen_port: u16,
     pub listen_address: String,
 }
 
 impl Default for ProxyConfig {
     fn default() -> Self {
         Self {
-            listen_port: 9527,
             listen_address: "127.0.0.1".to_string(),
         }
     }
@@ -85,7 +109,11 @@ impl Default for ProxyConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyStatus {
     pub running: bool,
+    /// The first (primary) port. For full list, use `listen_ports`.
     pub port: u16,
+    /// All ports currently being listened on.
+    #[serde(default)]
+    pub listen_ports: Vec<u16>,
     pub published_at: Option<String>,
     pub active_routes: usize,
     pub total_requests: u64,
@@ -97,6 +125,7 @@ impl Default for ProxyStatus {
         Self {
             running: false,
             port: 0,
+            listen_ports: Vec::new(),
             published_at: None,
             active_routes: 0,
             total_requests: 0,

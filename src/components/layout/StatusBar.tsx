@@ -49,7 +49,7 @@ export default function StatusBar() {
       <div style={sectionStyle}>
         {proxyStatus.running && (
           <>
-            <span>Port: {proxyStatus.port}</span>
+            <span>Port{proxyStatus.listen_ports.length > 1 ? 's' : ''}: {proxyStatus.listen_ports.length > 0 ? proxyStatus.listen_ports.join(', ') : proxyStatus.port}</span>
             <span>Routes: {proxyStatus.active_routes}</span>
           </>
         )}

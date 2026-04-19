@@ -11,8 +11,10 @@ const SETTINGS_FILE: &str = "settings.json";
 /// Application settings persisted to ~/.aastation/settings.json.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    /// Port the proxy listens on (default 9527).
-    pub listen_port: u16,
+    /// Port range for proxy listeners (e.g. "9527-9530" or "9527" for a single port).
+    /// Each Application node gets its own port from this range.
+    #[serde(default = "default_port_range")]
+    pub listen_port_range: String,
     /// Address the proxy binds to (default "127.0.0.1").
     pub listen_address: String,
     /// Unique auth token for proxy access verification.
@@ -21,6 +23,63 @@ pub struct AppSettings {
     /// NOT used for upstream forwarding — Provider node API keys are used instead.
     #[serde(default = "generate_auth_token")]
     pub proxy_auth_token: String,
+}
+
+fn default_port_range() -> String {
+    "9527-9537".to_string()
+}
+
+/// Parse a port range string into a (start, end) pair.
+/// "9527" → (9527, 9527), "9527-9537" → (9527, 9537)
+pub fn parse_port_range(range: &str) -> Result<(u16, u16), String> {
+    let trimmed = range.trim();
+    if let Some((start_str, end_str)) = trimmed.split_once('-') {
+        let start: u16 = start_str.trim().parse().map_err(|_| format!("Invalid port range: {}", range))?;
+        let end: u16 = end_str.trim().parse().map_err(|_| format!("Invalid port range: {}", range))?;
+        if start == 0 || end == 0 {
+            return Err(format!("Port cannot be 0: {}", range));
+        }
+        if start > end {
+            return Err(format!("Start port {} > end port {}", start, end));
+        }
+        Ok((start, end))
+    } else {
+        let port: u16 = trimmed.parse().map_err(|_| format!("Invalid port range: {}", range))?;
+        if port == 0 {
+            return Err(format!("Port cannot be 0: {}", range));
+        }
+        Ok((port, port))
+    }
+}
+
+/// Collect all ports currently in use by Application nodes from the DAG.
+/// Used to determine which ports are available for new Application nodes.
+pub fn used_ports_from_dag(doc: &crate::dag::types::DAGDocument) -> Vec<u16> {
+    let mut ports = Vec::new();
+    for node in &doc.nodes {
+        if node.node_type == crate::dag::types::NodeType::Application {
+            if let Ok(data) = serde_json::from_value::<crate::dag::types::ApplicationNodeData>(node.data.clone()) {
+                if data.listen_port > 0 {
+                    ports.push(data.listen_port);
+                }
+            }
+        }
+    }
+    ports.sort();
+    ports.dedup();
+    ports
+}
+
+/// Find the next available port from the range, excluding already-used ports.
+pub fn find_available_port(range: &str, used_ports: &[u16]) -> Result<u16, String> {
+    let (start, end) = parse_port_range(range)?;
+    let used_set: std::collections::HashSet<u16> = used_ports.iter().copied().collect();
+    for port in start..=end {
+        if !used_set.contains(&port) {
+            return Ok(port);
+        }
+    }
+    Err(format!("No available port in range {} (all {} ports in use)", range, end - start + 1))
 }
 
 pub fn generate_auth_token() -> String {
@@ -45,7 +104,7 @@ fn rand_value(seed: u64) -> u64 {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            listen_port: 9527,
+            listen_port_range: default_port_range(),
             listen_address: "127.0.0.1".to_string(),
             proxy_auth_token: generate_auth_token(),
         }
@@ -82,17 +141,44 @@ fn settings_path() -> Result<PathBuf, AppError> {
 
 /// Load settings from disk. Returns default settings if file doesn't exist.
 /// Ensures `proxy_auth_token` is always present (generates one if missing from old configs).
+/// Migrates old `listen_port` field to `listen_port_range` if needed.
 pub fn load_settings() -> Result<AppSettings, AppError> {
     let path = settings_path()?;
     if !path.exists() {
         return Ok(AppSettings::default());
     }
     let content = std::fs::read_to_string(&path)?;
-    let mut settings: AppSettings = serde_json::from_str(&content)?;
+    
+    // Handle migration from listen_port to listen_port_range
+    // The old format had "listen_port" instead of "listen_port_range"
+    let migrated_content = if let Ok(mut raw) = serde_json::from_str::<serde_json::Value>(&content) {
+        if raw.get("listen_port").is_some() && raw.get("listen_port_range").is_none() {
+            if let Some(port) = raw.get("listen_port").and_then(|v| v.as_u64()) {
+                raw.as_object_mut().map(|obj| {
+                    obj.insert(
+                        "listen_port_range".to_string(),
+                        serde_json::Value::String(format!("{}-{}", port, port + 10)),
+                    );
+                    obj.remove("listen_port");
+                });
+            }
+            serde_json::to_string(&raw).unwrap_or(content.clone())
+        } else {
+            content.clone()
+        }
+    } else {
+        content.clone()
+    };
+    
+    let mut settings: AppSettings = serde_json::from_str(&migrated_content)?;
+    
     // Ensure auth token exists (for configs created before this field was added)
     if settings.proxy_auth_token.is_empty() {
         settings.proxy_auth_token = generate_auth_token();
-        // Persist the generated token
+        // Persist the generated token (and migrated settings)
+        save_settings(&settings)?;
+    } else if migrated_content != content {
+        // Persist migrated settings
         save_settings(&settings)?;
     }
     Ok(settings)

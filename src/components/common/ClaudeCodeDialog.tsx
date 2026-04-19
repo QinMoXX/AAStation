@@ -10,6 +10,8 @@ import { toast } from '../../store/toast-store';
 export interface ClaudeCodeAppInfo {
   nodeId: string;
   label: string;
+  /** The port this application listens on. */
+  listenPort: number;
 }
 
 interface ClaudeCodeDialogProps {
@@ -207,7 +209,7 @@ export default function ClaudeCodeDialog({ apps, proxyUrl, onClose }: ClaudeCode
             <div style={checkStyle}>
               <span>代理地址：</span>
               <code style={{ color: '#60a5fa', fontFamily: 'monospace', fontSize: 12 }}>
-                {displayProxyUrl}
+                {`http://127.0.0.1:${app.listenPort}`}
               </code>
             </div>
           </div>

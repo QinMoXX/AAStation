@@ -25,7 +25,7 @@ interface SettingsState {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  listenPort: 9527,
+  listenPortRange: '9527-9537',
   listenAddress: '127.0.0.1',
   proxyAuthToken: '',
 };

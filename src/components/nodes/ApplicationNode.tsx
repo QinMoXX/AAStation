@@ -52,18 +52,35 @@ function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
         {icon} {data.label || 'Listener'}
       </div>
 
-      {/* App type */}
-      <div
-        style={{
-          display: 'inline-block',
-          fontSize: 11,
-          padding: '2px 8px',
-          borderRadius: 4,
-          background: '#ffffff',
-          color: '#4b5563',
-        }}
-      >
-        {appLabel}
+      {/* App type + port */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'inline-block',
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 4,
+            background: '#ffffff',
+            color: '#4b5563',
+          }}
+        >
+          {appLabel}
+        </div>
+        {data.listenPort > 0 && (
+          <div
+            style={{
+              display: 'inline-block',
+              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 4,
+              background: '#eff6ff',
+              color: '#1e40af',
+              fontFamily: 'monospace',
+            }}
+          >
+            :{data.listenPort}
+          </div>
+        )}
       </div>
     </div>
   );

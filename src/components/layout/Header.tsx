@@ -190,11 +190,14 @@ export default function Header() {
           return {
             nodeId: n.id,
             label: data.label || 'Claude Code',
+            listenPort: data.listenPort || 0,
           };
         });
 
       if (claudeCodeApps.length > 0) {
-        const proxyUrl = `http://${routeTable.listen_address}:${routeTable.listen_port}`;
+        // Use the first Claude Code app's port as the primary proxy URL
+        const firstApp = claudeCodeApps[0];
+        const proxyUrl = `http://127.0.0.1:${firstApp.listenPort}`;
         setClaudeCodeDialog({ apps: claudeCodeApps, proxyUrl });
       }
     } catch (err) {

@@ -229,6 +229,7 @@ mod tests {
                 label: "A".to_string(),
                 description: None,
                 app_type: "listener".to_string(),
+                listen_port: 0,
                 application_handler: String::new(),
                 unpublish_handler: String::new(),
             })

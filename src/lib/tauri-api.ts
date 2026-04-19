@@ -11,7 +11,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { DAGDocument } from '../types/dag';
-import type { ProxyStatus, RouteTable } from '../types/proxy';
+import type { ProxyStatus, RouteTableSet } from '../types/proxy';
 import type { AppSettings } from '../types/settings';
 import { toBackendDocument, fromBackendDocument } from './dag-utils';
 
@@ -52,11 +52,19 @@ export async function validateDag(doc: DAGDocument): Promise<ValidationError[]> 
 
 /**
  * Validate + compile + hot-load the DAG into the running proxy.
- * Returns the compiled RouteTable on success; throws on validation/compile error.
+ * Returns the compiled RouteTableSet on success; throws on validation/compile error.
  */
-export async function publishDag(doc: DAGDocument): Promise<RouteTable> {
+export async function publishDag(doc: DAGDocument): Promise<RouteTableSet> {
   const backendDoc = toBackendDocument(doc);
-  return invoke<RouteTable>('publish_dag', { doc: backendDoc });
+  return invoke<RouteTableSet>('publish_dag', { doc: backendDoc });
+}
+
+/**
+ * Allocate the next available port from the settings port range for a new Application node.
+ */
+export async function allocatePort(doc: DAGDocument): Promise<number> {
+  const backendDoc = toBackendDocument(doc);
+  return invoke<number>('allocate_port', { doc: backendDoc });
 }
 
 // ---------------------------------------------------------------------------
@@ -84,9 +92,9 @@ export async function getProxyStatus(): Promise<ProxyStatus> {
 
 /** Load application settings from disk. Returns defaults if no file exists. */
 export async function loadSettings(): Promise<AppSettings> {
-  const raw = await invoke<{ listen_port: number; listen_address: string; proxy_auth_token: string }>('load_settings');
+  const raw = await invoke<{ listen_port_range: string; listen_address: string; proxy_auth_token: string }>('load_settings');
   return {
-    listenPort: raw.listen_port,
+    listenPortRange: raw.listen_port_range,
     listenAddress: raw.listen_address,
     proxyAuthToken: raw.proxy_auth_token,
   };
@@ -96,7 +104,7 @@ export async function loadSettings(): Promise<AppSettings> {
 export async function saveSettings(settings: AppSettings): Promise<void> {
   return invoke<void>('save_settings', {
     settings: {
-      listen_port: settings.listenPort,
+      listen_port_range: settings.listenPortRange,
       listen_address: settings.listenAddress,
       proxy_auth_token: settings.proxyAuthToken,
     },
