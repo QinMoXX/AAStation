@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/nicepkg/AAStation/releases">
-    <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="Version" />
+    <img src="https://img.shields.io/badge/version-0.3.0-blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
   <img src="https://img.shields.io/badge/Tauri-2.0-orange" alt="Tauri" />
@@ -31,8 +31,8 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 
 ### 可视化管道构建器
 
-- 基于 React Flow 的**节点画布** — 拖拽、连接、配置，一切可视化
-- **自动保存**（防抖），同时支持 `Ctrl+S` 手动保存
+- **节点画布** — 拖拽、连接、配置，一切可视化
+- **自动保存**，同时支持 `Ctrl+S` 手动保存
 - **连接校验** — 即时反馈，防止无效路由
 - **小地图** — 大型管道也能轻松导航
 
@@ -55,16 +55,21 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 - **智谱 AI** — GLM-4 Plus, GLM-4 Air, GLM-4 Flash
 - **OpenRouter** — 多服务商网关（Claude, GPT, Gemini, Llama 等）
 
+### 深度集成 Claude Code
+
+- **自动配置** — 检测到 Claude Code 节点时，可一键将代理 URL 和认证令牌注入到 `~/.claude/settings.json`
+- **开箱即用** — 可直接配合 Claude Code 使用本地代理
+
 ### 本地代理服务器
 
-- 基于 Axum 在本机运行 HTTP 代理
-- 将可视化管道编译为可执行的路由规则
+- 在本机运行 HTTP 代理
+- 按照画布中的路由规则转发请求
 - 同时支持 OpenAI 和 Anthropic API 格式
-- 内置 CORS 支持，兼容浏览器端客户端
+- 兼容浏览器端客户端
 
 ### 桌面体验
 
-- Tauri 构建的原生桌面应用 — 轻量、快速
+- 原生桌面应用体验 — 轻量、快速
 - 系统托盘集成 — 后台静默运行
 - 自定义标题栏，深色主题 UI
 - 实时状态监控和请求统计
@@ -105,7 +110,7 @@ npm run tauri build
 
 
 
-前端渲染节点画布，用户在画布上构建路由管道。管道在 Rust 后端被编译为 DAG（有向无环图），驱动本地代理服务器按照规则路由 API 请求。
+你可以在画布上构建路由管道，并让本地代理服务器按照这些规则转发 API 请求。
 
 ## 技术栈
 
@@ -154,11 +159,12 @@ Whether you need to route requests based on model names, path prefixes, or HTTP 
 
 ### Features
 
-- **Visual Pipeline Builder** — Node-based canvas powered by React Flow, with auto-save, connection validation, and mini-map
+- **Visual Pipeline Builder** — Node-based canvas with auto-save, connection validation, and mini-map
 - **Three Node Types** — Application (entry point), Switcher (smart routing), Provider (AI service endpoint)
+- **Claude Code Integration** — One-click configuration to inject local proxy settings into `~/.claude/settings.json`
 - **Built-in Provider Presets** — OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu AI, OpenRouter ready to use
-- **Local Proxy Server** — High-performance proxy powered by Axum, supporting both OpenAI and Anthropic API formats
-- **Desktop Experience** — Native app built with Tauri, system tray integration, dark theme UI
+- **Local Proxy Server** — Local proxy supporting both OpenAI and Anthropic API formats
+- **Desktop Experience** — Native desktop app with system tray integration and dark theme UI
 
 ### Quick Start
 
