@@ -58,6 +58,7 @@ pub fn run() {
             commands::settings_commands::load_settings,
             commands::settings_commands::save_settings,
             commands::app_commands::configure_claude_code,
+            commands::app_commands::is_claude_configured,
             commands::app_commands::unconfigure_claude_code,
             commands::app_commands::restore_claude_config,
         ])

@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports)]
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -194,6 +192,31 @@ pub fn unconfigure_claude_code() -> Result<(), AppError> {
     atomic_write_json(&settings_path, &settings)?;
 
     Ok(())
+}
+
+/// Check whether Claude Code is already configured by AAStation.
+///
+/// Returns `true` if `~/.claude/settings.json` exists and contains
+/// all AAStation-managed keys (`ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`,
+/// `API_TIMEOUT_MS`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`).
+pub fn is_claude_configured() -> Result<bool, AppError> {
+    let settings_path = claude_settings_path()?;
+
+    if !settings_path.exists() {
+        return Ok(false);
+    }
+
+    let content = std::fs::read_to_string(&settings_path)?;
+    let settings: ClaudeSettings = serde_json::from_str(&content).unwrap_or(ClaudeSettings {
+        env: HashMap::new(),
+        extra: HashMap::new(),
+    });
+
+    let all_present = AASTATION_MANAGED_KEYS
+        .iter()
+        .all(|key| settings.env.contains_key(*key));
+
+    Ok(all_present)
 }
 
 /// Restore Claude Code configuration from backup files.

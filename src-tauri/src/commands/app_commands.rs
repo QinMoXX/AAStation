@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports)]
-
 use crate::store::AppState;
 use tauri::State;
 
@@ -17,6 +15,15 @@ pub async fn configure_claude_code(
     let auth_token = state.proxy_auth_token.read().await.clone();
     crate::claude_config::configure_claude_code(&proxy_url, &auth_token)
         .map_err(|e| e.to_string())
+}
+
+/// Check whether Claude Code is already configured by AAStation.
+///
+/// Returns `true` if `~/.claude/settings.json` exists and contains
+/// all AAStation-managed keys.
+#[tauri::command]
+pub async fn is_claude_configured() -> Result<bool, String> {
+    crate::claude_config::is_claude_configured().map_err(|e| e.to_string())
 }
 
 /// Remove Claude Code proxy configuration.

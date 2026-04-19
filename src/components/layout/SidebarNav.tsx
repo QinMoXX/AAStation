@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavStore, type NavTab } from '../../store/nav-store';
 import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
-import { publishDag, startProxy, stopProxy, getProxyStatus } from '../../lib/tauri-api';
+import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
 import ClaudeCodeDialog, { type ClaudeCodeAppInfo } from '../common/ClaudeCodeDialog';
 
@@ -223,7 +223,7 @@ export default function SidebarNav() {
       markPublished();
       const status = await getProxyStatus();
       setProxyStatus(status);
-      toast.success('Published successfully');
+      toast.success('保存成功');
 
       // Check for Claude Code application nodes
       const claudeCodeApps: ClaudeCodeAppInfo[] = doc.nodes
@@ -238,14 +238,17 @@ export default function SidebarNav() {
         });
 
       if (claudeCodeApps.length > 0) {
-        // Use the first Claude Code app's port as the primary proxy URL
-        const firstApp = claudeCodeApps[0];
-        const proxyUrl = `http://127.0.0.1:${firstApp.listenPort}`;
-        setClaudeCodeDialog({ apps: claudeCodeApps, proxyUrl });
+        // Only show dialog if Claude Code is not already configured
+        const configured = await isClaudeConfigured().catch(() => false);
+        if (!configured) {
+          const firstApp = claudeCodeApps[0];
+          const proxyUrl = `http://127.0.0.1:${firstApp.listenPort}`;
+          setClaudeCodeDialog({ apps: claudeCodeApps, proxyUrl });
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Publish failed: ${msg}`);
+      toast.error(`保存失败: ${msg}`);
       console.error('[SidebarNav] Publish failed:', err);
     } finally {
       setPublishing(false);
@@ -293,7 +296,7 @@ export default function SidebarNav() {
         style={bottomBtnStyle(isDraft && !publishing)}
         onClick={handlePublish}
         disabled={!isDraft || publishing}
-        title={publishing ? 'Publishing...' : 'Publish'}
+        title={publishing ? 'Saving...' : '保存'}
         onMouseEnter={(e) => {
           if (isDraft && !publishing) {
             e.currentTarget.style.background = '#37415180';

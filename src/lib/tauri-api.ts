@@ -122,6 +122,11 @@ export async function configureClaudeCode(proxyUrl: string): Promise<void> {
   });
 }
 
+/** Check whether Claude Code is already configured by AAStation. */
+export async function isClaudeConfigured(): Promise<boolean> {
+  return invoke<boolean>('is_claude_configured');
+}
+
 /** Remove Claude Code proxy configuration. */
 export async function unconfigureClaudeCode(): Promise<void> {
   return invoke<void>('unconfigure_claude_code');

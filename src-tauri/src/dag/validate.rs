@@ -21,16 +21,12 @@ impl std::error::Error for ValidationError {}
 /// Kinds of validation errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationErrorKind {
-    /// A node has no connected edges (orphan).
-    OrphanNode,
     /// A provider node is missing its base_url.
     ProviderNoBaseUrl,
     /// A provider node is missing its api_key.
     ProviderNoApiKey,
     /// A switcher node has no matcher entries.
     SwitcherNoEntries,
-    /// An application node has no outgoing edges.
-    ApplicationDisconnected,
     /// Invalid edge: source or target node does not exist.
     EdgeToMissingNode,
     /// Invalid edge: connection type not allowed.
@@ -42,11 +38,9 @@ pub enum ValidationErrorKind {
 impl std::fmt::Display for ValidationErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationErrorKind::OrphanNode => write!(f, "orphan_node"),
             ValidationErrorKind::ProviderNoBaseUrl => write!(f, "provider_no_base_url"),
             ValidationErrorKind::ProviderNoApiKey => write!(f, "provider_no_api_key"),
             ValidationErrorKind::SwitcherNoEntries => write!(f, "switcher_no_entries"),
-            ValidationErrorKind::ApplicationDisconnected => write!(f, "application_disconnected"),
             ValidationErrorKind::EdgeToMissingNode => write!(f, "edge_to_missing_node"),
             ValidationErrorKind::InvalidEdgeType => write!(f, "invalid_edge_type"),
             ValidationErrorKind::NodeDataInvalid => write!(f, "node_data_invalid"),
@@ -104,18 +98,14 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
         }
     }
 
-    // Check for orphan nodes (no connected edges)
-    for node in &doc.nodes {
-        if !connected_nodes.contains(node.id.as_str()) {
-            errors.push(ValidationError {
-                kind: ValidationErrorKind::OrphanNode,
-                message: format!("Node '{}' ({}) has no connected edges", node.id, node.node_type),
-            });
-        }
-    }
-
     // Validate each node's data
     for node in &doc.nodes {
+        // Skip validation for disconnected nodes — they are saved but not compiled into routes
+        let is_connected = connected_nodes.contains(node.id.as_str());
+        if !is_connected {
+            continue;
+        }
+
         match node.node_type {
             NodeType::Provider => {
                 if let Ok(data) = serde_json::from_value::<ProviderNodeData>(node.data.clone()) {
@@ -159,14 +149,7 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
                 }
             }
             NodeType::Application => {
-                // Check that Application has at least one outgoing edge
-                let has_outgoing = doc.edges.iter().any(|e| e.source == node.id);
-                if !has_outgoing {
-                    errors.push(ValidationError {
-                        kind: ValidationErrorKind::ApplicationDisconnected,
-                        message: format!("Application node '{}' must have at least one outgoing connection", node.id),
-                    });
-                }
+                // Application nodes without outgoing edges are allowed — they simply won't produce routes
             }
         }
     }
@@ -356,7 +339,8 @@ mod tests {
     }
 
     #[test]
-    fn test_application_disconnected() {
+    fn test_application_disconnected_allowed() {
+        // Application nodes without outgoing edges should be allowed — they just won't produce routes
         let p = make_provider("p1", "https://api.openai.com", "sk-123", vec![
             ProviderModel { id: "m1".to_string(), name: "gpt-4o".to_string(), enabled: true },
         ]);
@@ -367,7 +351,7 @@ mod tests {
             ..Default::default()
         };
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::ApplicationDisconnected));
+        assert!(!errors.iter().any(|e| e.message.contains("a1")), "Disconnected application should be allowed, got: {:?}", errors);
     }
 
     #[test]
@@ -410,14 +394,15 @@ mod tests {
     }
 
     #[test]
-    fn test_orphan_node() {
+    fn test_orphan_node_allowed() {
+        // Orphan nodes (no connected edges) should be allowed — just skipped during compilation
         let mut doc = valid_doc();
         let orphan = make_provider("p2", "https://orphan.com", "sk-xxx", vec![
             ProviderModel { id: "m2".to_string(), name: "orphan".to_string(), enabled: true },
         ]);
         doc.nodes.push(orphan);
         let errors = validate(&doc);
-        assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::OrphanNode && e.message.contains("p2")));
+        assert!(!errors.iter().any(|e| e.message.contains("p2")), "Orphan node should be allowed, got: {:?}", errors);
     }
 
     #[test]
