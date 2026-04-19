@@ -198,6 +198,7 @@ mod tests {
                 description: None,
                 api_type: ApiType::OpenAI,
                 base_url: base_url.to_string(),
+                anthropic_base_url: None,
                 api_key: api_key.to_string(),
                 models,
             })
@@ -445,7 +446,8 @@ mod tests {
     #[test]
     fn test_invalid_node_data() {
         let mut doc = valid_doc();
-        doc.nodes[0].data = serde_json::Value::String("bad data".to_string());
+        // nodes[1] is the Provider node — corrupt its data to trigger NodeDataInvalid
+        doc.nodes[1].data = serde_json::Value::String("bad data".to_string());
         let errors = validate(&doc);
         assert!(errors.iter().any(|e| e.kind == ValidationErrorKind::NodeDataInvalid));
     }

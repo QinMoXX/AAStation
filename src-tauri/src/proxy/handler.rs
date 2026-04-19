@@ -306,6 +306,15 @@ async fn build_response(upstream: reqwest::Response, source_protocol: RequestPro
         }
     };
 
+    // Patch non-SSE Anthropic responses to ensure usage fields are present.
+    // Some providers (e.g. Zhipu) return Anthropic-compatible JSON but with
+    // missing `input_tokens` in `usage`, which crashes Claude Code.
+    let body_bytes = if source_protocol == RequestProtocol::Anthropic {
+        patch_anthropic_json_response(&body_bytes)
+    } else {
+        body_bytes
+    };
+
     // Log the upstream response body
     if let Ok(body_str) = std::str::from_utf8(&body_bytes) {
         tracing::info!("← Upstream response body (status: {}): {}", status, body_str);
@@ -314,4 +323,91 @@ async fn build_response(upstream: reqwest::Response, source_protocol: RequestPro
     }
 
     (status, response_headers, body_bytes.to_vec()).into_response()
+}
+
+/// Patch a non-SSE Anthropic JSON response to ensure `usage` fields are present.
+///
+/// Some providers (e.g. Zhipu) return Anthropic-compatible responses but with
+/// incomplete `usage` objects — missing `input_tokens` or even the entire `usage` field.
+/// Claude Code expects `usage.input_tokens` to always be present, and crashes with
+/// "undefined is not an object (evaluating '$.input_tokens')" if it's missing.
+///
+/// This function ensures:
+/// - Top-level `usage` exists and has `input_tokens` and `output_tokens`
+/// - `message_start`-style nested `message.usage` is also patched if present
+fn patch_anthropic_json_response(body: &[u8]) -> bytes::Bytes {
+    let mut value: serde_json::Value = match serde_json::from_slice(body) {
+        Ok(v) => v,
+        Err(_) => return bytes::Bytes::from(body.to_vec()),
+    };
+
+    let mut patched = false;
+
+    // Patch top-level usage (standard Anthropic response format)
+    if let Some(obj) = value.as_object_mut() {
+        // Check if this looks like an Anthropic response (has "usage" or is inside "message")
+        if obj.contains_key("usage") || obj.contains_key("type") {
+            if let Some(obj) = value.as_object_mut() {
+                patched |= ensure_usage_in_obj(obj, true);
+            }
+        }
+
+        // Patch nested message.usage (message_start style)
+        if let Some(msg) = value.get_mut("message") {
+            if let Some(msg_obj) = msg.as_object_mut() {
+                patched |= ensure_usage_in_obj(msg_obj, true);
+            }
+        }
+    }
+
+    if patched {
+        match serde_json::to_vec(&value) {
+            Ok(bytes) => bytes::Bytes::from(bytes),
+            Err(_) => bytes::Bytes::from(body.to_vec()),
+        }
+    } else {
+        bytes::Bytes::from(body.to_vec())
+    }
+}
+
+/// Ensure a JSON object has a proper `usage` field with `input_tokens` and `output_tokens`.
+/// Returns true if any patching was applied.
+fn ensure_usage_in_obj(obj: &mut serde_json::Map<String, serde_json::Value>, needs_input: bool) -> bool {
+    match obj.get_mut("usage") {
+        Some(usage) if usage.is_object() => {
+            let usage_obj = usage.as_object_mut().unwrap();
+            let mut patched = false;
+            if needs_input && !usage_obj.contains_key("input_tokens") {
+                usage_obj.insert(
+                    "input_tokens".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(0)),
+                );
+                patched = true;
+            }
+            if !usage_obj.contains_key("output_tokens") {
+                usage_obj.insert(
+                    "output_tokens".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(0)),
+                );
+                patched = true;
+            }
+            patched
+        }
+        Some(usage) if usage.is_null() || !usage.is_object() => {
+            // usage is null or not an object — replace with default
+            if needs_input {
+                obj.insert(
+                    "usage".to_string(),
+                    serde_json::json!({"input_tokens": 0, "output_tokens": 0}),
+                );
+            } else {
+                obj.insert(
+                    "usage".to_string(),
+                    serde_json::json!({"output_tokens": 0}),
+                );
+            }
+            true
+        }
+        _ => false,
+    }
 }

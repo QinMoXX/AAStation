@@ -67,7 +67,7 @@ where
 /// Process the SSE buffer, patching complete events and retaining incomplete ones.
 ///
 /// SSE format:
-/// ```
+/// ```text
 /// event: message_start
 /// data: {"type":"message_start","message":{...}}
 ///
@@ -95,13 +95,29 @@ fn patch_sse_buffer(buffer: &mut String) -> String {
 /// - `message_start`: ensures `message.usage` has `input_tokens` and `output_tokens`
 /// - `message_delta`: ensures top-level `usage` has `output_tokens`
 fn patch_sse_event(event_text: &str) -> String {
-    // Determine event type
+    // Determine event type from the "event:" line
     let event_type = event_text.lines().find_map(|line| {
         line.strip_prefix("event:").map(|v| v.trim().to_string())
     });
 
-    let is_message_start = event_type.as_deref() == Some("message_start");
-    let is_message_delta = event_type.as_deref() == Some("message_delta");
+    let mut is_message_start = event_type.as_deref() == Some("message_start");
+    let mut is_message_delta = event_type.as_deref() == Some("message_delta");
+
+    // If no "event:" line was found, try to detect type from the data JSON's "type" field.
+    // Some providers omit the "event:" line and only send "data:" lines.
+    if event_type.is_none() {
+        if let Some(data_line) = event_text.lines().find_map(|line| {
+            line.strip_prefix("data:").map(|s| s.trim_start())
+        }) {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(data_line) {
+                match val.get("type").and_then(|t| t.as_str()) {
+                    Some("message_start") => is_message_start = true,
+                    Some("message_delta") => is_message_delta = true,
+                    _ => {}
+                }
+            }
+        }
+    }
 
     if !is_message_start && !is_message_delta {
         return event_text.to_string();
@@ -110,7 +126,7 @@ fn patch_sse_event(event_text: &str) -> String {
     // Find and patch the data line
     let mut patched = String::new();
     for line in event_text.lines() {
-        if let Some(data_json) = line.strip_prefix("data: ") {
+        if let Some(data_json) = line.strip_prefix("data:").map(|s| s.trim_start()) {
             match serde_json::from_str::<serde_json::Value>(data_json) {
                 Ok(mut value) => {
                     if is_message_start {
@@ -132,7 +148,7 @@ fn patch_sse_event(event_text: &str) -> String {
                 }
                 Err(_) => {
                     patched.push_str(line);
-                    patched.push('\n');
+                    patched.push_str("\n");
                 }
             }
         } else {

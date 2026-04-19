@@ -3,12 +3,14 @@ mod commands;
 mod dag;
 mod dag_store;
 mod error;
+mod logger;
 mod proxy;
 mod settings;
 mod store;
 mod tray;
 
 use std::time::Duration;
+use logger::LogGuard;
 use store::AppState;
 use tauri::Manager;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -20,11 +22,21 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize tracing subscriber for logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    // Initialize logging (console + file). Guard must be kept alive for the
+    // entire application lifetime so that buffered log entries are flushed on
+    // exit — even during panics or abrupt termination.
+    let _log_guard: Option<LogGuard> = match logger::init() {
+        Ok(g) => Some(g),
+        Err(e) => {
+            eprintln!("Failed to initialize logger: {}. Falling back to console-only.", e);
+            // Fallback: console-only logging
+            tracing_subscriber::registry()
+                .with(tracing_subscriber::fmt::layer())
+                .with(tracing_subscriber::EnvFilter::from_default_env())
+                .init();
+            None
+        }
+    };
 
     let state = AppState::new();
 

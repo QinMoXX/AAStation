@@ -11,6 +11,28 @@ fn extract_model_quick(body: &[u8]) -> String {
     extract_model(body).unwrap_or_else(|| "N/A".to_string())
 }
 
+/// Check if a URL path ends with a version-like segment (e.g. /v1, /v2, /v4).
+///
+/// This is used to determine whether the base URL already includes the API version
+/// prefix, which affects whether we should strip /v1 from the request path.
+///
+/// Examples:
+///   - "https://api.anthropic.com/v1"       → true  (has /v1)
+///   - "https://open.bigmodel.cn/api/paas/v4" → true (has /v4)
+///   - "https://open.bigmodel.cn/api/anthropic" → false
+///   - "https://api.openai.com/v1"          → true  (has /v1)
+fn has_version_suffix(url: &str) -> bool {
+    // Extract the path portion from the URL
+    let path = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
+    let path = path.split_once('?').map(|(p, _)| p).unwrap_or(path);
+    // Strip the host portion to get just the path
+    let path = path.find('/').map(|i| &path[i..]).unwrap_or("/");
+
+    let last_segment = path.trim_end_matches('/').rsplit('/').next().unwrap_or("");
+    // Match version-like segments: /v1, /v2, /v4, etc.
+    last_segment.starts_with('v') && last_segment.len() >= 2 && last_segment[1..].chars().all(|c| c.is_ascii_digit())
+}
+
 /// Forward the request to the matched upstream route.
 ///
 /// This function performs protocol adaptation:
@@ -51,8 +73,21 @@ pub async fn forward_request(
         target_api_type
     };
 
+    // Determine whether to preserve the /v1 prefix in the upstream path.
+    //
+    // The base_upstream_url may or may not include the version prefix:
+    //   - "https://api.anthropic.com/v1"          → already has /v1, strip it from path
+    //   - "https://open.bigmodel.cn/api/anthropic" → no /v1, keep it in path
+    //   - "https://open.bigmodel.cn/api/paas/v4"   → has version-equivalent, strip it
+    //
+    // We detect this by checking if the base URL ends with a version-like segment
+    // (e.g. /v1, /v2, /v4). If it does, the path adaptation should strip /v1 to avoid
+    // duplication. Otherwise, preserve /v1 in the path.
+    let base_trimmed = base_upstream_url.trim_end_matches('/');
+    let preserve_v1_prefix = !has_version_suffix(base_trimmed);
+
     // Adapt the request path to match the provider's API type
-    let upstream_path = adapt_request_path(path, effective_api_type);
+    let upstream_path = adapt_request_path(path, effective_api_type, preserve_v1_prefix);
 
     // Build the upstream URL
     let url = format!("{}{}", base_upstream_url.trim_end_matches('/'), upstream_path);

@@ -220,7 +220,7 @@ pub fn adapt_request_body(
 ///
 /// For non-standard paths (neither /v1/chat/completions nor /v1/messages),
 /// we pass them through as-is.
-pub fn adapt_request_path(original_path: &str, target_api_type: ApiType) -> String {
+pub fn adapt_request_path(original_path: &str, target_api_type: ApiType, preserve_v1_prefix: bool) -> String {
     // Handle query strings
     let (path, query) = if let Some((p, q)) = original_path.split_once('?') {
         (p, Some(q))
@@ -236,12 +236,23 @@ pub fn adapt_request_path(original_path: &str, target_api_type: ApiType) -> Stri
             if trimmed == "/v1/chat/completions"
                 || trimmed == "/v1/messages"
             {
-                "/chat/completions".to_string()
+                if preserve_v1_prefix {
+                    "/v1/chat/completions".to_string()
+                } else {
+                    "/chat/completions".to_string()
+                }
             } else if trimmed == "/v1/models" {
-                "/models".to_string()
+                if preserve_v1_prefix {
+                    "/v1/models".to_string()
+                } else {
+                    "/models".to_string()
+                }
             } else if trimmed.starts_with("/v1/") {
-                // Strip /v1 prefix for other OpenAI paths
-                trimmed[3..].to_string()
+                if preserve_v1_prefix {
+                    path.to_string()
+                } else {
+                    trimmed[3..].to_string()
+                }
             } else {
                 path.to_string()
             }
@@ -251,10 +262,17 @@ pub fn adapt_request_path(original_path: &str, target_api_type: ApiType) -> Stri
             if trimmed == "/v1/messages"
                 || trimmed == "/v1/chat/completions"
             {
-                "/messages".to_string()
+                if preserve_v1_prefix {
+                    "/v1/messages".to_string()
+                } else {
+                    "/messages".to_string()
+                }
             } else if trimmed.starts_with("/v1/") {
-                // Strip /v1 prefix for other Anthropic paths
-                trimmed[3..].to_string()
+                if preserve_v1_prefix {
+                    path.to_string()
+                } else {
+                    trimmed[3..].to_string()
+                }
             } else {
                 path.to_string()
             }
@@ -373,7 +391,7 @@ mod tests {
     #[test]
     fn test_adapt_path_openai_to_openai() {
         assert_eq!(
-            adapt_request_path("/v1/chat/completions", ApiType::OpenAI),
+            adapt_request_path("/v1/chat/completions", ApiType::OpenAI, false),
             "/chat/completions"
         );
     }
@@ -381,7 +399,7 @@ mod tests {
     #[test]
     fn test_adapt_path_anthropic_to_openai() {
         assert_eq!(
-            adapt_request_path("/v1/messages", ApiType::OpenAI),
+            adapt_request_path("/v1/messages", ApiType::OpenAI, false),
             "/chat/completions"
         );
     }
@@ -389,7 +407,7 @@ mod tests {
     #[test]
     fn test_adapt_path_openai_to_anthropic() {
         assert_eq!(
-            adapt_request_path("/v1/chat/completions", ApiType::Anthropic),
+            adapt_request_path("/v1/chat/completions", ApiType::Anthropic, false),
             "/messages"
         );
     }
@@ -397,15 +415,29 @@ mod tests {
     #[test]
     fn test_adapt_path_anthropic_to_anthropic() {
         assert_eq!(
-            adapt_request_path("/v1/messages", ApiType::Anthropic),
+            adapt_request_path("/v1/messages", ApiType::Anthropic, false),
             "/messages"
+        );
+    }
+
+    #[test]
+    fn test_adapt_path_anthropic_to_anthropic_preserve_v1() {
+        // When using anthropic_upstream_url (preserve_v1_prefix=true),
+        // /v1/messages should keep the /v1 prefix
+        assert_eq!(
+            adapt_request_path("/v1/messages", ApiType::Anthropic, true),
+            "/v1/messages"
+        );
+        assert_eq!(
+            adapt_request_path("/v1/messages?beta=true", ApiType::Anthropic, true),
+            "/v1/messages?beta=true"
         );
     }
 
     #[test]
     fn test_adapt_path_with_query_string() {
         assert_eq!(
-            adapt_request_path("/v1/chat/completions?stream=true", ApiType::OpenAI),
+            adapt_request_path("/v1/chat/completions?stream=true", ApiType::OpenAI, false),
             "/chat/completions?stream=true"
         );
     }
@@ -413,7 +445,7 @@ mod tests {
     #[test]
     fn test_adapt_path_v1_models() {
         assert_eq!(
-            adapt_request_path("/v1/models", ApiType::OpenAI),
+            adapt_request_path("/v1/models", ApiType::OpenAI, false),
             "/models"
         );
     }
@@ -421,7 +453,7 @@ mod tests {
     #[test]
     fn test_adapt_path_other_v1_path() {
         assert_eq!(
-            adapt_request_path("/v1/embeddings", ApiType::OpenAI),
+            adapt_request_path("/v1/embeddings", ApiType::OpenAI, false),
             "/embeddings"
         );
     }
