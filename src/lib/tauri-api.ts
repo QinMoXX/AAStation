@@ -11,7 +11,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { DAGDocument } from '../types/dag';
-import type { ProxyStatus, RouteTableSet } from '../types/proxy';
+import type { ProxyMetricsSnapshot, ProxyStatus, RouteTableSet } from '../types/proxy';
 import type { AppSettings } from '../types/settings';
 import { toBackendDocument, fromBackendDocument } from './dag-utils';
 
@@ -84,6 +84,11 @@ export async function stopProxy(): Promise<void> {
 /** Get the current proxy server status. */
 export async function getProxyStatus(): Promise<ProxyStatus> {
   return invoke<ProxyStatus>('get_proxy_status');
+}
+
+/** Get the current monitoring snapshot collected by the local proxy. */
+export async function getProxyMetrics(): Promise<ProxyMetricsSnapshot> {
+  return invoke<ProxyMetricsSnapshot>('get_proxy_metrics');
 }
 
 // ---------------------------------------------------------------------------

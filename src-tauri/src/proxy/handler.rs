@@ -1,9 +1,12 @@
 #![allow(dead_code, unused_imports)]
 
+use std::time::Instant;
+
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use chrono::Utc;
 
 use super::body_parser::{detect_request_protocol, extract_model};
 use super::error::ProxyError;
@@ -12,7 +15,31 @@ use super::router::match_route;
 use super::server::HandlerState;
 use super::sse_patch::AnthropicSsePatchStream;
 use super::stream::{is_sse_response, LoggedStream};
-use super::types::RequestProtocol;
+use super::types::{ProxyRequestMetric, RequestProtocol};
+
+#[derive(Clone)]
+struct RequestMetricContext {
+    started_at: String,
+    start_instant: Instant,
+    method: String,
+    path: String,
+    protocol: RequestProtocol,
+    app_id: String,
+    app_label: String,
+    provider_id: String,
+    provider_label: String,
+    listen_port: u16,
+    request_model: Option<String>,
+    target_model: Option<String>,
+}
+
+#[derive(Default)]
+struct ParsedUsage {
+    input_tokens: u64,
+    output_tokens: u64,
+    total_tokens: u64,
+    response_model: Option<String>,
+}
 
 /// Catch-all proxy handler: reads body → matches route → adapts protocol → forwards → returns response.
 /// SSE streaming detection and passthrough is handled here.
@@ -35,6 +62,9 @@ pub async fn proxy_handler(
     axum::extract::State(state): axum::extract::State<HandlerState>,
     req: Request,
 ) -> Response {
+    let request_started_at = Utc::now().to_rfc3339();
+    let request_started_instant = Instant::now();
+
     // Increment request counter
     state
         .request_counter
@@ -117,10 +147,32 @@ pub async fn proxy_handler(
         }
     };
 
+    let matched_route = matched_route.clone();
+    let metric_ctx = RequestMetricContext {
+        started_at: request_started_at,
+        start_instant: request_started_instant,
+        method: method.to_string(),
+        path: path.clone(),
+        protocol: source_protocol,
+        app_id: route_table.app_id.clone(),
+        app_label: route_table.app_label.clone(),
+        provider_id: matched_route.provider_id.clone(),
+        provider_label: matched_route.provider_label.clone(),
+        listen_port: state.listen_port,
+        request_model: model.clone(),
+        target_model: if matched_route.target_model.is_empty() {
+            None
+        } else {
+            Some(matched_route.target_model.clone())
+        },
+    };
+
+    drop(route_table);
+
     // Forward the request to upstream
     let upstream_resp = match forward_request(
         &state.http_client,
-        matched_route,
+        &matched_route,
         method,
         &path,
         headers,
@@ -130,15 +182,21 @@ pub async fn proxy_handler(
     {
         Ok(resp) => resp,
         Err(e) => {
-            drop(route_table);
+            record_metric(
+                &state,
+                &metric_ctx,
+                None,
+                false,
+                None,
+                Some(e.to_string()),
+            )
+            .await;
             return e.into_response();
         }
     };
 
-    drop(route_table);
-
     // Build the downstream response from upstream response
-    build_response(upstream_resp, source_protocol).await
+    build_response(upstream_resp, source_protocol, metric_ctx, &state).await
 }
 
 /// Determine if this request is a connectivity/health-check probe.
@@ -267,7 +325,12 @@ fn connectivity_check_response(path: &str) -> Response {
 /// SSE responses are streamed through; non-SSE responses are buffered fully.
 /// When the client is using Anthropic protocol, SSE streams are patched to ensure
 /// compatibility (e.g. adding missing `input_tokens` in `message_start` usage).
-async fn build_response(upstream: reqwest::Response, source_protocol: RequestProtocol) -> Response {
+async fn build_response(
+    upstream: reqwest::Response,
+    source_protocol: RequestProtocol,
+    metric_ctx: RequestMetricContext,
+    state: &HandlerState,
+) -> Response {
     let status = StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
 
     // Copy response headers
@@ -283,6 +346,7 @@ async fn build_response(upstream: reqwest::Response, source_protocol: RequestPro
     // SSE detection: stream passthrough
     if is_sse_response(&upstream.headers()) {
         tracing::info!("← Upstream SSE stream response (status: {})", status);
+        record_metric(state, &metric_ctx, Some(status), true, None, None).await;
         let body = if source_protocol == RequestProtocol::Anthropic {
             // Patch Anthropic SSE to fix missing fields (e.g. input_tokens in usage)
             let patched = AnthropicSsePatchStream::new(upstream.bytes_stream());
@@ -314,6 +378,17 @@ async fn build_response(upstream: reqwest::Response, source_protocol: RequestPro
     } else {
         body_bytes
     };
+
+    let parsed_usage = parse_usage_from_response(&body_bytes);
+    record_metric(
+        state,
+        &metric_ctx,
+        Some(status),
+        false,
+        Some(parsed_usage),
+        None,
+    )
+    .await;
 
     // Log the upstream response body
     if let Ok(body_str) = std::str::from_utf8(&body_bytes) {
@@ -410,4 +485,90 @@ fn ensure_usage_in_obj(obj: &mut serde_json::Map<String, serde_json::Value>, nee
         }
         _ => false,
     }
+}
+
+fn parse_usage_from_response(body: &[u8]) -> ParsedUsage {
+    let value: serde_json::Value = match serde_json::from_slice(body) {
+        Ok(v) => v,
+        Err(_) => return ParsedUsage::default(),
+    };
+
+    let response_model = value
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let usage = value.get("usage");
+    let input_tokens = usage
+        .and_then(|u| u.get("input_tokens"))
+        .and_then(as_u64)
+        .or_else(|| usage.and_then(|u| u.get("prompt_tokens")).and_then(as_u64))
+        .unwrap_or(0);
+    let output_tokens = usage
+        .and_then(|u| u.get("output_tokens"))
+        .and_then(as_u64)
+        .or_else(|| usage.and_then(|u| u.get("completion_tokens")).and_then(as_u64))
+        .unwrap_or(0);
+    let total_tokens = usage
+        .and_then(|u| u.get("total_tokens"))
+        .and_then(as_u64)
+        .unwrap_or(input_tokens + output_tokens);
+
+    ParsedUsage {
+        input_tokens,
+        output_tokens,
+        total_tokens,
+        response_model,
+    }
+}
+
+fn as_u64(value: &serde_json::Value) -> Option<u64> {
+    value
+        .as_u64()
+        .or_else(|| value.as_i64().and_then(|v| if v >= 0 { Some(v as u64) } else { None }))
+}
+
+async fn record_metric(
+    state: &HandlerState,
+    ctx: &RequestMetricContext,
+    status: Option<StatusCode>,
+    streamed: bool,
+    usage: Option<ParsedUsage>,
+    error: Option<String>,
+) {
+    let usage = usage.unwrap_or_default();
+    let completed_at = Utc::now().to_rfc3339();
+    let duration_ms = ctx.start_instant.elapsed().as_millis() as u64;
+    let success = status.map(|s| s.is_success()).unwrap_or(false) && error.is_none();
+
+    state
+        .metrics
+        .record(ProxyRequestMetric {
+            id: String::new(),
+            app_id: ctx.app_id.clone(),
+            app_label: ctx.app_label.clone(),
+            provider_id: ctx.provider_id.clone(),
+            provider_label: ctx.provider_label.clone(),
+            listen_port: ctx.listen_port,
+            method: ctx.method.clone(),
+            path: ctx.path.clone(),
+            protocol: match ctx.protocol {
+                RequestProtocol::Anthropic => "anthropic".to_string(),
+                RequestProtocol::OpenAI => "openai".to_string(),
+            },
+            request_model: ctx.request_model.clone(),
+            target_model: ctx.target_model.clone(),
+            response_model: usage.response_model,
+            status_code: status.map(|s| s.as_u16()),
+            success,
+            streamed,
+            duration_ms,
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            total_tokens: usage.total_tokens,
+            started_at: ctx.started_at.clone(),
+            completed_at,
+            error,
+        })
+        .await;
 }

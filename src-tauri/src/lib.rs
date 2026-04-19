@@ -54,6 +54,7 @@ pub fn run() {
             commands::proxy_commands::start_proxy,
             commands::proxy_commands::stop_proxy,
             commands::proxy_commands::get_proxy_status,
+            commands::proxy_commands::get_proxy_metrics,
             commands::proxy_commands::reload_routes,
             commands::settings_commands::load_settings,
             commands::settings_commands::save_settings,

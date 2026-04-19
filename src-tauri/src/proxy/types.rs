@@ -19,6 +19,9 @@ pub enum RequestProtocol {
 pub struct RouteTable {
     /// The Application node ID this route table belongs to.
     pub app_id: String,
+    /// Human-friendly label for the application node.
+    #[serde(default)]
+    pub app_label: String,
     /// The port this application's proxy listens on.
     pub listen_port: u16,
     /// The address the proxy binds to.
@@ -60,6 +63,12 @@ pub struct CompiledRoute {
     pub id: String,
     pub match_type: MatchType,
     pub pattern: String,
+    /// The Provider node ID that this route resolves to.
+    #[serde(default)]
+    pub provider_id: String,
+    /// Human-friendly Provider label.
+    #[serde(default)]
+    pub provider_label: String,
     /// OpenAI-compatible upstream URL. Used for OpenAI-style requests.
     pub upstream_url: String,
     /// Anthropic-compatible upstream URL (optional). When set, Anthropic-style client
@@ -80,6 +89,78 @@ pub struct CompiledRoute {
     /// "claude-haiku-4-5-20251001" should match pattern "claude-haiku".
     #[serde(default)]
     pub fuzzy_match: bool,
+}
+
+/// Aggregated usage counters shared by monitoring views.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProxyMetricsSummary {
+    pub requests: u64,
+    pub successful_requests: u64,
+    pub failed_requests: u64,
+    pub streamed_requests: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub total_tokens: u64,
+    pub total_latency_ms: u64,
+    pub last_request_at: Option<String>,
+}
+
+/// Summary for a single application or provider dimension.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProxyMetricsEntitySummary {
+    pub id: String,
+    pub label: String,
+    #[serde(flatten)]
+    pub summary: ProxyMetricsSummary,
+}
+
+/// Summary for an application-provider combination.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProxyMetricsPairSummary {
+    pub app_id: String,
+    pub app_label: String,
+    pub provider_id: String,
+    pub provider_label: String,
+    #[serde(flatten)]
+    pub summary: ProxyMetricsSummary,
+}
+
+/// A single observed API request recorded by the local proxy.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProxyRequestMetric {
+    pub id: String,
+    pub app_id: String,
+    pub app_label: String,
+    pub provider_id: String,
+    pub provider_label: String,
+    pub listen_port: u16,
+    pub method: String,
+    pub path: String,
+    pub protocol: String,
+    pub request_model: Option<String>,
+    pub target_model: Option<String>,
+    pub response_model: Option<String>,
+    pub status_code: Option<u16>,
+    pub success: bool,
+    pub streamed: bool,
+    pub duration_ms: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub total_tokens: u64,
+    pub started_at: String,
+    pub completed_at: String,
+    pub error: Option<String>,
+}
+
+/// Snapshot returned to the frontend monitor page.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProxyMetricsSnapshot {
+    pub generated_at: String,
+    pub summary: ProxyMetricsSummary,
+    pub applications: Vec<ProxyMetricsEntitySummary>,
+    pub providers: Vec<ProxyMetricsEntitySummary>,
+    pub app_provider_pairs: Vec<ProxyMetricsPairSummary>,
+    pub recent_requests: Vec<ProxyRequestMetric>,
 }
 
 /// Route match strategy.

@@ -1,4 +1,4 @@
-use crate::proxy::types::{ProxyStatus, RouteTableSet};
+use crate::proxy::types::{ProxyMetricsSnapshot, ProxyStatus, RouteTableSet};
 use crate::store::AppState;
 use tauri::State;
 
@@ -18,6 +18,12 @@ pub async fn stop_proxy(state: State<'_, AppState>) -> Result<(), String> {
 pub async fn get_proxy_status(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
     let proxy = state.proxy.read().await;
     Ok(proxy.get_status().await)
+}
+
+#[tauri::command]
+pub async fn get_proxy_metrics(state: State<'_, AppState>) -> Result<ProxyMetricsSnapshot, String> {
+    let proxy = state.proxy.read().await;
+    Ok(proxy.get_metrics_snapshot().await)
 }
 
 #[tauri::command]

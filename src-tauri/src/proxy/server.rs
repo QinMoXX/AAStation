@@ -6,6 +6,7 @@ use tokio::sync::{oneshot, RwLock};
 use tokio::task::JoinHandle;
 
 use super::error::ProxyError;
+use super::metrics::MetricsStore;
 use super::handler::proxy_handler;
 use super::types::{ProxyConfig, ProxyStatus, RouteTable, RouteTableSet};
 
@@ -25,6 +26,7 @@ pub struct ProxyState {
     pub status: Arc<RwLock<ProxyStatus>>,
     pub request_counter: Arc<std::sync::atomic::AtomicU64>,
     pub start_time: Arc<RwLock<Option<Instant>>>,
+    pub metrics: MetricsStore,
     /// Running listeners, keyed by port.
     pub listeners: Arc<RwLock<HashMap<u16, RunningListener>>>,
     pub config: Arc<RwLock<ProxyConfig>>,
@@ -44,6 +46,8 @@ pub struct ProxyServer {
 pub struct HandlerState {
     pub route_table: Arc<RwLock<RouteTable>>,
     pub request_counter: Arc<std::sync::atomic::AtomicU64>,
+    pub listen_port: u16,
+    pub metrics: MetricsStore,
     pub http_client: reqwest::Client,
     /// Auth token for verifying client requests.
     /// Updated when settings are saved (via ProxyServer::update_auth_token).
@@ -60,6 +64,7 @@ impl ProxyServer {
                 status: Arc::new(RwLock::new(ProxyStatus::default())),
                 request_counter: Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 start_time: Arc::new(RwLock::new(None)),
+                metrics: MetricsStore::new(),
                 listeners: Arc::new(RwLock::new(HashMap::new())),
                 config: Arc::new(RwLock::new(ProxyConfig::default())),
             },
@@ -116,6 +121,8 @@ impl ProxyServer {
             let handler_state = HandlerState {
                 route_table: Arc::clone(route_table),
                 request_counter: Arc::clone(&app_request_counter),
+                listen_port: *port,
+                metrics: self.state.metrics.clone(),
                 http_client: reqwest::Client::builder()
                     .connect_timeout(std::time::Duration::from_secs(10))
                     .timeout(std::time::Duration::from_secs(300))
@@ -261,5 +268,10 @@ impl ProxyServer {
         let mut ports: Vec<u16> = listeners.keys().copied().collect();
         ports.sort();
         ports
+    }
+
+    /// Get a monitoring snapshot of all requests seen since app start.
+    pub async fn get_metrics_snapshot(&self) -> super::types::ProxyMetricsSnapshot {
+        self.state.metrics.snapshot().await
     }
 }
