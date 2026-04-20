@@ -9,8 +9,6 @@ import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
 const panelStyle: React.CSSProperties = {
   width: 256,
   height: '100%',
-  background: '#f9fafb',
-  borderRight: '1px solid #e5e7eb',
   display: 'flex',
   flexDirection: 'column',
   flexShrink: 0,
@@ -24,7 +22,7 @@ const panelHeaderStyle: React.CSSProperties = {
 const panelTitleStyle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 600,
-  color: '#374151',
+  color: 'var(--ui-text)',
 };
 
 const sectionStyle: React.CSSProperties = {
@@ -38,7 +36,7 @@ const categoryHeaderStyle: React.CSSProperties = {
   padding: '6px 8px',
   fontSize: 12,
   fontWeight: 600,
-  color: '#374151',
+  color: 'var(--ui-text)',
   cursor: 'pointer',
   borderRadius: 6,
   userSelect: 'none',
@@ -49,7 +47,7 @@ const chevronStyle: React.CSSProperties = {
   display: 'inline-flex',
   fontSize: 13,
   fontWeight: 400,
-  color: '#9ca3af',
+  color: 'var(--ui-dim)',
   width: 14,
   textAlign: 'center',
   fontFamily: 'monospace',
@@ -62,17 +60,17 @@ const itemStyle: React.CSSProperties = {
   gap: 8,
   padding: '5px 8px 5px 28px',
   fontSize: 13,
-  color: '#374151',
+  color: 'var(--ui-muted)',
   borderRadius: 6,
   cursor: 'pointer',
   transition: 'background 0.15s',
 };
 
-const itemHoverBg = '#e5e7eb';
+const itemHoverBg = 'rgba(255, 255, 255, 0.05)';
 
 const itemCountStyle: React.CSSProperties = {
   fontSize: 11,
-  color: '#9ca3af',
+  color: 'var(--ui-dim)',
   marginLeft: 'auto',
 };
 
@@ -177,7 +175,7 @@ export default function HomeSubNav() {
   );
 
   return (
-    <div style={panelStyle}>
+    <div style={panelStyle} className="ui-subsidebar">
       <div style={panelHeaderStyle} data-tauri-drag-region>
         <div style={panelTitleStyle}>节点组件</div>
       </div>
@@ -193,7 +191,7 @@ export default function HomeSubNav() {
               <div
                 style={categoryHeaderStyle}
                 onClick={() => toggleCategory(cat.id)}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#e5e7eb'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <span style={chevronStyle}>{isOpen ? '−' : '+'}</span>
@@ -290,7 +288,7 @@ export default function HomeSubNav() {
                 </div>
               )}
               {catIdx < CATEGORIES.length - 1 && (
-                <div style={{ height: 1, background: '#e5e7eb', margin: '6px 8px 0' }} />
+                <div style={{ height: 1, background: 'rgba(255, 255, 255, 0.08)', margin: '6px 8px 0' }} />
               )}
             </div>
           );

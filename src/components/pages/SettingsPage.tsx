@@ -21,16 +21,12 @@ const LOG_MAX_LINES = 1200;
 const pageStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
-  background:
-    'radial-gradient(circle at top left, rgba(59,130,246,0.1), transparent 24%), linear-gradient(180deg, #0b1220 0%, #111827 100%)',
   overflow: 'hidden',
 };
 
 const subSidebarStyle: React.CSSProperties = {
   width: 228,
-  borderRight: '1px solid rgba(148, 163, 184, 0.14)',
-  background: 'rgba(10, 15, 28, 0.82)',
-  padding: '22px 14px',
+  padding: '34px 14px 22px',
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
@@ -39,16 +35,10 @@ const subSidebarStyle: React.CSSProperties = {
 const contentAreaStyle: React.CSSProperties = {
   flex: 1,
   overflow: 'auto',
-  padding: 24,
+  padding: '36px 24px 24px',
 };
 
-const cardStyle: React.CSSProperties = {
-  background: 'rgba(17, 24, 39, 0.78)',
-  border: '1px solid rgba(148, 163, 184, 0.15)',
-  borderRadius: 16,
-  boxShadow: '0 16px 36px rgba(0,0,0,0.24)',
-  backdropFilter: 'blur(10px)',
-};
+const cardStyle: React.CSSProperties = {};
 
 const fieldStyle: React.CSSProperties = {
   marginBottom: 18,
@@ -58,7 +48,7 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 13,
   fontWeight: 500,
-  color: '#d1d5db',
+  color: 'var(--ui-muted)',
   marginBottom: 6,
 };
 
@@ -66,9 +56,6 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 12px',
   borderRadius: 8,
-  border: '1px solid rgba(148, 163, 184, 0.25)',
-  background: '#0f172a',
-  color: '#f9fafb',
   fontSize: 14,
   boxSizing: 'border-box',
 };
@@ -79,9 +66,6 @@ const buttonBaseStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 500,
   cursor: 'pointer',
-  border: '1px solid rgba(148, 163, 184, 0.2)',
-  background: '#111827',
-  color: '#cbd5e1',
 };
 
 const subTabs: { key: SettingsSubTab; title: string; desc: string }[] = [
@@ -321,7 +305,7 @@ export default function SettingsPage() {
   };
 
   const renderGeneralPanel = () => (
-    <div style={{ ...cardStyle, maxWidth: 860, padding: 24 }}>
+    <div className="ui-card" style={{ ...cardStyle, maxWidth: 860, padding: 24 }}>
       <h2 style={{ fontSize: 22, color: '#f8fafc', margin: '0 0 16px' }}>常规设置</h2>
       <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 22 }}>
         用于配置代理监听地址、端口范围和代理认证令牌展示。
@@ -334,6 +318,7 @@ export default function SettingsPage() {
           value={portRange}
           placeholder="9527-9537"
           onChange={(e) => setPortRange(e.target.value)}
+          className="ui-input"
           style={inputStyle}
         />
         <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
@@ -347,6 +332,7 @@ export default function SettingsPage() {
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
+          className="ui-input"
           style={inputStyle}
         />
       </div>
@@ -363,6 +349,7 @@ export default function SettingsPage() {
             type={tokenVisible ? 'text' : 'password'}
             value={tokenVisible ? authToken : maskedToken}
             readOnly
+            className="ui-input"
             style={{
               ...inputStyle,
               flex: 1,
@@ -373,6 +360,7 @@ export default function SettingsPage() {
           />
           <button
             onClick={() => setTokenVisible(!tokenVisible)}
+            className="ui-btn"
             style={buttonBaseStyle}
           >
             {tokenVisible ? '隐藏' : '显示'}
@@ -382,6 +370,7 @@ export default function SettingsPage() {
               navigator.clipboard.writeText(authToken);
               toast.success('令牌已复制');
             }}
+            className="ui-btn"
             style={buttonBaseStyle}
           >
             复制
@@ -393,12 +382,10 @@ export default function SettingsPage() {
         <button
           onClick={handleSaveGeneral}
           disabled={saving}
+          className="ui-btn ui-btn-primary"
           style={{
             ...buttonBaseStyle,
             minWidth: 120,
-            border: 'none',
-            background: saving ? '#3b82f680' : '#3b82f6',
-            color: '#fff',
             cursor: saving ? 'not-allowed' : 'pointer',
           }}
         >
@@ -410,7 +397,7 @@ export default function SettingsPage() {
 
   const renderApplicationsPanel = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ ...cardStyle, padding: 20 }}>
+      <div className="ui-card" style={{ ...cardStyle, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <h2 style={{ fontSize: 22, color: '#f8fafc', margin: 0 }}>应用设置</h2>
@@ -421,6 +408,7 @@ export default function SettingsPage() {
           <button
             onClick={refreshClaudeConfigStatus}
             disabled={claudeLoading || claudeActioning}
+            className="ui-btn"
             style={buttonBaseStyle}
           >
             {claudeLoading ? '状态刷新中...' : '刷新配置状态'}
@@ -428,11 +416,10 @@ export default function SettingsPage() {
         </div>
 
         <div
+          className="ui-card"
           style={{
             marginTop: 16,
             borderRadius: 12,
-            border: '1px solid rgba(148, 163, 184, 0.16)',
-            background: 'rgba(15, 23, 42, 0.72)',
             padding: 16,
           }}
         >
@@ -448,8 +435,9 @@ export default function SettingsPage() {
               style={{
                 alignSelf: 'flex-start',
                 fontSize: 12,
-                color: claudeConfigured ? '#86efac' : '#fcd34d',
-                background: claudeConfigured ? '#052e16' : '#422006',
+                color: 'var(--ui-text)',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
                 borderRadius: 999,
                 padding: '4px 10px',
               }}
@@ -459,13 +447,13 @@ export default function SettingsPage() {
           </div>
 
           <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-            <div style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
+            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Claude Code 节点</div>
               <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{claudeNodes.length}</div>
             </div>
-            <div style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
+            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
-              <div style={{ fontSize: 13, color: '#93c5fd', marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
                 {claudeProxyUrl ?? '暂无可用端口'}
               </div>
             </div>
@@ -480,11 +468,11 @@ export default function SettingsPage() {
                     key={node.id}
                     style={{
                       fontSize: 12,
-                      color: '#cbd5e1',
+                      color: 'var(--ui-text)',
                       padding: '8px 10px',
                       borderRadius: 8,
-                      background: '#020617',
-                      border: '1px solid rgba(148, 163, 184, 0.14)',
+                      background: 'rgba(0, 0, 0, 0.28)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
                     }}
                   >
                     {data.label} · {node.id} · 端口 :{data.listenPort || 0}
@@ -500,6 +488,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => setClaudeTokenVisible((v) => !v)}
+            className="ui-btn"
             style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
           >
             {claudeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
@@ -509,11 +498,9 @@ export default function SettingsPage() {
             <button
               onClick={handleConfigureClaude}
               disabled={claudeActioning || claudeNodes.length === 0 || !claudeProxyUrl}
+              className="ui-btn ui-btn-primary"
               style={{
                 ...buttonBaseStyle,
-                border: 'none',
-                background: '#2563eb',
-                color: '#fff',
                 cursor: claudeActioning ? 'not-allowed' : 'pointer',
               }}
             >
@@ -522,11 +509,9 @@ export default function SettingsPage() {
             <button
               onClick={handleRestoreClaudeBackup}
               disabled={claudeActioning}
+              className="ui-btn"
               style={{
                 ...buttonBaseStyle,
-                border: '1px solid rgba(110,231,183,0.35)',
-                color: '#a7f3d0',
-                background: '#052e16aa',
               }}
             >
               从备份恢复
@@ -534,11 +519,9 @@ export default function SettingsPage() {
             <button
               onClick={handleUnconfigureClaude}
               disabled={claudeActioning}
+              className="ui-btn"
               style={{
                 ...buttonBaseStyle,
-                border: '1px solid rgba(248,113,113,0.35)',
-                color: '#fecaca',
-                background: '#450a0a66',
               }}
             >
               移除托管配置
@@ -550,7 +533,7 @@ export default function SettingsPage() {
   );
 
   const renderLogsPanel = () => (
-    <div style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="ui-card" style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h2 style={{ fontSize: 22, color: '#f8fafc', margin: 0 }}>日志</h2>
@@ -561,17 +544,15 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => setLogPaused((p) => !p)}
+            className={logPaused ? 'ui-btn ui-btn-active' : 'ui-btn'}
             style={{
               ...buttonBaseStyle,
-              border: 'none',
-              background: logPaused ? '#065f46' : '#1f2937',
-              color: '#ecfeff',
             }}
           >
             {logPaused ? '继续' : '暂停'}
           </button>
-          <button onClick={handleReloadLogs} style={buttonBaseStyle}>重新读取</button>
-          <button onClick={() => setLogLines([])} style={buttonBaseStyle}>清空视图</button>
+          <button onClick={handleReloadLogs} className="ui-btn" style={buttonBaseStyle}>重新读取</button>
+          <button onClick={() => setLogLines([])} className="ui-btn" style={buttonBaseStyle}>清空视图</button>
         </div>
       </div>
 
@@ -583,18 +564,18 @@ export default function SettingsPage() {
           fontSize: 12,
         }}
       >
-        <div style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
+        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
           <div style={{ color: '#64748b', marginBottom: 4 }}>后端日志模式</div>
           <div style={{ color: '#e2e8f0' }}>
             {runtimeStatus?.mode || '加载中...'}
             {runtimeStatus?.backend_local_read_write ? ' (local rw)' : ''}
           </div>
         </div>
-        <div style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
+        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
           <div style={{ color: '#64748b', marginBottom: 4 }}>当前日志文件</div>
           <div style={{ color: '#e2e8f0' }}>{logFileName || runtimeStatus?.active_file || '暂无'}</div>
         </div>
-        <div style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
+        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
           <div style={{ color: '#64748b', marginBottom: 4 }}>采集状态</div>
           <div style={{ color: logError ? '#fca5a5' : '#86efac' }}>
             {logError ? `异常: ${logError}` : logPaused ? '已暂停' : logPolling ? '拉取中...' : '运行中'}
@@ -611,8 +592,8 @@ export default function SettingsPage() {
           minHeight: 360,
           overflow: 'auto',
           borderRadius: 12,
-          border: '1px solid rgba(148, 163, 184, 0.2)',
-          background: '#020617',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: 'rgba(0, 0, 0, 0.28)',
           fontFamily: 'Consolas, Menlo, Monaco, "Courier New", monospace',
           fontSize: 12,
           lineHeight: 1.65,
@@ -638,8 +619,8 @@ export default function SettingsPage() {
   );
 
   return (
-    <div style={pageStyle}>
-      <aside style={subSidebarStyle}>
+    <div style={pageStyle} className="ui-page ui-accent-settings">
+      <aside style={subSidebarStyle} className="ui-subsidebar">
         <div style={{ padding: '4px 8px 12px' }}>
           <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>设置</div>
           <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
@@ -652,12 +633,10 @@ export default function SettingsPage() {
             <button
               key={item.key}
               onClick={() => setSubTab(item.key)}
+              className={active ? 'ui-subtab ui-subtab-active' : 'ui-subtab'}
               style={{
                 textAlign: 'left',
                 borderRadius: 10,
-                border: active ? '1px solid rgba(96,165,250,0.6)' : '1px solid transparent',
-                background: active ? '#1d4ed840' : 'transparent',
-                color: active ? '#e2e8f0' : '#9ca3af',
                 padding: '10px 12px',
                 cursor: 'pointer',
               }}

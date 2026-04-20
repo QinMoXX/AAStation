@@ -33,25 +33,17 @@ const pageStyle: React.CSSProperties = {
   flex: 1,
   display: 'flex',
   flexDirection: 'column',
-  background:
-    'radial-gradient(circle at top left, rgba(59,130,246,0.12), transparent 28%), linear-gradient(180deg, #0b1220 0%, #111827 100%)',
   overflow: 'auto',
 };
 
 const containerStyle: React.CSSProperties = {
-  padding: '28px 28px 36px',
+  padding: '42px 28px 36px',
   display: 'flex',
   flexDirection: 'column',
   gap: 20,
 };
 
-const cardStyle: React.CSSProperties = {
-  background: 'rgba(17, 24, 39, 0.8)',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
-  borderRadius: 20,
-  boxShadow: '0 18px 48px rgba(0, 0, 0, 0.22)',
-  backdropFilter: 'blur(12px)',
-};
+const cardStyle: React.CSSProperties = {};
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('zh-CN').format(value);
@@ -299,7 +291,7 @@ function RequestDetailDrawer({
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(2, 6, 23, 0.65)',
+          background: 'rgba(0, 0, 0, 0.6)',
           backdropFilter: 'blur(4px)',
           zIndex: 30,
         }}
@@ -312,8 +304,8 @@ function RequestDetailDrawer({
           width: 520,
           maxWidth: '100vw',
           height: '100vh',
-          background: '#0f172a',
-          borderLeft: '1px solid rgba(148, 163, 184, 0.14)',
+          background: '#0d0f14',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
           boxShadow: '-24px 0 48px rgba(0, 0, 0, 0.35)',
           zIndex: 31,
           display: 'flex',
@@ -323,7 +315,7 @@ function RequestDetailDrawer({
         <div
           style={{
             padding: '20px 22px',
-            borderBottom: '1px solid rgba(148, 163, 184, 0.08)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -336,13 +328,11 @@ function RequestDetailDrawer({
           </div>
           <button
             onClick={onClose}
+            className="ui-btn"
             style={{
               width: 36,
               height: 36,
               borderRadius: 10,
-              border: '1px solid rgba(148, 163, 184, 0.16)',
-              background: '#111827',
-              color: '#cbd5e1',
               cursor: 'pointer',
             }}
           >
@@ -431,8 +421,8 @@ function SummaryCard({
 }) {
   return (
     <div
+      className="ui-card"
       style={{
-        ...cardStyle,
         padding: 20,
         minWidth: 0,
         position: 'relative',
@@ -475,7 +465,7 @@ function BarList({
   const maxValue = rows.length > 0 ? Math.max(...rows.map((item) => item[metricLabel])) : 1;
 
   return (
-    <div style={{ ...cardStyle, padding: 20, minHeight: 300 }}>
+    <div className="ui-card" style={{ ...cardStyle, padding: 20, minHeight: 300 }}>
       <div style={{ fontSize: 16, fontWeight: 600, color: '#f8fafc', marginBottom: 18 }}>
         {title}
       </div>
@@ -506,7 +496,7 @@ function BarList({
               <div
                 style={{
                   height: 10,
-                  background: 'rgba(30, 41, 59, 0.9)',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   borderRadius: 999,
                   overflow: 'hidden',
                 }}
@@ -546,7 +536,7 @@ function TrendChart({
   const max = Math.max(1, ...buckets.map(accessor));
 
   return (
-    <div style={{ ...cardStyle, padding: 20, minHeight: 280 }}>
+    <div className="ui-card" style={{ ...cardStyle, padding: 20, minHeight: 280 }}>
       <div style={{ fontSize: 16, fontWeight: 600, color: '#f8fafc' }}>{title}</div>
       <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{subtitle}</div>
       <div
@@ -729,11 +719,11 @@ export default function MonitorPage() {
   }, [timeRange, trendBuckets]);
 
   return (
-    <div style={pageStyle}>
+    <div style={pageStyle} className="ui-page ui-accent-monitor">
       <div style={containerStyle}>
         <div
+          className="ui-card"
           style={{
-            ...cardStyle,
             padding: 24,
             display: 'flex',
             justifyContent: 'space-between',
@@ -761,36 +751,34 @@ export default function MonitorPage() {
             }}
           >
             <div
+              className="ui-card"
               style={{
                 borderRadius: 16,
                 padding: 16,
-                background: 'rgba(15, 23, 42, 0.9)',
-                border: '1px solid rgba(34, 197, 94, 0.18)',
               }}
             >
-              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>代理状态</div>
+              <div style={{ fontSize: 12, color: 'var(--ui-muted)', marginBottom: 6 }}>代理状态</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: '#f8fafc' }}>
                 {proxyStatus.running ? '运行中' : '未启动'}
               </div>
-              <div style={{ fontSize: 12, color: '#22c55e', marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: proxyStatus.running ? '#86efac' : 'var(--ui-dim)', marginTop: 8 }}>
                 {proxyStatus.running
                   ? `监听端口 ${proxyStatus.listen_ports.join(', ')}`
                   : '启动代理后开始采集请求数据'}
               </div>
             </div>
             <div
+              className="ui-card"
               style={{
                 borderRadius: 16,
                 padding: 16,
-                background: 'rgba(15, 23, 42, 0.9)',
-                border: '1px solid rgba(59, 130, 246, 0.18)',
               }}
             >
-              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>最近刷新</div>
+              <div style={{ fontSize: 12, color: 'var(--ui-muted)', marginBottom: 6 }}>最近刷新</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: '#f8fafc' }}>
                 {snapshot ? formatDateTime(snapshot.generated_at) : '--'}
               </div>
-              <div style={{ fontSize: 12, color: '#60a5fa', marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: 'var(--ui-dim)', marginTop: 8 }}>
                 {refreshing ? '同步中...' : `每 ${POLL_INTERVAL_MS / 1000} 秒自动刷新`}
               </div>
             </div>
@@ -798,8 +786,8 @@ export default function MonitorPage() {
         </div>
 
         <div
+          className="ui-card"
           style={{
-            ...cardStyle,
             padding: 18,
             display: 'flex',
             gap: 14,
@@ -814,15 +802,10 @@ export default function MonitorPage() {
                 <button
                   key={option.key}
                   onClick={() => setTimeRange(option.key)}
+                  className={timeRange === option.key ? 'ui-btn ui-btn-active' : 'ui-btn'}
                   style={{
                     padding: '10px 14px',
                     borderRadius: 12,
-                    border:
-                      timeRange === option.key
-                        ? '1px solid rgba(96, 165, 250, 0.42)'
-                        : '1px solid rgba(148, 163, 184, 0.16)',
-                    background: timeRange === option.key ? '#1d4ed8' : '#111827',
-                    color: timeRange === option.key ? '#eff6ff' : '#cbd5e1',
                     cursor: 'pointer',
                   }}
                 >
@@ -837,13 +820,11 @@ export default function MonitorPage() {
             <select
               value={selectedApp}
               onChange={(e) => setSelectedApp(e.target.value)}
+              className="ui-select"
               style={{
                 width: '100%',
                 padding: '10px 12px',
                 borderRadius: 12,
-                border: '1px solid rgba(148, 163, 184, 0.2)',
-                background: '#0f172a',
-                color: '#f8fafc',
               }}
             >
               <option value="all">全部应用</option>
@@ -860,13 +841,11 @@ export default function MonitorPage() {
             <select
               value={selectedProvider}
               onChange={(e) => setSelectedProvider(e.target.value)}
+              className="ui-select"
               style={{
                 width: '100%',
                 padding: '10px 12px',
                 borderRadius: 12,
-                border: '1px solid rgba(148, 163, 184, 0.2)',
-                background: '#0f172a',
-                color: '#f8fafc',
               }}
             >
               <option value="all">全部供应商</option>
@@ -884,12 +863,10 @@ export default function MonitorPage() {
               setSelectedApp('all');
               setSelectedProvider('all');
             }}
+            className="ui-btn"
             style={{
               padding: '10px 14px',
               borderRadius: 12,
-              border: '1px solid rgba(148, 163, 184, 0.16)',
-              background: '#111827',
-              color: '#cbd5e1',
               cursor: 'pointer',
             }}
           >
@@ -899,12 +876,10 @@ export default function MonitorPage() {
           <button
             onClick={() => loadMetrics()}
             disabled={refreshing}
+            className="ui-btn ui-btn-primary"
             style={{
               padding: '10px 14px',
               borderRadius: 12,
-              border: 'none',
-              background: refreshing ? '#1d4ed8aa' : '#2563eb',
-              color: '#fff',
               cursor: refreshing ? 'not-allowed' : 'pointer',
             }}
           >
@@ -929,25 +904,25 @@ export default function MonitorPage() {
             title="总调用次数"
             value={formatNumber(filteredSummary.requests)}
             subValue={`失败 ${formatNumber(filteredSummary.failed_requests)} 次`}
-            accent="rgba(59, 130, 246, 0.85)"
+            accent="var(--ui-monitor-summary-1)"
           />
           <SummaryCard
             title="成功率"
             value={formatPercent(success)}
             subValue={`成功 ${formatNumber(filteredSummary.successful_requests)} 次`}
-            accent="rgba(34, 197, 94, 0.85)"
+            accent="var(--ui-monitor-summary-2)"
           />
           <SummaryCard
             title="Token 使用量"
             value={formatCompact(filteredSummary.total_tokens)}
             subValue={`输入 ${formatCompact(filteredSummary.input_tokens)} · 输出 ${formatCompact(filteredSummary.output_tokens)}`}
-            accent="rgba(168, 85, 247, 0.85)"
+            accent="var(--ui-monitor-summary-3)"
           />
           <SummaryCard
             title="平均耗时"
             value={formatDuration(avgLatency)}
             subValue={`流式请求占比 ${formatPercent(streamRatio)}`}
-            accent="rgba(245, 158, 11, 0.85)"
+            accent="var(--ui-monitor-summary-4)"
           />
         </div>
 
@@ -962,16 +937,16 @@ export default function MonitorPage() {
             title="请求趋势"
             subtitle={`最近 ${selectedTimeRange.label} · ${trendBuckets.length} 个时间桶`}
             buckets={trendBuckets}
-            color="linear-gradient(180deg, #38bdf8 0%, #2563eb 100%)"
-            shadowColor="rgba(37, 99, 235, 0.35)"
+            color="var(--ui-monitor-chart-requests)"
+            shadowColor="var(--ui-monitor-chart-shadow)"
             accessor={(item) => item.requests}
           />
           <TrendChart
             title="Token 趋势"
             subtitle="按完成请求统计"
             buckets={trendBuckets}
-            color="linear-gradient(180deg, #c084fc 0%, #7c3aed 100%)"
-            shadowColor="rgba(124, 58, 237, 0.35)"
+            color="var(--ui-monitor-chart-tokens)"
+            shadowColor="var(--ui-monitor-chart-shadow)"
             accessor={(item) => item.tokens}
           />
         </div>
@@ -987,17 +962,17 @@ export default function MonitorPage() {
             title="应用调用分布"
             rows={applicationRows}
             metricLabel="requests"
-            accent="linear-gradient(90deg, #38bdf8 0%, #2563eb 100%)"
+            accent="var(--ui-monitor-bar-app)"
           />
           <BarList
             title="供应商 Token 分布"
             rows={providerRows}
             metricLabel="total_tokens"
-            accent="linear-gradient(90deg, #c084fc 0%, #7c3aed 100%)"
+            accent="var(--ui-monitor-bar-provider)"
           />
         </div>
 
-        <div style={{ ...cardStyle, padding: 20 }}>
+        <div className="ui-card" style={{ ...cardStyle, padding: 20 }}>
           <div
             style={{
               display: 'flex',
@@ -1022,12 +997,10 @@ export default function MonitorPage() {
               </div>
               <button
                 onClick={handleExportTrend}
+                className="ui-btn"
                 style={{
                   padding: '8px 12px',
                   borderRadius: 10,
-                  border: '1px solid rgba(148, 163, 184, 0.16)',
-                  background: '#111827',
-                  color: '#cbd5e1',
                   cursor: 'pointer',
                 }}
               >
@@ -1035,12 +1008,10 @@ export default function MonitorPage() {
               </button>
               <button
                 onClick={handleExportRequests}
+                className="ui-btn ui-btn-primary"
                 style={{
                   padding: '8px 12px',
                   borderRadius: 10,
-                  border: 'none',
-                  background: '#2563eb',
-                  color: '#fff',
                   cursor: 'pointer',
                 }}
               >
@@ -1081,8 +1052,9 @@ export default function MonitorPage() {
                     <tr
                       key={item.id}
                       onClick={() => setSelectedRequest(item)}
+                      className="ui-table-row"
                       style={{
-                        borderTop: '1px solid rgba(148, 163, 184, 0.08)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
                         color: '#e2e8f0',
                         fontSize: 13,
                         cursor: 'pointer',

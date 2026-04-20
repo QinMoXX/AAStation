@@ -12,7 +12,6 @@ import { toast } from '../../store/toast-store';
 const sidebarStyle: React.CSSProperties = {
   width: 64,
   height: '100%',
-  background: '#2b2b2b',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
@@ -24,7 +23,9 @@ const sidebarStyle: React.CSSProperties = {
 const logoStyle: React.CSSProperties = {
   width: 48,
   height: 48,
-  background: '#fff',
+  background: 'rgba(255, 255, 255, 0.06)',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
   borderRadius: 12,
   display: 'flex',
   alignItems: 'center',
@@ -41,8 +42,8 @@ const navItemStyle = (active: boolean): React.CSSProperties => ({
   justifyContent: 'center',
   borderRadius: 12,
   cursor: 'pointer',
-  background: active ? '#374151' : 'transparent',
-  color: active ? '#fff' : '#9ca3af',
+  background: active ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+  color: active ? 'rgba(255, 255, 255, 0.92)' : 'rgba(255, 255, 255, 0.65)',
   transition: 'all 0.15s',
 });
 
@@ -53,7 +54,7 @@ const spacerStyle: React.CSSProperties = {
 const dividerStyle: React.CSSProperties = {
   width: 32,
   height: 1,
-  background: '#374151',
+  background: 'rgba(255, 255, 255, 0.12)',
   margin: '6px 0',
 };
 
@@ -67,7 +68,7 @@ const bottomBtnStyle = (active: boolean): React.CSSProperties => ({
   cursor: active ? 'pointer' : 'not-allowed',
   border: 'none',
   background: 'transparent',
-  color: active ? '#9ca3af' : '#4b5563',
+  color: active ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.32)',
   transition: 'all 0.15s',
 });
 
@@ -241,7 +242,7 @@ export default function SidebarNav() {
   }, [publishing, proxyStatus.running, getDocument, markPublished, setProxyStatus]);
 
   return (
-    <nav style={sidebarStyle}>
+    <nav style={sidebarStyle} className="ui-sidebar-primary">
       {/* Logo */}
       <div style={logoStyle}>
         <img src="/logo.svg" alt="AAStation" style={{ width: 32, height: 32 }} />
@@ -255,14 +256,14 @@ export default function SidebarNav() {
           onClick={() => setTab(id)}
           onMouseEnter={(e) => {
             if (activeTab !== id) {
-              e.currentTarget.style.background = '#37415180';
-              e.currentTarget.style.color = '#fff';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
             }
           }}
           onMouseLeave={(e) => {
             if (activeTab !== id) {
               e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = '#9ca3af';
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.65)';
             }
           }}
           title={label}
@@ -284,13 +285,14 @@ export default function SidebarNav() {
         title={publishing ? 'Saving...' : '保存'}
         onMouseEnter={(e) => {
           if (isDraft && !publishing) {
-            e.currentTarget.style.background = '#37415180';
-            e.currentTarget.style.color = '#3b82f6';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.92)';
           }
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = isDraft && !publishing ? '#9ca3af' : '#4b5563';
+          e.currentTarget.style.color =
+            isDraft && !publishing ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.32)';
         }}
       >
         <UploadIcon size={20} />
