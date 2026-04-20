@@ -6,16 +6,26 @@ use tauri::{
 
 use crate::store::AppState;
 
-/// Setup system tray with menu items
-pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
-    // Create menu items
+fn build_tray_menu<R: Runtime>(
+    app: &AppHandle<R>,
+    running: bool,
+) -> Result<Menu<R>, Box<dyn std::error::Error>> {
     let show_hide = MenuItem::with_id(app, "show_hide", "显示窗口", true, None::<&str>)?;
     let separator = MenuItem::with_id(app, "separator", "─", true, None::<&str>)?;
-    let toggle_proxy = MenuItem::with_id(app, "toggle_proxy", "开启代理×", true, None::<&str>)?;
+    let toggle_proxy_text = if running { "关闭代理" } else { "开启代理" };
+    let toggle_proxy = MenuItem::with_id(app, "toggle_proxy", toggle_proxy_text, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
-    // Build menu
-    let menu = Menu::with_items(app, &[&show_hide, &separator, &toggle_proxy, &quit])?;
+    Ok(Menu::with_items(
+        app,
+        &[&show_hide, &separator, &toggle_proxy, &quit],
+    )?)
+}
+
+/// Setup system tray with menu items
+pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
+    // Build initial menu (default to proxy stopped)
+    let menu = build_tray_menu(app, false)?;
 
     // Build tray icon
     let _tray = TrayIconBuilder::with_id("main")
@@ -47,6 +57,9 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
                         } else {
                             let _ = proxy.start().await;
                         }
+                        let new_status = proxy.get_status().await;
+                        drop(proxy);
+                        update_tray_menu(&app_handle, new_status.running);
                     }
                 });
             }
@@ -95,11 +108,8 @@ pub fn on_window_close<R: Runtime>(window: &tauri::WebviewWindow<R>) {
 /// Update tray tooltip to reflect current proxy status
 pub fn update_tray_menu<R: Runtime>(app: &AppHandle<R>, running: bool) {
     if let Some(tray) = app.tray_by_id("main") {
-        if let Some(menu) = app.menu() {
-            if let Some(toggle_proxy_item) = menu.get("toggle_proxy") {
-                let toggle_proxy_text = if running { "开启代理√" } else { "开启代理×" };
-                let _ = toggle_proxy_item.set_text(toggle_proxy_text);
-            }
+        if let Ok(menu) = build_tray_menu(app, running) {
+            let _ = tray.set_menu(Some(menu));
         }
 
         // Update tooltip instead of menu for simplicity

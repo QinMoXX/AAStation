@@ -254,10 +254,10 @@ export default function Header() {
           style={proxyStatus.running ? toggleBtnOn : toggleBtnOff}
           onClick={handleToggleProxy}
           disabled={toggling}
-          title={proxyStatus.running ? 'Stop proxy server' : 'Start proxy server'}
+          title={proxyStatus.running ? '关闭代理' : '开启代理'}
         >
           <span style={statusDotStyle(proxyStatus.running)} />
-          {toggling ? '...' : proxyStatus.running ? 'Running' : 'Stopped'}
+          {toggling ? '处理中...' : proxyStatus.running ? '关闭代理' : '开启代理'}
         </button>
         <button
           style={publishing ? publishBtnDisabled : isDraft ? publishBtn : publishBtnDisabled}

@@ -306,7 +306,7 @@ export default function SidebarNav() {
         }}
         onClick={handleToggleProxy}
         disabled={toggling}
-        title={toggling ? '...' : proxyStatus.running ? 'Stop proxy' : 'Start proxy'}
+        title={toggling ? '处理中...' : proxyStatus.running ? '关闭代理' : '开启代理'}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = proxyStatus.running ? '#7f1d1d40' : '#16653440';
           e.currentTarget.style.color = proxyStatus.running ? '#f87171' : '#4ade80';
