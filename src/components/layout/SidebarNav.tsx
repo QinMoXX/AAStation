@@ -4,7 +4,6 @@ import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
 import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
-import ClaudeCodeDialog, { type ClaudeCodeAppInfo } from '../common/ClaudeCodeDialog';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -176,10 +175,6 @@ export default function SidebarNav() {
 
   const [toggling, setToggling] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [claudeCodeDialog, setClaudeCodeDialog] = useState<{
-    apps: ClaudeCodeAppInfo[];
-    proxyUrl: string;
-  } | null>(null);
 
   // -----------------------------------------------------------------------
   // Toggle proxy on/off
@@ -226,24 +221,14 @@ export default function SidebarNav() {
       toast.success('发布并保存成功');
 
       // Check for Claude Code application nodes
-      const claudeCodeApps: ClaudeCodeAppInfo[] = doc.nodes
+      const claudeCodeApps = doc.nodes
         .filter((n) => n.data.nodeType === 'application' && (n.data as any).appType === 'claude_code')
-        .map((n) => {
-          const data = n.data as any;
-          return {
-            nodeId: n.id,
-            label: data.label || 'Claude Code',
-            listenPort: data.listenPort || 0,
-          };
-        });
+        .map((n) => n.id);
 
       if (claudeCodeApps.length > 0) {
-        // Only show dialog if Claude Code is not already configured
         const configured = await isClaudeConfigured().catch(() => false);
         if (!configured) {
-          const firstApp = claudeCodeApps[0];
-          const proxyUrl = `http://127.0.0.1:${firstApp.listenPort}`;
-          setClaudeCodeDialog({ apps: claudeCodeApps, proxyUrl });
+          toast.info('检测到 Claude Code 节点，请前往“设置 → 应用设置”进行配置文件写入或备份恢复。', 6000);
         }
       }
     } catch (err) {
@@ -344,14 +329,6 @@ export default function SidebarNav() {
         <div style={statusTextStyle}>offline</div>
       )}
 
-      {/* Claude Code configuration dialog */}
-      {claudeCodeDialog && (
-        <ClaudeCodeDialog
-          apps={claudeCodeDialog.apps}
-          proxyUrl={claudeCodeDialog.proxyUrl}
-          onClose={() => setClaudeCodeDialog(null)}
-        />
-      )}
     </nav>
   );
 }

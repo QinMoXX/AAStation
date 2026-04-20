@@ -58,6 +58,8 @@ pub fn run() {
             commands::proxy_commands::reload_routes,
             commands::settings_commands::load_settings,
             commands::settings_commands::save_settings,
+            commands::log_commands::get_log_runtime_status,
+            commands::log_commands::poll_runtime_logs,
             commands::app_commands::configure_claude_code,
             commands::app_commands::is_claude_configured,
             commands::app_commands::unconfigure_claude_code,

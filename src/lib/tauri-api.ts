@@ -67,6 +67,13 @@ export async function allocatePort(doc: DAGDocument): Promise<number> {
   return invoke<number>('allocate_port', { doc: backendDoc });
 }
 
+/** Auto-assign listen ports for application nodes with missing port values. */
+export async function autoAssignPorts(doc: DAGDocument): Promise<DAGDocument> {
+  const backendDoc = toBackendDocument(doc);
+  const raw = await invoke<unknown>('auto_assign_ports', { doc: backendDoc });
+  return fromBackendDocument(raw as Parameters<typeof fromBackendDocument>[0]);
+}
+
 // ---------------------------------------------------------------------------
 // Proxy commands
 // ---------------------------------------------------------------------------
@@ -114,6 +121,44 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       proxy_auth_token: settings.proxyAuthToken,
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Runtime log commands
+// ---------------------------------------------------------------------------
+
+export interface LogRuntimeStatus {
+  backend_local_read_write: boolean;
+  mode: string;
+  log_dir: string;
+  active_file: string | null;
+  note: string;
+}
+
+export interface LogPollRequest {
+  file_name?: string;
+  offset?: number;
+  max_bytes?: number;
+}
+
+export interface LogPollResponse {
+  backend_local_read_write: boolean;
+  mode: string;
+  file_name: string | null;
+  next_offset: number;
+  rotated: boolean;
+  truncated: boolean;
+  lines: string[];
+}
+
+/** Returns runtime log backend mode/capability information. */
+export async function getLogRuntimeStatus(): Promise<LogRuntimeStatus> {
+  return invoke<LogRuntimeStatus>('get_log_runtime_status');
+}
+
+/** Incrementally poll runtime log lines from the active log file. */
+export async function pollRuntimeLogs(request?: LogPollRequest): Promise<LogPollResponse> {
+  return invoke<LogPollResponse>('poll_runtime_logs', { request });
 }
 
 // ---------------------------------------------------------------------------
