@@ -11,7 +11,7 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
     // Create menu items
     let show_hide = MenuItem::with_id(app, "show_hide", "显示窗口", true, None::<&str>)?;
     let separator = MenuItem::with_id(app, "separator", "─", true, None::<&str>)?;
-    let toggle_proxy = MenuItem::with_id(app, "toggle_proxy", "切换代理", true, None::<&str>)?;
+    let toggle_proxy = MenuItem::with_id(app, "toggle_proxy", "开启代理×", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
     // Build menu
@@ -19,7 +19,7 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
 
     // Build tray icon
     let _tray = TrayIconBuilder::with_id("main")
-        .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/logo.png"))?)
+        .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?)
         .menu(&menu)
         .tooltip("AAStation - API 代理")
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -95,6 +95,13 @@ pub fn on_window_close<R: Runtime>(window: &tauri::WebviewWindow<R>) {
 /// Update tray tooltip to reflect current proxy status
 pub fn update_tray_menu<R: Runtime>(app: &AppHandle<R>, running: bool) {
     if let Some(tray) = app.tray_by_id("main") {
+        if let Some(menu) = app.menu() {
+            if let Some(toggle_proxy_item) = menu.get("toggle_proxy") {
+                let toggle_proxy_text = if running { "开启代理√" } else { "开启代理×" };
+                let _ = toggle_proxy_item.set_text(toggle_proxy_text);
+            }
+        }
+
         // Update tooltip instead of menu for simplicity
         let tooltip = if running {
             "AAStation - 代理运行中"
