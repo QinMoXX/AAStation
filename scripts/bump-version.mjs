@@ -45,7 +45,22 @@ if (updatedCargoToml === cargoToml) {
 
 fs.writeFileSync(cargoTomlPath, updatedCargoToml);
 
-// 4) Regenerate Cargo.lock so tauri-app package version is synchronized
+// 4) Sync README version badge
+const readmePath = path.join(root, "README.md");
+const readme = fs.readFileSync(readmePath, "utf8");
+const updatedReadme = readme.replace(
+  /(https:\/\/img\.shields\.io\/badge\/version-)([0-9]+\.[0-9]+\.[0-9]+)(-blue)/,
+  `$1${next}$3`
+);
+
+if (updatedReadme === readme) {
+  console.error("Failed to update README version badge.");
+  process.exit(1);
+}
+
+fs.writeFileSync(readmePath, updatedReadme);
+
+// 5) Regenerate Cargo.lock so tauri-app package version is synchronized
 run("cargo generate-lockfile", { cwd: path.join(root, "src-tauri") });
 
 console.log(`Version bumped to ${next}`);

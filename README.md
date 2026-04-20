@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/nicepkg/AAStation/releases">
-    <img src="https://img.shields.io/badge/version-0.3.0-blue" alt="Version" />
+    <img src="https://img.shields.io/badge/version-0.4.1-blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
   <img src="https://img.shields.io/badge/Tauri-2.0-orange" alt="Tauri" />
@@ -40,7 +40,7 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 
 | 节点 | 说明 |
 |------|------|
-| **Application** | 代表发送请求到代理的客户端应用或工具 |
+| **Application** | 代表发送请求到代理的客户端应用或工具，支持多节点并分配独立端口 |
 | **Switcher** | 根据路径前缀、HTTP 请求头或模型名称路由请求，支持默认回退 |
 | **Provider** | AI 服务端点，提供按模型和统一的输入端口 |
 
@@ -66,13 +66,15 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 - 按照画布中的路由规则转发请求
 - 同时支持 OpenAI 和 Anthropic API 格式
 - 兼容浏览器端客户端
+- 请求监控与指标采集
+- 指标持久化与路由自动恢复
 
 ### 桌面体验
 
 - 原生桌面应用体验 — 轻量、快速
 - 系统托盘集成 — 后台静默运行
 - 自定义标题栏，深色主题 UI
-- 实时状态监控和请求统计
+- 实时状态监控和请求统计（Monitor 页面）
 
 ## 截图
 
@@ -160,9 +162,11 @@ Whether you need to route requests based on model names, path prefixes, or HTTP 
 ### Features
 
 - **Visual Pipeline Builder** — Node-based canvas with auto-save, connection validation, and mini-map
-- **Three Node Types** — Application (entry point), Switcher (smart routing), Provider (AI service endpoint)
+- **Three Node Types** — Application (supports multiple nodes with dedicated ports), Switcher (smart routing), Provider (AI service endpoint)
 - **Claude Code Integration** — One-click configuration to inject local proxy settings into `~/.claude/settings.json`
 - **Built-in Provider Presets** — OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu AI, OpenRouter ready to use
+- **Proxy Observability** — Request monitoring, metric collection, and monitor dashboard
+- **State Persistence** — Persisted metrics and automatic route restoration after restart
 - **Local Proxy Server** — Local proxy supporting both OpenAI and Anthropic API formats
 - **Desktop Experience** — Native desktop app with system tray integration and dark theme UI
 
