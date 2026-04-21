@@ -33,7 +33,7 @@
     "name": "阿里云百炼",
     "icon": "[lobehub:Bailian]",
     "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "anthropicBaseUrl": "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic",
+    "anthropicBaseUrl": "https://dashscope.aliyuncs.com/apps/anthropic",
     "defaultLabel": "阿里云百炼",
     "models": [
       { "name": "qwen3.6-plus", "label": "Qwen 3.6 Plus" },
