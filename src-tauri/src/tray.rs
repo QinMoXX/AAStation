@@ -29,7 +29,9 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
 
     // Build tray icon
     let _tray = TrayIconBuilder::with_id("main")
-        .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?)
+        .icon(tauri::image::Image::from_bytes(include_bytes!(
+            "../../src/assets/aa-station-icon-light-200px.png"
+        ))?)
         .menu(&menu)
         .tooltip("AAStation - API 代理")
         .on_menu_event(|app, event| match event.id.as_ref() {
