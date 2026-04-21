@@ -29,6 +29,26 @@
     ]
   },
   {
+    "id": "bailian",
+    "name": "阿里云百炼",
+    "icon": "[lobehub:Bailian]",
+    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "defaultLabel": "阿里云百炼",
+    "models": [
+      { "name": "qwen3.6-plus", "label": "Qwen 3.6 Plus" },
+      { "name": "qwen3-max", "label": "Qwen 3 Max" },
+      { "name": "qwen-plus", "label": "Qwen Plus" },
+      { "name": "qwen-flash", "label": "Qwen Flash" },
+      { "name": "qwen-turbo", "label": "Qwen Turbo" },
+      { "name": "qwen-long", "label": "Qwen Long" },
+      { "name": "qwq-plus", "label": "QwQ Plus" },
+      { "name": "qwen3-coder-plus", "label": "Qwen 3 Coder Plus" },
+      { "name": "qwen-vl-plus", "label": "Qwen VL Plus" },
+      { "name": "qwen-omni-turbo", "label": "Qwen Omni Turbo" },
+      { "name": "text-embedding-v4", "label": "Text Embedding V4" }
+    ]
+  },
+  {
     "id": "openrouter",
     "name": "OpenRouter",
     "icon": "[lobehub:OpenRouter]",

@@ -1,5 +1,7 @@
 import { SVGProps } from 'react';
 import {
+  Alibaba,
+  Bailian,
   OpenAI,
   Anthropic,
   DeepSeek,
@@ -58,6 +60,8 @@ function FallbackIcon(props: SVGProps<SVGSVGElement>) {
 // ---------------------------------------------------------------------------
 
 const LOBEHUB_ICONS: Record<string, React.FC<{ size?: number }>> = {
+  alibaba: Alibaba,
+  bailian: Bailian,
   openai: OpenAI,
   anthropic: Anthropic,
   deepseek: DeepSeek,
@@ -130,4 +134,4 @@ export function getProviderIconById(presetId: string): React.FC<SVGProps<SVGSVGE
 // Re-export LobeHub icons for direct usage
 // ---------------------------------------------------------------------------
 
-export { OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu, OpenRouter };
+export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu, OpenRouter };
