@@ -33,6 +33,7 @@
     "name": "阿里云百炼",
     "icon": "[lobehub:Bailian]",
     "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "anthropicBaseUrl": "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic",
     "defaultLabel": "阿里云百炼",
     "models": [
       { "name": "qwen3.6-plus", "label": "Qwen 3.6 Plus" },
@@ -60,6 +61,29 @@
       { "name": "openai/gpt-4o", "label": "GPT-4o" },
       { "name": "google/gemini-pro-1.5", "label": "Gemini Pro 1.5" },
       { "name": "meta-llama/llama-3.1-405b-instruct", "label": "Llama 3.1 405B" }
+    ]
+  },
+  {
+    "id": "tencent",
+    "name": "腾讯云",
+    "icon": "[lobehub:TencentCloud]",
+    "baseUrl": "https://tokenhub.tencentmaas.com",
+    "anthropicBaseUrl": "https://tokenhub.tencentmaas.com",
+    "defaultLabel": "腾讯云",
+    "models": [
+      { "name": "glm-5", "label": "GLM-5" },
+      { "name": "hunyuan-2.0-thinking-20251109", "label": "HY 2.0 Think" },
+      { "name": "hunyuan-2.0-instruct-20251111", "label": "HY 2.0 Instruct" },
+      { "name": "hunyuan-role-latest", "label": "Hunyuan Role" },
+      { "name": "deepseek-v3.2", "label": "Deepseek-v3.2" },
+      { "name": "deepseek-v3.1-terminus", "label": "Deepseek-v3.1" },
+      { "name": "deepseek-r1-0528", "label": "Deepseek-r1-0528" },
+      { "name": "deepseek-v3-0324", "label": "Deepseek-v3-0324" },
+      { "name": "kimi-k2.5", "label": "Kimi K2.5" },
+      { "name": "kimi-k2-thinking-turbo", "label": "Kimi K2 Thinking Turbo" },
+      { "name": "kimi-k2-turbo-preview", "label": "Kimi K2 Turbo Preview" },
+      { "name": "minimax-m2.5", "label": "MiniMax M2.5" },
+      { "name": "minimax-m2.7", "label": "MiniMax M2.7" }
     ]
   }
 ]

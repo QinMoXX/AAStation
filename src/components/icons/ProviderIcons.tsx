@@ -8,6 +8,7 @@ import {
   Moonshot,
   Zhipu,
   OpenRouter,
+  TencentCloud,
 } from '@lobehub/icons';
 
 // ---------------------------------------------------------------------------
@@ -68,6 +69,7 @@ const LOBEHUB_ICONS: Record<string, React.FC<{ size?: number }>> = {
   moonshot: Moonshot,
   zhipu: Zhipu,
   openrouter: OpenRouter,
+  tencentcloud: TencentCloud,
 };
 
 // ---------------------------------------------------------------------------
@@ -134,4 +136,4 @@ export function getProviderIconById(presetId: string): React.FC<SVGProps<SVGSVGE
 // Re-export LobeHub icons for direct usage
 // ---------------------------------------------------------------------------
 
-export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu, OpenRouter };
+export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu, OpenRouter, TencentCloud };
