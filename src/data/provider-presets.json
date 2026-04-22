@@ -50,6 +50,23 @@
     ]
   },
   {
+    "id": "minimax",
+    "name": "MiniMax",
+    "icon": "[lobehub:Minimax]",
+    "baseUrl": "https://api.minimaxi.com/v1",
+    "anthropicBaseUrl": "https://api.minimaxi.com/anthropic",
+    "defaultLabel": "MiniMax",
+    "models": [
+      { "name": "MiniMax-M2.7", "label": "MiniMax M2.7" },
+      { "name": "MiniMax-M2.7-highspeed", "label": "MiniMax M2.7 Highspeed" },
+      { "name": "MiniMax-M2.5", "label": "MiniMax M2.5" },
+      { "name": "MiniMax-M2.5-highspeed", "label": "MiniMax M2.5 Highspeed" },
+      { "name": "MiniMax-M2.1", "label": "MiniMax M2.1" },
+      { "name": "MiniMax-M2.1-highspeed", "label": "MiniMax M2.1 Highspeed" },
+      { "name": "MiniMax-M2", "label": "MiniMax M2" }
+    ]
+  },
+  {
     "id": "openrouter",
     "name": "OpenRouter",
     "icon": "[lobehub:OpenRouter]",

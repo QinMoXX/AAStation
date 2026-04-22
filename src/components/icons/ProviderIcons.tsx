@@ -5,6 +5,7 @@ import {
   OpenAI,
   Anthropic,
   DeepSeek,
+  Minimax,
   Moonshot,
   Zhipu,
   OpenRouter,
@@ -66,6 +67,7 @@ const LOBEHUB_ICONS: Record<string, React.FC<{ size?: number }>> = {
   openai: OpenAI,
   anthropic: Anthropic,
   deepseek: DeepSeek,
+  minimax: Minimax,
   moonshot: Moonshot,
   zhipu: Zhipu,
   openrouter: OpenRouter,
@@ -136,4 +138,4 @@ export function getProviderIconById(presetId: string): React.FC<SVGProps<SVGSVGE
 // Re-export LobeHub icons for direct usage
 // ---------------------------------------------------------------------------
 
-export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu, OpenRouter, TencentCloud };
+export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Minimax, Moonshot, Zhipu, OpenRouter, TencentCloud };
