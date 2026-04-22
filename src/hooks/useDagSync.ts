@@ -50,9 +50,11 @@ export function useDagSync() {
   const setDirty = useAppStore((s) => s.setDirty);
   const markDirty = useAppStore((s) => s.markDirty);
 
-  // Track whether the initial load has completed.
-  // Prevents auto-save from firing before the persisted state is restored.
   const loadDoneRef = useRef(false);
+  // Prevents concurrent saves: if a save is already in-flight, newer calls are
+  // dropped. The debounce timer ensures a fresh save fires after the in-flight
+  // one finishes, so no data is silently discarded.
+  const savingRef = useRef(false);
 
   // -----------------------------------------------------------------------
   // Build document from current store state
@@ -68,6 +70,11 @@ export function useDagSync() {
 
   const saveToBackend = useCallback(
     async (doc?: DAGDocument) => {
+      // Guard against concurrent saves. If a save is already in-flight,
+      // skip this call — the debounce will trigger another save once the
+      // current one settles, so the latest state still gets persisted.
+      if (savingRef.current) return;
+      savingRef.current = true;
       const document = doc ?? buildDoc();
       try {
         await saveDag(document);
@@ -77,11 +84,12 @@ export function useDagSync() {
           useFlowStore.setState({ documentId: document.id });
         }
         setDirty(false);
-        console.log('[useDagSync] Saved');
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         toast.error(`保存失败：${msg}`);
         console.error('[useDagSync] Save failed:', err);
+      } finally {
+        savingRef.current = false;
       }
     },
     [buildDoc, setDirty],
@@ -108,9 +116,6 @@ export function useDagSync() {
           loadDocument(doc);
           // Mark as draft so user can publish the loaded DAG
           markDirty();
-          console.log('[useDagSync] Loaded', doc.nodes.length, 'nodes');
-        } else {
-          console.log('[useDagSync] No persisted DAG found, starting fresh');
         }
       } catch (err) {
         console.error('[useDagSync] Load failed:', err);

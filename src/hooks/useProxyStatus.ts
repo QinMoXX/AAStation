@@ -23,6 +23,64 @@ export function useProxyStatus() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Poll on mount. The `cancelled` flag prevents state updates after
+  // unmount: if the component is torn down while getProxyStatus() is still
+  // awaiting, we skip the setState call to avoid updating a stale closure
+  // and leaking a reference to the unmounted component's Fiber.
+  useEffect(() => {
+    let cancelled = false;
+
+    const safeRefresh = async () => {
+      try {
+        const s = await getProxyStatus();
+        if (!cancelled) {
+          setStatus(s);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) setError(String(e));
+      }
+    };
+
+    safeRefresh();
+    const id = setInterval(safeRefresh, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []); // intentionally empty — safeRefresh is defined inside the effect
+
+  const start = useCallback(async () => {
+    setLoading(true);
+    try {
+      await startProxy();
+      const s = await getProxyStatus();
+      setStatus(s);
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const stop = useCallback(async () => {
+    setLoading(true);
+    try {
+      await stopProxy();
+      const s = await getProxyStatus();
+      setStatus(s);
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Expose an imperative refresh for callers that need an on-demand update
+  // (e.g. after a publish action). This one is not cancel-guarded because it
+  // is expected to be called while the component is still mounted.
   const refresh = useCallback(async () => {
     try {
       const s = await getProxyStatus();
@@ -32,39 +90,6 @@ export function useProxyStatus() {
       setError(String(e));
     }
   }, []);
-
-  // Poll on mount
-  useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [refresh]);
-
-  const start = useCallback(async () => {
-    setLoading(true);
-    try {
-      await startProxy();
-      await refresh();
-      setError(null);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [refresh]);
-
-  const stop = useCallback(async () => {
-    setLoading(true);
-    try {
-      await stopProxy();
-      await refresh();
-      setError(null);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [refresh]);
 
   return { status, loading, error, start, stop, refresh };
 }

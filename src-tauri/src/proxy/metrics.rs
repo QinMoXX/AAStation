@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,10 @@ const MAX_RECENT_REQUESTS: usize = 5000;
 const APP_DIR: &str = ".aastation";
 const METRICS_FILE: &str = "metrics.json";
 const TMP_SUFFIX: &str = ".tmp";
+/// Minimum seconds between successive disk persists. Hot-path requests are
+/// accumulated in memory and flushed at most once every this many seconds,
+/// keeping disk I/O well away from the async request-handling threads.
+const PERSIST_INTERVAL_SECS: u64 = 5;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 struct MetricsState {
@@ -39,6 +44,9 @@ struct PersistedMetrics {
 pub struct MetricsStore {
     inner: Arc<RwLock<MetricsState>>,
     next_id: Arc<AtomicU64>,
+    /// Unix-second timestamp of the last successful persist attempt.
+    /// Used to rate-limit disk writes without blocking the hot path.
+    last_persist_secs: Arc<AtomicU64>,
 }
 
 impl MetricsStore {
@@ -53,6 +61,7 @@ impl MetricsStore {
         Self {
             inner: Arc::new(RwLock::new(state)),
             next_id: Arc::new(AtomicU64::new(restored_next_id)),
+            last_persist_secs: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -107,13 +116,33 @@ impl MetricsStore {
             state.recent_requests.pop_back();
         }
 
-        // Keep monitoring records across app restarts.
-        let persisted = PersistedMetrics {
-            next_id: self.next_id.load(Ordering::Relaxed),
-            state: state.clone(),
-        };
-        if let Err(err) = save_persisted_metrics(&persisted) {
-            tracing::warn!("Failed to persist proxy metrics: {}", err);
+        // Rate-limit disk persistence: only write at most once per
+        // PERSIST_INTERVAL_SECS seconds. This keeps file I/O off the hot
+        // path while still ensuring metrics are flushed regularly.
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let last = self.last_persist_secs.load(Ordering::Relaxed);
+        if now_secs.saturating_sub(last) >= PERSIST_INTERVAL_SECS {
+            // Snapshot the data needed for serialisation while we still hold
+            // the write lock, then release it before the blocking I/O call.
+            let persisted = PersistedMetrics {
+                next_id: self.next_id.load(Ordering::Relaxed),
+                state: state.clone(),
+            };
+            drop(state); // release write lock before blocking I/O
+
+            self.last_persist_secs.store(now_secs, Ordering::Relaxed);
+
+            // Offload the synchronous fs::write / fs::rename to a dedicated
+            // blocking thread so the Tokio async worker is never stalled.
+            if let Err(err) = tokio::task::spawn_blocking(move || save_persisted_metrics(&persisted))
+                .await
+                .unwrap_or_else(|e| Err(format!("persist task panicked: {e}")))
+            {
+                tracing::warn!("Failed to persist proxy metrics: {}", err);
+            }
         }
     }
 
