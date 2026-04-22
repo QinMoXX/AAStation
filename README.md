@@ -48,12 +48,15 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 
 预配置主流 AI 服务，添加 API Key 即可使用：
 
-- **OpenAI** — GPT-4o, GPT-4 Turbo, o1 等
-- **Anthropic** — Claude Sonnet 4, Claude 3.5 Sonnet, Claude 3 Opus
-- **DeepSeek** — DeepSeek Chat, DeepSeek Reasoner
-- **Moonshot (Kimi)** — Moonshot V1 8K / 32K / 128K
-- **智谱 AI** — GLM-4 Plus, GLM-4 Air, GLM-4 Flash
-- **OpenRouter** — 多服务商网关（Claude, GPT, Gemini, Llama 等）
+| 服务商 | 支持模型 |
+|--------|----------|
+| **DeepSeek** | DeepSeek Chat, DeepSeek Reasoner |
+| **智谱 AI (Zhipu AI)** | GLM-5.1, GLM-5 Turbo, GLM-5, GLM-4.7, GLM-4.7 Flash, GLM-4.6, GLM-4.5 Air |
+| **阿里云百炼 (Bailian)** | Qwen 3.6 Plus, Qwen 3 Max, Qwen Plus, Qwen Flash, Qwen Turbo, Qwen Long, QwQ Plus, Qwen 3 Coder Plus, Qwen VL Plus, Qwen Omni Turbo, Text Embedding V4 |
+| **MiniMax** | MiniMax M2.7, M2.7 Highspeed, M2.5, M2.5 Highspeed, M2.1, M2.1 Highspeed, M2 |
+| **Kimi (Moonshot)** | Kimi K2.6, K2.5, K2 0905 Preview, K2 Thinking, K2 Thinking Turbo, K2 Turbo Preview, Moonshot V1 8K/32K/128K, Moonshot V1 Vision 8K/32K/128K |
+| **火山方舟 (Ark)** | Doubao Seed 2.0 Pro/Lite/Mini/Code Preview, Doubao Seed Character, GLM-4.7, DeepSeek Chat, DeepSeek V3.1 |
+| **腾讯云 (Tencent)** | GLM-5, HY 2.0 Think, HY 2.0 Instruct, Hunyuan Role, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, Kimi K2.5, Kimi K2 Thinking Turbo, Kimi K2 Turbo Preview, MiniMax M2.5, MiniMax M2.7 |
 
 ### 深度集成 Claude Code
 
@@ -164,7 +167,7 @@ Whether you need to route requests based on model names, path prefixes, or HTTP 
 - **Visual Pipeline Builder** — Node-based canvas with auto-save, connection validation, and mini-map
 - **Three Node Types** — Application (supports multiple nodes with dedicated ports), Switcher (smart routing), Provider (AI service endpoint)
 - **Claude Code Integration** — One-click configuration to inject local proxy settings into `~/.claude/settings.json`
-- **Built-in Provider Presets** — OpenAI, Anthropic, DeepSeek, Moonshot, Zhipu AI, OpenRouter ready to use
+- **Built-in Provider Presets** — DeepSeek, Zhipu AI, Alibaba Bailian, MiniMax, Kimi (Moonshot), Volcengine Ark, OpenRouter, Tencent Cloud
 - **Proxy Observability** — Request monitoring, metric collection, and monitor dashboard
 - **State Persistence** — Persisted metrics and automatic route restoration after restart
 - **Local Proxy Server** — Local proxy supporting both OpenAI and Anthropic API formats
