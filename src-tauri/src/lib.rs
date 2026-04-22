@@ -97,12 +97,21 @@ pub fn run() {
             
             tauri::async_runtime::spawn(async move {
                 let mut interval = tokio::time::interval(Duration::from_secs(2));
+                // Track the last known running state to avoid rebuilding the tray
+                // menu when nothing has changed. Rebuilding while the context menu
+                // is open causes Windows to dismiss it immediately, leaving a small
+                // blank artifact on screen.
+                let mut last_running: Option<bool> = None;
                 loop {
                     interval.tick().await;
                     let proxy = proxy.read().await;
                     let status = proxy.get_status().await;
                     drop(proxy);
-                    tray::update_tray_menu(&app_handle, status.running);
+                    // Only update when the state actually changes.
+                    if last_running != Some(status.running) {
+                        tray::update_tray_menu(&app_handle, status.running);
+                        last_running = Some(status.running);
+                    }
                 }
             });
 
