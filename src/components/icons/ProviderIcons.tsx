@@ -7,6 +7,7 @@ import {
   DeepSeek,
   Minimax,
   Moonshot,
+  Volcengine,
   Zhipu,
   OpenRouter,
   TencentCloud,
@@ -70,6 +71,8 @@ const LOBEHUB_ICONS: Record<string, React.FC<{ size?: number }>> = {
   deepseek: DeepSeek,
   minimax: Minimax,
   moonshot: Moonshot,
+  ark: Volcengine,
+  volcengine: Volcengine,
   zhipu: Zhipu,
   openrouter: OpenRouter,
   tencentcloud: TencentCloud,
@@ -139,4 +142,4 @@ export function getProviderIconById(presetId: string): React.FC<SVGProps<SVGSVGE
 // Re-export LobeHub icons for direct usage
 // ---------------------------------------------------------------------------
 
-export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Minimax, Moonshot, Zhipu, OpenRouter, TencentCloud };
+export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Minimax, Moonshot, Volcengine, Zhipu, OpenRouter, TencentCloud };

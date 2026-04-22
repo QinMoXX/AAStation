@@ -170,6 +170,7 @@ function nodeDataToFrontend(
     case 'provider':
       return {
         nodeType: 'provider',
+        presetId: camelData.presetId as string | undefined,
         label: (camelData.label as string) || 'Provider',
         baseUrl: (camelData.baseUrl as string) || '',
         anthropicBaseUrl: camelData.anthropicBaseUrl as string | undefined,

@@ -89,6 +89,24 @@
     ]
   },
   {
+    "id": "ark",
+    "name": "火山方舟",
+    "icon": "[lobehub:Volcengine]",
+    "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+    "anthropicBaseUrl": "https://ark.cn-beijing.volces.com/api/compatible",
+    "defaultLabel": "火山方舟",
+    "models": [
+      { "name": "doubao-seed-2-0-pro-260215", "label": "Doubao Seed 2.0 Pro" },
+      { "name": "doubao-seed-2-0-lite-260215", "label": "Doubao Seed 2.0 Lite" },
+      { "name": "doubao-seed-2-0-mini-260215", "label": "Doubao Seed 2.0 Mini" },
+      { "name": "doubao-seed-2-0-code-preview-260215", "label": "Doubao Seed 2.0 Code Preview" },
+      { "name": "doubao-seed-character-251128", "label": "Doubao Seed Character" },
+      { "name": "glm-4-7-251222", "label": "GLM-4.7" },
+      { "name": "deepseek-v3-2-251201", "label": "DeepSeek Chat" },
+      { "name": "deepseek-v3-1-terminus", "label": "DeepSeek V3.1" }
+    ]
+  },
+  {
     "id": "openrouter",
     "name": "OpenRouter",
     "icon": "[lobehub:OpenRouter]",
