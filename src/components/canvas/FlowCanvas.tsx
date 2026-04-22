@@ -11,6 +11,7 @@ import 'reactflow/dist/style.css';
 import { useFlowStore } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import { isValidConnection } from '../../lib/edge-rules';
+import { toast } from '../../store/toast-store';
 import type { SwitcherNodeData } from '../../types';
 import ProviderNode from '../nodes/ProviderNode';
 import SwitcherNode from '../nodes/SwitcherNode';
@@ -41,37 +42,6 @@ export default function FlowCanvas() {
 
   // Track the last validation failure reason for showing a toast
   const lastInvalidReason = useRef<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showToast = useCallback((message: string) => {
-    // Remove existing toast
-    const existing = document.getElementById('connection-toast');
-    if (existing) existing.remove();
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-
-    const toast = document.createElement('div');
-    toast.id = 'connection-toast';
-    toast.textContent = message;
-    Object.assign(toast.style, {
-      position: 'fixed',
-      bottom: '24px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      background: '#2b2b2b',
-      color: '#f9fafb',
-      padding: '10px 20px',
-      borderRadius: '8px',
-      fontSize: '13px',
-      zIndex: '9999',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-      transition: 'opacity 0.3s',
-    });
-    document.body.appendChild(toast);
-    toastTimer.current = setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
-  }, []);
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: { id: string }) => {
@@ -117,10 +87,10 @@ export default function FlowCanvas() {
 
   const handleConnectEnd = useCallback(() => {
     if (lastInvalidReason.current) {
-      showToast(lastInvalidReason.current);
+      toast.warning(lastInvalidReason.current, 3000);
       lastInvalidReason.current = null;
     }
-  }, [showToast]);
+  }, []);
 
   const defaultEdgeOptions = useMemo(
     () => ({
