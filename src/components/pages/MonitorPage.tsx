@@ -9,12 +9,12 @@ import type {
 } from '../../types';
 
 const POLL_INTERVAL_MS = 4000;
-type TimeRangeKey = '15m' | '1h' | '24h';
+type TimeRangeKey = '24h' | '1w' | '1M';
 
 const TIME_RANGE_OPTIONS: { key: TimeRangeKey; label: string; minutes: number; buckets: number }[] = [
-  { key: '15m', label: '15 分钟', minutes: 15, buckets: 15 },
-  { key: '1h', label: '1 小时', minutes: 60, buckets: 12 },
   { key: '24h', label: '24 小时', minutes: 24 * 60, buckets: 12 },
+  { key: '1w', label: '7 天', minutes: 7 * 24 * 60, buckets: 14 },
+  { key: '1M', label: '30 天', minutes: 30 * 24 * 60, buckets: 15 },
 ];
 
 const EMPTY_SUMMARY: ProxyMetricsSummary = {
@@ -217,12 +217,11 @@ function buildTrendBuckets(requests: ProxyRequestMetric[], rangeKey: TimeRangeKe
     const labelDate = new Date(bucketStart);
     return {
       label:
-        rangeKey === '24h'
+        rangeKey === '1M'
+          ? labelDate.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit' })
+          : rangeKey === '1w'
           ? labelDate.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit' })
-          : labelDate.toLocaleTimeString('zh-CN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
+          : labelDate.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit' }),
       requests: 0,
       tokens: 0,
     };
@@ -582,7 +581,7 @@ function TrendChart({
 export default function MonitorPage() {
   const proxyStatus = useAppStore((s) => s.proxyStatus);
   const [snapshot, setSnapshot] = useState<ProxyMetricsSnapshot | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRangeKey>('1h');
+  const [timeRange, setTimeRange] = useState<TimeRangeKey>('24h');
   const [selectedApp, setSelectedApp] = useState('all');
   const [selectedProvider, setSelectedProvider] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState<ProxyRequestMetric | null>(null);
@@ -859,7 +858,7 @@ export default function MonitorPage() {
 
           <button
             onClick={() => {
-              setTimeRange('1h');
+              setTimeRange('24h');
               setSelectedApp('all');
               setSelectedProvider('all');
             }}
