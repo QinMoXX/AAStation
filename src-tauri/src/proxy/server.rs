@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{oneshot, RwLock};
 use tokio::task::JoinHandle;
+use std::collections::{HashMap, HashSet};
 
 use super::error::ProxyError;
 use super::metrics::MetricsStore;
@@ -53,8 +54,6 @@ pub struct HandlerState {
     /// Updated when settings are saved (via ProxyServer::update_auth_token).
     pub proxy_auth_token: Arc<RwLock<String>>,
 }
-
-use std::collections::HashMap;
 
 impl ProxyServer {
     pub fn new() -> Self {
@@ -216,17 +215,43 @@ impl ProxyServer {
             config.listen_address = new_set.listen_address.clone();
         }
 
-        let mut tables_by_port = self.state.route_tables_by_port.write().await;
-        tables_by_port.clear();
-
+        let mut updates: Vec<(Arc<RwLock<RouteTable>>, RouteTable)> = Vec::new();
+        let mut desired_ports: HashSet<u16> = HashSet::new();
         let mut total_routes = 0;
 
+        let mut tables_by_port = self.state.route_tables_by_port.write().await;
         for table in new_set.tables {
             if table.is_empty() {
                 continue;
             }
+            desired_ports.insert(table.listen_port);
             total_routes += table.routes.len();
-            tables_by_port.insert(table.listen_port, Arc::new(RwLock::new(table)));
+
+            if let Some(existing_table) = tables_by_port.get(&table.listen_port) {
+                // Keep the same Arc so running listeners immediately observe new routes.
+                updates.push((Arc::clone(existing_table), table));
+            } else {
+                tables_by_port.insert(table.listen_port, Arc::new(RwLock::new(table)));
+            }
+        }
+
+        // Remove route tables for ports that are no longer published.
+        // Existing listeners on these ports are not restarted here; they should be
+        // managed by start/stop lifecycle. Removing from the map keeps runtime state
+        // aligned with the latest published DAG.
+        let stale_ports: Vec<u16> = tables_by_port
+            .keys()
+            .copied()
+            .filter(|port| !desired_ports.contains(port))
+            .collect();
+        for port in stale_ports {
+            tables_by_port.remove(&port);
+        }
+        drop(tables_by_port);
+
+        for (table_ref, new_table) in updates {
+            let mut current = table_ref.write().await;
+            *current = new_table;
         }
 
         let mut status = self.state.status.write().await;
@@ -276,5 +301,75 @@ impl ProxyServer {
     /// Get a monitoring snapshot of all requests seen since app start.
     pub async fn get_metrics_snapshot(&self) -> super::types::ProxyMetricsSnapshot {
         self.state.metrics.snapshot().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::proxy::types::{CompiledRoute, MatchType, RouteTable, RouteTableSet};
+
+    fn make_route(route_id: &str, provider_label: &str) -> CompiledRoute {
+        CompiledRoute {
+            id: route_id.to_string(),
+            match_type: MatchType::PathPrefix,
+            pattern: "/v1/messages".to_string(),
+            provider_id: "provider-1".to_string(),
+            provider_label: provider_label.to_string(),
+            upstream_url: "https://upstream.example.com".to_string(),
+            anthropic_upstream_url: None,
+            api_key: "test-key".to_string(),
+            extra_headers: HashMap::new(),
+            is_default: false,
+            target_model: String::new(),
+            fuzzy_match: false,
+        }
+    }
+
+    fn make_table(route_id: &str, provider_label: &str, port: u16) -> RouteTable {
+        RouteTable {
+            app_id: "app-1".to_string(),
+            app_label: "App 1".to_string(),
+            listen_port: port,
+            listen_address: "127.0.0.1".to_string(),
+            routes: vec![make_route(route_id, provider_label)],
+            default_route: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn reload_routes_updates_existing_table_in_place() {
+        let server = ProxyServer::new();
+        let port = 9527;
+
+        server
+            .reload_routes(RouteTableSet {
+                listen_address: "127.0.0.1".to_string(),
+                tables: vec![make_table("old-route", "Old Provider", port)],
+            })
+            .await;
+
+        let original_table_ref = {
+            let tables = server.state.route_tables_by_port.read().await;
+            tables.get(&port).cloned().expect("route table should exist")
+        };
+
+        server
+            .reload_routes(RouteTableSet {
+                listen_address: "127.0.0.1".to_string(),
+                tables: vec![make_table("new-route", "New Provider", port)],
+            })
+            .await;
+
+        let current_table_ref = {
+            let tables = server.state.route_tables_by_port.read().await;
+            tables.get(&port).cloned().expect("route table should exist")
+        };
+
+        assert!(Arc::ptr_eq(&original_table_ref, &current_table_ref));
+
+        let table = original_table_ref.read().await;
+        assert_eq!(table.routes[0].id, "new-route");
+        assert_eq!(table.routes[0].provider_label, "New Provider");
     }
 }
