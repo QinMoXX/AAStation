@@ -4,6 +4,10 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+/// Default maximum total size of all log files in the log directory (500 MB).
+/// The actual limit is read from user settings at startup and passed to `init()`.
+pub const LOG_DIR_DEFAULT_MAX_BYTES: u64 = 500 * 1024 * 1024;
+
 /// Directory for log files under the app data directory.
 const LOG_DIR: &str = "logs";
 
@@ -38,16 +42,81 @@ fn log_file_name() -> String {
     format!("{}.txt", now.format("%Y-%m-%d_%H-%M-%S"))
 }
 
+/// Remove the oldest log files until the total directory size is within `max_bytes`.
+///
+/// Files are deleted in ascending modification-time order (oldest first). The
+/// currently-being-written file is excluded from deletion because it is not yet
+/// closed, but since we only keep it after trimming older files there should
+/// almost always be enough headroom.
+///
+/// Silent on any individual deletion failure — a best-effort cleanup is still
+/// better than aborting the whole startup sequence.
+pub fn cleanup_old_logs(log_dir: &PathBuf, max_bytes: u64) {
+    // Collect (modified_time, path, size) for every .txt / .log file.
+    let entries = match std::fs::read_dir(log_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    let mut files: Vec<(std::time::SystemTime, PathBuf, u64)> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let p = e.path();
+            if !p.is_file() { return false; }
+            let ext = p.extension().and_then(|x| x.to_str()).unwrap_or("");
+            ext == "txt" || ext == "log"
+        })
+        .filter_map(|e| {
+            let meta = e.metadata().ok()?;
+            let modified = meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            let size = meta.len();
+            Some((modified, e.path(), size))
+        })
+        .collect();
+
+    // Sort oldest first.
+    files.sort_by_key(|(t, _, _)| *t);
+
+    let total: u64 = files.iter().map(|(_, _, s)| s).sum();
+    if total <= max_bytes {
+        return; // Nothing to do.
+    }
+
+    let mut freed: u64 = 0;
+    let to_free = total - max_bytes;
+
+    // Never delete the newest file (last in sorted list).
+    let deletable_count = files.len().saturating_sub(1);
+
+    for (_, path, size) in files.iter().take(deletable_count) {
+        if freed >= to_free {
+            break;
+        }
+        if std::fs::remove_file(path).is_ok() {
+            freed += size;
+        }
+    }
+}
+
 /// Global storage for the log guard so that the panic handler can flush logs
 /// even when the normal drop order is bypassed during a panic.
 static LOG_GUARD: Mutex<Option<tracing_appender::non_blocking::WorkerGuard>> = Mutex::new(None);
 
 /// Initialize the logging system with both console and file output.
 ///
+/// `max_log_dir_bytes` controls the total log directory size cap; oldest files
+/// are pruned before the new log file is created.  Pass `LOG_DIR_DEFAULT_MAX_BYTES`
+/// when no user-configured value is available.
+///
 /// Returns a `LogGuard` that must be kept alive for the entire application lifetime.
 /// When dropped (normal exit, Ctrl+C, or panic), all buffered log entries are flushed to disk.
-pub fn init() -> Result<LogGuard, String> {
+pub fn init(max_log_dir_bytes: u64) -> Result<LogGuard, String> {
     let log_dir = log_dir_path()?;
+
+    // Clean up old logs before opening the new log file so we do not
+    // accidentally count the file we are about to create.
+    cleanup_old_logs(&log_dir, max_log_dir_bytes);
+
     let file_name = log_file_name();
 
     let file_appender = tracing_appender::rolling::never(log_dir, &file_name);

@@ -6,6 +6,7 @@ import {
   configureClaudeCode,
   getLogRuntimeStatus,
   isClaudeConfigured,
+  openLogDir,
   pollRuntimeLogs,
   restoreClaudeConfig,
   type LogRuntimeStatus,
@@ -85,21 +86,30 @@ export default function SettingsPage() {
   // -----------------------------------------------------------------------
   const [portRange, setPortRange] = useState(settings.listenPortRange);
   const [address, setAddress] = useState(settings.listenAddress);
+  const [logDirMaxMb, setLogDirMaxMb] = useState(String(settings.logDirMaxMb ?? 500));
   const [tokenVisible, setTokenVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setPortRange(settings.listenPortRange);
     setAddress(settings.listenAddress);
+    setLogDirMaxMb(String(settings.logDirMaxMb ?? 500));
   }, [settings]);
 
   const handleSaveGeneral = async () => {
     setSaving(true);
     try {
+      const parsedMb = parseInt(logDirMaxMb, 10);
+      if (isNaN(parsedMb) || parsedMb < 1) {
+        toast.error('日志目录上限须为大于 0 的整数（MB）');
+        setSaving(false);
+        return;
+      }
       await saveSettings({
         listenPortRange: portRange,
         listenAddress: address,
         proxyAuthToken: settings.proxyAuthToken,
+        logDirMaxMb: parsedMb,
       });
       toast.success('常规设置已保存');
     } catch (err) {
@@ -339,6 +349,23 @@ export default function SettingsPage() {
 
       <div style={fieldStyle}>
         <label style={labelStyle}>
+          日志目录大小上限（MB）
+        </label>
+        <input
+          type="number"
+          min={1}
+          value={logDirMaxMb}
+          onChange={(e) => setLogDirMaxMb(e.target.value)}
+          className="ui-input"
+          style={{ ...inputStyle, width: 180 }}
+        />
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+          软件启动时若日志目录总大小超过此值，将自动从最旧的文件开始删除。默认 500 MB。
+        </div>
+      </div>
+
+      <div style={fieldStyle}>
+        <label style={labelStyle}>
           代理认证令牌
           <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>
             只读 · 客户端通过此令牌向代理认证
@@ -534,32 +561,67 @@ export default function SettingsPage() {
 
   const renderLogsPanel = () => (
     <div className="ui-card" style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Header row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h2 style={{ fontSize: 22, color: '#f8fafc', margin: 0 }}>日志</h2>
-          <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8, lineHeight: 1.6 }}>
-            前端仅负责获取与展示日志，后端在本地执行日志文件读写与增量读取，降低前端 I/O 压力。
-          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => setLogPaused((p) => !p)}
             className={logPaused ? 'ui-btn ui-btn-active' : 'ui-btn'}
-            style={{
-              ...buttonBaseStyle,
-            }}
+            style={{ ...buttonBaseStyle }}
           >
             {logPaused ? '继续' : '暂停'}
           </button>
           <button onClick={handleReloadLogs} className="ui-btn" style={buttonBaseStyle}>重新读取</button>
           <button onClick={() => setLogLines([])} className="ui-btn" style={buttonBaseStyle}>清空视图</button>
+          <button
+            onClick={async () => {
+              try {
+                await openLogDir();
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                toast.error(`打开日志目录失败：${msg}`);
+              }
+            }}
+            className="ui-btn"
+            style={buttonBaseStyle}
+            title={runtimeStatus?.log_dir ?? '日志目录'}
+          >
+            📂 打开目录
+          </button>
         </div>
       </div>
 
+      {/* Privacy notice banner */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+          padding: '10px 14px',
+          borderRadius: 10,
+          background: 'rgba(251, 191, 36, 0.08)',
+          border: '1px solid rgba(251, 191, 36, 0.28)',
+          fontSize: 12,
+          color: '#fcd34d',
+          lineHeight: 1.65,
+        }}
+      >
+        <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>⚠️</span>
+        <span>
+          <strong>隐私提示：</strong>日志文件中包含完整的 AI 请求与响应内容（包括对话记录和 API 地址）。
+          日志仅保存于本机，AAStation 不会自动上传。
+          <strong>请勿将日志文件分享至互联网或提交给第三方</strong>，以免泄露您的隐私信息。
+        </span>
+      </div>
+
+      {/* Status cards */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: 10,
           fontSize: 12,
         }}
@@ -581,15 +643,24 @@ export default function SettingsPage() {
             {logError ? `异常: ${logError}` : logPaused ? '已暂停' : logPolling ? '拉取中...' : '运行中'}
           </div>
         </div>
+        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
+          <div style={{ color: '#64748b', marginBottom: 4 }}>目录占用 / 上限</div>
+          <div style={{ color: runtimeStatus && runtimeStatus.dir_size_bytes > runtimeStatus.dir_max_bytes * 0.9 ? '#fca5a5' : '#e2e8f0' }}>
+            {runtimeStatus
+              ? `${(runtimeStatus.dir_size_bytes / 1024 / 1024).toFixed(1)} MB / ${(runtimeStatus.dir_max_bytes / 1024 / 1024).toFixed(0)} MB`
+              : '加载中...'}
+          </div>
+        </div>
       </div>
 
+      {/* Log output */}
       <div
         ref={logScrollerRef}
         onScroll={handleLogScroll}
         style={{
           marginTop: 4,
-          height: 'calc(100vh - 290px)',
-          minHeight: 360,
+          height: 'calc(100vh - 360px)',
+          minHeight: 300,
           overflow: 'auto',
           borderRadius: 12,
           border: '1px solid rgba(255, 255, 255, 0.12)',
@@ -614,6 +685,7 @@ export default function SettingsPage() {
       <div style={{ fontSize: 11, color: '#64748b' }}>
         已缓存最近 {logLines.length} 行（上限 {LOG_MAX_LINES} 行），轮询间隔 {LOG_POLL_INTERVAL_MS}ms。
         {autoFollow ? ' 当前自动跟随滚动。' : ' 已关闭自动跟随，滚动到底部会自动恢复。'}
+        {runtimeStatus?.log_dir ? ` 日志目录：${runtimeStatus.log_dir}` : ''}
       </div>
     </div>
   );

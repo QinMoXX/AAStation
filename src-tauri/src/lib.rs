@@ -22,10 +22,17 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Read persisted settings so we can apply the user-configured log size cap
+    // before the logger creates its first file. Fall back to the default if the
+    // file doesn't exist or can't be parsed yet.
+    let log_max_bytes = crate::settings::load_settings()
+        .map(|s| s.log_dir_max_mb.max(1) * 1024 * 1024)
+        .unwrap_or(logger::LOG_DIR_DEFAULT_MAX_BYTES);
+
     // Initialize logging (console + file). Guard must be kept alive for the
     // entire application lifetime so that buffered log entries are flushed on
     // exit — even during panics or abrupt termination.
-    let _log_guard: Option<LogGuard> = match logger::init() {
+    let _log_guard: Option<LogGuard> = match logger::init(log_max_bytes) {
         Ok(g) => Some(g),
         Err(e) => {
             eprintln!("Failed to initialize logger: {}. Falling back to console-only.", e);
@@ -60,6 +67,7 @@ pub fn run() {
             commands::settings_commands::save_settings,
             commands::log_commands::get_log_runtime_status,
             commands::log_commands::poll_runtime_logs,
+            commands::log_commands::open_log_dir,
             commands::app_commands::configure_claude_code,
             commands::app_commands::is_claude_configured,
             commands::app_commands::unconfigure_claude_code,

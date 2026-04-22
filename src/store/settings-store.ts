@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   listenPortRange: '9527-9537',
   listenAddress: '127.0.0.1',
   proxyAuthToken: '',
+  logDirMaxMb: 500,
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({

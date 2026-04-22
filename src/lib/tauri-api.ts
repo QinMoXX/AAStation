@@ -104,11 +104,12 @@ export async function getProxyMetrics(): Promise<ProxyMetricsSnapshot> {
 
 /** Load application settings from disk. Returns defaults if no file exists. */
 export async function loadSettings(): Promise<AppSettings> {
-  const raw = await invoke<{ listen_port_range: string; listen_address: string; proxy_auth_token: string }>('load_settings');
+  const raw = await invoke<{ listen_port_range: string; listen_address: string; proxy_auth_token: string; log_dir_max_mb: number }>('load_settings');
   return {
     listenPortRange: raw.listen_port_range,
     listenAddress: raw.listen_address,
     proxyAuthToken: raw.proxy_auth_token,
+    logDirMaxMb: raw.log_dir_max_mb ?? 500,
   };
 }
 
@@ -119,6 +120,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       listen_port_range: settings.listenPortRange,
       listen_address: settings.listenAddress,
       proxy_auth_token: settings.proxyAuthToken,
+      log_dir_max_mb: settings.logDirMaxMb,
     },
   });
 }
@@ -133,6 +135,10 @@ export interface LogRuntimeStatus {
   log_dir: string;
   active_file: string | null;
   note: string;
+  /** Total size of all log files in bytes. */
+  dir_size_bytes: number;
+  /** Maximum allowed total directory size in bytes. */
+  dir_max_bytes: number;
 }
 
 export interface LogPollRequest {
@@ -159,6 +165,11 @@ export async function getLogRuntimeStatus(): Promise<LogRuntimeStatus> {
 /** Incrementally poll runtime log lines from the active log file. */
 export async function pollRuntimeLogs(request?: LogPollRequest): Promise<LogPollResponse> {
   return invoke<LogPollResponse>('poll_runtime_logs', { request });
+}
+
+/** Open the log directory in the system file explorer. */
+export async function openLogDir(): Promise<void> {
+  return invoke<void>('open_log_dir');
 }
 
 // ---------------------------------------------------------------------------

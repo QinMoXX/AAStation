@@ -16,6 +16,10 @@ pub struct LogRuntimeStatus {
     pub log_dir: String,
     pub active_file: Option<String>,
     pub note: String,
+    /// Total size of all log files in bytes.
+    pub dir_size_bytes: u64,
+    /// Maximum allowed total size in bytes (from logger config).
+    pub dir_max_bytes: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,6 +68,21 @@ fn log_dir_path() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Returns the total size in bytes of all log files in the directory.
+fn log_dir_size(log_dir: &PathBuf) -> u64 {
+    let Ok(entries) = fs::read_dir(log_dir) else { return 0; };
+    entries
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let p = e.path();
+            if !p.is_file() { return false; }
+            let ext = p.extension().and_then(|x| x.to_str()).unwrap_or("");
+            ext == "txt" || ext == "log"
+        })
+        .filter_map(|e| e.metadata().ok().map(|m| m.len()))
+        .sum()
+}
+
 fn newest_log_file(log_dir: &PathBuf) -> Result<Option<LatestLogFile>, String> {
     let entries = fs::read_dir(log_dir).map_err(|e| format!("Failed to read log directory: {}", e))?;
     let mut latest: Option<(PathBuf, String, SystemTime)> = None;
@@ -103,6 +122,12 @@ fn newest_log_file(log_dir: &PathBuf) -> Result<Option<LatestLogFile>, String> {
 pub async fn get_log_runtime_status() -> Result<LogRuntimeStatus, String> {
     let log_dir = log_dir_path()?;
     let latest = newest_log_file(&log_dir)?;
+    let dir_size_bytes = log_dir_size(&log_dir);
+
+    // Read the user-configured limit from settings; fall back to the default.
+    let dir_max_bytes = crate::settings::load_settings()
+        .map(|s| s.log_dir_max_mb.max(1) * 1024 * 1024)
+        .unwrap_or(crate::logger::LOG_DIR_DEFAULT_MAX_BYTES);
 
     Ok(LogRuntimeStatus {
         backend_local_read_write: true,
@@ -110,6 +135,8 @@ pub async fn get_log_runtime_status() -> Result<LogRuntimeStatus, String> {
         log_dir: log_dir.to_string_lossy().to_string(),
         active_file: latest.map(|f| f.name),
         note: "日志写入与读取均由后端本地文件系统完成，前端仅通过 IPC 拉取增量内容。".to_string(),
+        dir_size_bytes,
+        dir_max_bytes,
     })
 }
 
@@ -195,4 +222,42 @@ pub async fn poll_runtime_logs(request: Option<LogPollRequest>) -> Result<LogPol
         truncated,
         lines,
     })
+}
+
+/// Open the log directory in the system file explorer.
+///
+/// Uses the `tauri-plugin-opener` shell-open facility which is already
+/// bundled in this application.  On Windows this calls `explorer.exe`,
+/// on macOS `open`, on Linux `xdg-open`.
+#[tauri::command]
+pub async fn open_log_dir() -> Result<(), String> {
+    let log_dir = log_dir_path()?;
+    let path_str = log_dir.to_string_lossy().to_string();
+
+    // open::that is re-exported via the opener plugin's underlying library.
+    // We use std::process::Command for maximum compatibility and to avoid
+    // needing an additional AppHandle parameter here.
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path_str)
+            .spawn()
+            .map_err(|e| format!("Failed to open log directory: {}", e))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path_str)
+            .spawn()
+            .map_err(|e| format!("Failed to open log directory: {}", e))?;
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path_str)
+            .spawn()
+            .map_err(|e| format!("Failed to open log directory: {}", e))?;
+    }
+
+    Ok(())
 }

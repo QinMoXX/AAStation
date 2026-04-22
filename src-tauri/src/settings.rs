@@ -23,10 +23,18 @@ pub struct AppSettings {
     /// NOT used for upstream forwarding — Provider node API keys are used instead.
     #[serde(default = "generate_auth_token")]
     pub proxy_auth_token: String,
+    /// Maximum total size of log files in MB (default 500).
+    /// Oldest log files are deleted on startup when the total exceeds this limit.
+    #[serde(default = "default_log_dir_max_mb")]
+    pub log_dir_max_mb: u64,
 }
 
 fn default_port_range() -> String {
     "9527-9537".to_string()
+}
+
+fn default_log_dir_max_mb() -> u64 {
+    500
 }
 
 /// Parse a port range string into a (start, end) pair.
@@ -107,6 +115,7 @@ impl Default for AppSettings {
             listen_port_range: default_port_range(),
             listen_address: "127.0.0.1".to_string(),
             proxy_auth_token: generate_auth_token(),
+            log_dir_max_mb: default_log_dir_max_mb(),
         }
     }
 }

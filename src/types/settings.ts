@@ -6,4 +6,6 @@ export interface AppSettings {
   listenAddress: string;
   /** Unique auth token for proxy access verification. Generated on first run, read-only in UI. */
   proxyAuthToken: string;
+  /** Maximum total size of log files in MB. Oldest files are deleted on startup when exceeded. */
+  logDirMaxMb: number;
 }
