@@ -64,6 +64,7 @@ function FallbackIcon(props: SVGProps<SVGSVGElement>) {
 const LOBEHUB_ICONS: Record<string, React.FC<{ size?: number }>> = {
   alibaba: Alibaba,
   bailian: Bailian,
+  kimi: Moonshot,
   openai: OpenAI,
   anthropic: Anthropic,
   deepseek: DeepSeek,

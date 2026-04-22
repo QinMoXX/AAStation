@@ -67,6 +67,28 @@
     ]
   },
   {
+    "id": "kimi",
+    "name": "Kimi",
+    "icon": "[lobehub:Moonshot]",
+    "baseUrl": "https://api.moonshot.cn/v1",
+    "anthropicBaseUrl": "https://api.moonshot.cn/anthropic",
+    "defaultLabel": "Kimi",
+    "models": [
+      { "name": "kimi-k2.6", "label": "Kimi K2.6" },
+      { "name": "kimi-k2.5", "label": "Kimi K2.5" },
+      { "name": "kimi-k2-0905-preview", "label": "Kimi K2 0905 Preview" },
+      { "name": "kimi-k2-thinking", "label": "Kimi K2 Thinking" },
+      { "name": "kimi-k2-thinking-turbo", "label": "Kimi K2 Thinking Turbo" },
+      { "name": "kimi-k2-turbo-preview", "label": "Kimi K2 Turbo Preview" },
+      { "name": "moonshot-v1-8k", "label": "Moonshot V1 8K" },
+      { "name": "moonshot-v1-32k", "label": "Moonshot V1 32K" },
+      { "name": "moonshot-v1-128k", "label": "Moonshot V1 128K" },
+      { "name": "moonshot-v1-8k-vision-preview", "label": "Moonshot V1 8K Vision" },
+      { "name": "moonshot-v1-32k-vision-preview", "label": "Moonshot V1 32K Vision" },
+      { "name": "moonshot-v1-128k-vision-preview", "label": "Moonshot V1 128K Vision" }
+    ]
+  },
+  {
     "id": "openrouter",
     "name": "OpenRouter",
     "icon": "[lobehub:OpenRouter]",
