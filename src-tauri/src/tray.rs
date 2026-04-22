@@ -49,11 +49,11 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
                 let app_handle = app.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Some(state) = app_handle.try_state::<AppState>() {
+                        // Hold the same guard across the check-then-act sequence so
+                        // that no concurrent toggle can observe a stale `running`
+                        // value and trigger a duplicate start or stop.
                         let proxy = state.proxy.read().await;
                         let status = proxy.get_status().await;
-                        drop(proxy);
-
-                        let proxy = state.proxy.read().await;
                         if status.running {
                             let _ = proxy.stop().await;
                         } else {

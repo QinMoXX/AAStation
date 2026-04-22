@@ -72,10 +72,6 @@ export function isValidConnection(
   if (sourceNodeType === 'switcher' && targetNodeType === 'switcher')
     return { valid: false, reason: '不支持嵌套交换器' };
 
-  // Provider → Provider
-  if (sourceNodeType === 'provider' && targetNodeType === 'provider')
-    return { valid: false, reason: '不支持供应商链式连接' };
-
   // Application → Switcher (valid)
   if (sourceNodeType === 'application' && targetNodeType === 'switcher')
     return { valid: true };

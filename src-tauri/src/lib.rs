@@ -9,6 +9,7 @@ mod settings;
 mod store;
 mod tray;
 
+use std::sync::Arc;
 use std::time::Duration;
 use logger::LogGuard;
 use store::AppState;
@@ -47,6 +48,12 @@ pub fn run() {
 
     let state = AppState::new();
 
+    // Shutdown notifier shared between the setup() closure and the run() event
+    // callback. Using Arc<Notify> instead of a oneshot channel avoids the need
+    // for a Mutex around the Sender half.
+    let shutdown = Arc::new(tokio::sync::Notify::new());
+    let shutdown_for_run = shutdown.clone();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(state)
@@ -73,7 +80,7 @@ pub fn run() {
             commands::app_commands::unconfigure_claude_code,
             commands::app_commands::restore_claude_config,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             // Setup system tray
             tray::setup_tray(app.handle()).map_err(|e| e.to_string())?;
 
@@ -90,11 +97,14 @@ pub fn run() {
                 *proxy.proxy_auth_token.blocking_write() = auth_token;
             }
 
-            // Start background task to update tray status periodically
+            // Start background task to update tray status periodically.
+            // `shutdown` is moved here via the `move` setup closure; the task
+            // then re-captures it. `shutdown_for_run` (a clone created above)
+            // is used in the run() callback to signal exit.
             let app_handle = app.handle().clone();
             let state = app.state::<AppState>();
             let proxy = state.proxy.clone();
-            
+
             tauri::async_runtime::spawn(async move {
                 let mut interval = tokio::time::interval(Duration::from_secs(2));
                 // Track the last known running state to avoid rebuilding the tray
@@ -103,20 +113,34 @@ pub fn run() {
                 // blank artifact on screen.
                 let mut last_running: Option<bool> = None;
                 loop {
-                    interval.tick().await;
-                    let proxy = proxy.read().await;
-                    let status = proxy.get_status().await;
-                    drop(proxy);
-                    // Only update when the state actually changes.
-                    if last_running != Some(status.running) {
-                        tray::update_tray_menu(&app_handle, status.running);
-                        last_running = Some(status.running);
+                    tokio::select! {
+                        _ = interval.tick() => {
+                            let proxy = proxy.read().await;
+                            let status = proxy.get_status().await;
+                            drop(proxy);
+                            // Only update when the state actually changes.
+                            if last_running != Some(status.running) {
+                                tray::update_tray_menu(&app_handle, status.running);
+                                last_running = Some(status.running);
+                            }
+                        }
+                        _ = shutdown.notified() => {
+                            tracing::debug!("Tray status task received shutdown signal, exiting.");
+                            break;
+                        }
                     }
                 }
             });
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(move |_app_handle, event| {
+            // Signal the tray polling task to exit cleanly before the Tokio
+            // runtime is dropped, so it doesn't get forcibly cancelled mid-tick.
+            if let tauri::RunEvent::Exit = event {
+                shutdown_for_run.notify_one();
+            }
+        });
 }
