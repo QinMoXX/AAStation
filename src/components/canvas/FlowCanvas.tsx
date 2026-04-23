@@ -10,7 +10,7 @@ import 'reactflow/dist/style.css';
 
 import { useFlowStore } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
-import { isValidConnection } from '../../lib/edge-rules';
+import { EDGE_RULE_MESSAGES, isValidConnection } from '../../lib/edge-rules';
 import { toast } from '../../store/toast-store';
 import type { SwitcherNodeData } from '../../types';
 import ProviderNode from '../nodes/ProviderNode';
@@ -57,6 +57,16 @@ export default function FlowCanvas() {
   const checkValidConnection: IsValidConnection = useCallback(
     (edge) => {
       if (!edge.source || !edge.target) return false;
+      const hasExistingFromSameOutput = edges.some(
+        (e) =>
+          e.source === edge.source &&
+          (e.sourceHandle ?? null) === (edge.sourceHandle ?? null),
+      );
+      if (hasExistingFromSameOutput) {
+        lastInvalidReason.current = EDGE_RULE_MESSAGES.SOURCE_HANDLE_ALREADY_CONNECTED;
+        return false;
+      }
+
       const sourceNode = nodes.find((n) => n.id === edge.source);
       const targetNode = nodes.find((n) => n.id === edge.target);
       if (!sourceNode || !targetNode) return false;
@@ -82,7 +92,7 @@ export default function FlowCanvas() {
 
       return result.valid;
     },
-    [nodes],
+    [nodes, edges],
   );
 
   const handleConnectEnd = useCallback(() => {

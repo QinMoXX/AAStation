@@ -152,6 +152,14 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   onConnect: (connection: Connection) => {
     const { nodes, edges } = get();
+    const hasExistingFromSameOutput = edges.some(
+      (e) =>
+        e.source === connection.source &&
+        (e.sourceHandle ?? null) === (connection.sourceHandle ?? null),
+    );
+    if (hasExistingFromSameOutput) {
+      return;
+    }
     const newEdges = addEdge(connection, edges);
 
     // Auto-populate Switcher with default entries when an Application connects to it

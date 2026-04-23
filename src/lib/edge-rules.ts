@@ -23,6 +23,7 @@ import type { SwitcherEntry } from '../types';
 // ---------------------------------------------------------------------------
 
 export const EDGE_RULE_MESSAGES = {
+  SOURCE_HANDLE_ALREADY_CONNECTED: '无法多节点输出',
   PROVIDER_HAS_NO_OUTPUT: 'Provider 是终点节点，不能作为连线起点',
   CANNOT_TARGET_APPLICATION: '不能连接到 Application 节点',
   NO_NESTED_SWITCHER: '不支持嵌套交换器',

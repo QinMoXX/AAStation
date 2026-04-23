@@ -89,9 +89,12 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTableSe
             // Process each matcher entry
             for entry in &switcher_data.entries {
                 let entry_handle = format!("entry-{}", entry.id);
-                let edge = source_edge_map
-                    .get(&(node.id.as_str(), entry_handle.as_str()))
-                    .ok_or_else(|| CompileError::EntryEdgeNotFound(entry.id.clone()))?;
+                let Some(edge) = source_edge_map.get(&(node.id.as_str(), entry_handle.as_str())) else {
+                    // Unconnected matcher entries are allowed. They are skipped and simply
+                    // won't produce a route. Requests matching this entry will not be forwarded
+                    // unless another route/default handles them.
+                    continue;
+                };
 
                 let provider = resolve_provider(&edge.target, &node_map)?;
                 let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
@@ -356,6 +359,7 @@ mod tests {
             listen_port_range: "9527-9537".to_string(),
             listen_address: "127.0.0.1".to_string(),
             proxy_auth_token: String::new(),
+            log_dir_max_mb: 500,
         }
     }
 
@@ -544,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn test_entry_edge_not_found() {
+    fn test_unconnected_switcher_entry_is_skipped() {
         let provider = make_provider(
             "p1", "OpenAI",
             "https://api.openai.com/v1", "sk-test",
@@ -575,7 +579,11 @@ mod tests {
             ..Default::default()
         };
 
-        assert!(matches!(compile(&doc, &default_settings()), Err(CompileError::EntryEdgeNotFound(_))));
+        let set = compile(&doc, &default_settings()).unwrap();
+        assert_eq!(set.tables.len(), 1);
+        let table = &set.tables[0];
+        assert!(table.routes.is_empty());
+        assert!(table.default_route.is_none());
     }
 
     #[test]
