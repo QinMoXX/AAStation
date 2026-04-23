@@ -3,7 +3,9 @@
     "allow": [
       "Bash(xargs cat *)",
       "Bash(cat)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "WebFetch(domain:platform.minimaxi.com)",
+      "Bash(cargo check *)"
     ]
   }
 }

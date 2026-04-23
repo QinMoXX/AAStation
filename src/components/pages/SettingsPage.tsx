@@ -4,13 +4,17 @@ import { useFlowStore } from '../../store/flow-store';
 import { toast } from '../../store/toast-store';
 import {
   configureClaudeCode,
+  configureOpenCode,
   getLogRuntimeStatus,
   isClaudeConfigured,
+  isOpenCodeConfigured,
   openLogDir,
   pollRuntimeLogs,
   restoreClaudeConfig,
+  restoreOpenCodeConfig,
   type LogRuntimeStatus,
   unconfigureClaudeCode,
+  unconfigureOpenCode,
 } from '../../lib/tauri-api';
 import type { ApplicationNodeData } from '../../types';
 
@@ -137,8 +141,17 @@ export default function SettingsPage() {
   const [claudeActioning, setClaudeActioning] = useState(false);
   const [claudeTokenVisible, setClaudeTokenVisible] = useState(false);
 
+  const [openCodeConfigured, setOpenCodeConfigured] = useState(false);
+  const [openCodeActioning, setOpenCodeActioning] = useState(false);
+  const [openCodeTokenVisible, setOpenCodeTokenVisible] = useState(false);
+
   const claudeNodes = useMemo(
     () => applicationNodes.filter((n) => (n.data as ApplicationNodeData).appType === 'claude_code'),
+    [applicationNodes],
+  );
+
+  const openCodeNodes = useMemo(
+    () => applicationNodes.filter((n) => (n.data as ApplicationNodeData).appType === 'open_code'),
     [applicationNodes],
   );
 
@@ -149,14 +162,23 @@ export default function SettingsPage() {
     return valid ? `http://127.0.0.1:${valid.listenPort}` : null;
   }, [claudeNodes]);
 
+  const openCodeProxyUrl = useMemo(() => {
+    const valid = openCodeNodes
+      .map((n) => n.data as ApplicationNodeData)
+      .find((d) => Number.isInteger(d.listenPort) && d.listenPort > 0);
+    return valid ? `http://127.0.0.1:${valid.listenPort}` : null;
+  }, [openCodeNodes]);
+
   const refreshClaudeConfigStatus = useCallback(async () => {
     setClaudeLoading(true);
     try {
       const configured = await isClaudeConfigured();
       setClaudeConfigured(configured);
+      const ocConfigured = await isOpenCodeConfigured();
+      setOpenCodeConfigured(ocConfigured);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`读取 Claude Code 配置状态失败：${msg}`);
+      toast.error(`读取配置状态失败：${msg}`);
     } finally {
       setClaudeLoading(false);
     }
@@ -213,6 +235,59 @@ export default function SettingsPage() {
       toast.error(`恢复 Claude Code 备份失败：${msg}`);
     } finally {
       setClaudeActioning(false);
+    }
+  };
+
+  // -----------------------------------------------------------------------
+  // OpenCode config actions
+  // -----------------------------------------------------------------------
+
+  const handleConfigureOpenCode = async () => {
+    if (openCodeActioning) return;
+    if (!openCodeProxyUrl) {
+      toast.warning('未发现可用的 OpenCode 监听端口，请先发布并确保端口已分配。');
+      return;
+    }
+    setOpenCodeActioning(true);
+    try {
+      await configureOpenCode(openCodeProxyUrl);
+      toast.success('OpenCode 配置文件已写入，并自动生成备份。');
+      await refreshClaudeConfigStatus();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`写入 OpenCode 配置失败：${msg}`);
+    } finally {
+      setOpenCodeActioning(false);
+    }
+  };
+
+  const handleUnconfigureOpenCode = async () => {
+    if (openCodeActioning) return;
+    setOpenCodeActioning(true);
+    try {
+      await unconfigureOpenCode();
+      toast.success('已移除 OpenCode 的 AAStation 管理配置。');
+      await refreshClaudeConfigStatus();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`移除 OpenCode 配置失败：${msg}`);
+    } finally {
+      setOpenCodeActioning(false);
+    }
+  };
+
+  const handleRestoreOpenCodeBackup = async () => {
+    if (openCodeActioning) return;
+    setOpenCodeActioning(true);
+    try {
+      await restoreOpenCodeConfig();
+      toast.success('OpenCode 配置已从备份恢复。');
+      await refreshClaudeConfigStatus();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`恢复 OpenCode 备份失败：${msg}`);
+    } finally {
+      setOpenCodeActioning(false);
     }
   };
 
@@ -546,6 +621,121 @@ export default function SettingsPage() {
             <button
               onClick={handleUnconfigureClaude}
               disabled={claudeActioning}
+              className="ui-btn"
+              style={{
+                ...buttonBaseStyle,
+              }}
+            >
+              移除托管配置
+            </button>
+          </div>
+        </div>
+
+        {/* OpenCode configuration card */}
+        <div
+          className="ui-card"
+          style={{
+            marginTop: 16,
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>OpenCode 配置管理</div>
+              <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+                用于写入或恢复 `~/.config/opencode/config.json`（Windows：`%APPDATA%\opencode\config.json`）。
+                后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
+              </div>
+            </div>
+            <div
+              style={{
+                alignSelf: 'flex-start',
+                fontSize: 12,
+                color: 'var(--ui-text)',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: 999,
+                padding: '4px 10px',
+              }}
+            >
+              {openCodeConfigured ? '已配置' : '未配置'}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
+            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, color: '#64748b' }}>检测到 OpenCode 节点</div>
+              <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{openCodeNodes.length}</div>
+            </div>
+            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
+              <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
+                {openCodeProxyUrl ?? '暂无可用端口'}
+              </div>
+            </div>
+          </div>
+
+          {openCodeNodes.length > 0 && (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {openCodeNodes.map((node) => {
+                const data = node.data as ApplicationNodeData;
+                return (
+                  <div
+                    key={node.id}
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--ui-text)',
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      background: 'rgba(0, 0, 0, 0.28)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                    }}
+                  >
+                    {data.label} · {node.id} · 端口 :{data.listenPort || 0}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
+            将写入：`provider.aastation.options.baseURL={openCodeProxyUrl ?? '<待分配端口>'}`，
+            `provider.aastation.options.apiKey={openCodeTokenVisible ? authToken : maskedToken}`。
+          </div>
+          <button
+            onClick={() => setOpenCodeTokenVisible((v) => !v)}
+            className="ui-btn"
+            style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
+          >
+            {openCodeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
+          </button>
+
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={handleConfigureOpenCode}
+              disabled={openCodeActioning || openCodeNodes.length === 0 || !openCodeProxyUrl}
+              className="ui-btn ui-btn-primary"
+              style={{
+                ...buttonBaseStyle,
+                cursor: openCodeActioning ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {openCodeActioning ? '处理中...' : '一键写入配置'}
+            </button>
+            <button
+              onClick={handleRestoreOpenCodeBackup}
+              disabled={openCodeActioning}
+              className="ui-btn"
+              style={{
+                ...buttonBaseStyle,
+              }}
+            >
+              从备份恢复
+            </button>
+            <button
+              onClick={handleUnconfigureOpenCode}
+              disabled={openCodeActioning}
               className="ui-btn"
               style={{
                 ...buttonBaseStyle,

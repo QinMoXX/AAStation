@@ -53,7 +53,9 @@ export function defaultSwitcherData(): SwitcherNodeData {
 export function defaultApplicationData(appType: AppType = 'listener'): ApplicationNodeData {
   return {
     nodeType: 'application',
-    label: appType === 'claude_code' ? 'Claude Code' : 'Listener',
+    label: appType === 'claude_code' ? 'Claude Code'
+         : appType === 'open_code'   ? 'OpenCode'
+         : 'Listener',
     appType,
     listenPort: 0, // 0 = unassigned, will be auto-assigned
   };

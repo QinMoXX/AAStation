@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
-import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured } from '../../lib/tauri-api';
+import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured, isOpenCodeConfigured } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
 import ClaudeCodeDialog, { type ClaudeCodeAppInfo } from '../common/ClaudeCodeDialog';
+import OpenCodeDialog, { type OpenCodeAppInfo } from '../common/OpenCodeDialog';
 import type { AAStationNode, ApplicationNodeData } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -129,6 +130,11 @@ export default function Header() {
     proxyUrl: string;
   } | null>(null);
 
+  const [openCodeDialog, setOpenCodeDialog] = useState<{
+    apps: OpenCodeAppInfo[];
+    proxyUrl: string;
+  } | null>(null);
+
   // -----------------------------------------------------------------------
   // Toggle proxy on/off (independent of publish)
   // -----------------------------------------------------------------------
@@ -212,6 +218,27 @@ export default function Header() {
           setClaudeCodeDialog({ apps: claudeCodeApps, proxyUrl });
         }
       }
+
+      // 5. Check for OpenCode application nodes
+      const openCodeApps: OpenCodeAppInfo[] = doc.nodes
+        .filter((n): n is AAStationNode & { data: ApplicationNodeData } =>
+          n.data.nodeType === 'application' && (n.data as ApplicationNodeData).appType === 'open_code'
+        )
+        .map((n) => ({
+          nodeId: n.id,
+          label: n.data.label || 'OpenCode',
+          listenPort: n.data.listenPort || 0,
+        }));
+
+      if (openCodeApps.length > 0) {
+        // Only show dialog if OpenCode is not already configured
+        const ocConfigured = await isOpenCodeConfigured().catch(() => false);
+        if (!ocConfigured) {
+          const firstApp = openCodeApps[0];
+          const proxyUrl = `http://127.0.0.1:${firstApp.listenPort}`;
+          setOpenCodeDialog({ apps: openCodeApps, proxyUrl });
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -290,6 +317,15 @@ export default function Header() {
           apps={claudeCodeDialog.apps}
           proxyUrl={claudeCodeDialog.proxyUrl}
           onClose={() => setClaudeCodeDialog(null)}
+        />
+      )}
+
+      {/* OpenCode configuration dialog */}
+      {openCodeDialog && (
+        <OpenCodeDialog
+          apps={openCodeDialog.apps}
+          proxyUrl={openCodeDialog.proxyUrl}
+          onClose={() => setOpenCodeDialog(null)}
         />
       )}
     </header>

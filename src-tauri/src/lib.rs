@@ -4,6 +4,7 @@ mod dag;
 mod dag_store;
 mod error;
 mod logger;
+mod opencode_config;
 mod proxy;
 mod settings;
 mod store;
@@ -79,6 +80,10 @@ pub fn run() {
             commands::app_commands::is_claude_configured,
             commands::app_commands::unconfigure_claude_code,
             commands::app_commands::restore_claude_config,
+            commands::app_commands::configure_open_code,
+            commands::app_commands::is_open_code_configured,
+            commands::app_commands::unconfigure_open_code,
+            commands::app_commands::restore_open_code_config,
         ])
         .setup(move |app| {
             // Setup system tray

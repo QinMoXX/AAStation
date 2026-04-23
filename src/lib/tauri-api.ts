@@ -197,3 +197,27 @@ export async function unconfigureClaudeCode(): Promise<void> {
 export async function restoreClaudeConfig(): Promise<void> {
   return invoke<void>('restore_claude_config');
 }
+
+// ---------------------------------------------------------------------------
+// OpenCode app configuration commands
+// ---------------------------------------------------------------------------
+
+/** Configure OpenCode to use the local proxy. */
+export async function configureOpenCode(proxyUrl: string): Promise<void> {
+  return invoke<void>('configure_open_code', { proxyUrl });
+}
+
+/** Check whether OpenCode is already configured by AAStation. */
+export async function isOpenCodeConfigured(): Promise<boolean> {
+  return invoke<boolean>('is_open_code_configured');
+}
+
+/** Remove the AAStation-managed provider.aastation entry from OpenCode config. */
+export async function unconfigureOpenCode(): Promise<void> {
+  return invoke<void>('unconfigure_open_code');
+}
+
+/** Restore OpenCode config from the .aastation-backup backup file. */
+export async function restoreOpenCodeConfig(): Promise<void> {
+  return invoke<void>('restore_open_code_config');
+}
