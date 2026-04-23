@@ -10,8 +10,22 @@ export interface Toast {
   id: string;
   type: ToastType;
   message: string;
-  duration?: number; // ms, default 4000
+  duration?: number; // ms
 }
+
+// ---------------------------------------------------------------------------
+// Duration constants
+// ---------------------------------------------------------------------------
+
+/** Default auto-dismiss durations (ms) per toast severity. */
+export const TOAST_DURATION = {
+  SUCCESS: 4000,
+  ERROR: 6000,
+  INFO: 4000,
+  WARNING: 5000,
+  /** Fallback used by ToastItem when no duration is provided. */
+  DEFAULT: 4000,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Store
@@ -53,15 +67,15 @@ export const useToastStore = create<ToastState>((set) => ({
 // ---------------------------------------------------------------------------
 
 export const toast = {
-  success: (message: string, duration = 4000) =>
+  success: (message: string, duration = TOAST_DURATION.SUCCESS) =>
     useToastStore.getState().add({ type: 'success', message, duration }),
 
-  error: (message: string, duration = 6000) =>
+  error: (message: string, duration = TOAST_DURATION.ERROR) =>
     useToastStore.getState().add({ type: 'error', message, duration }),
 
-  info: (message: string, duration = 4000) =>
+  info: (message: string, duration = TOAST_DURATION.INFO) =>
     useToastStore.getState().add({ type: 'info', message, duration }),
 
-  warning: (message: string, duration = 5000) =>
+  warning: (message: string, duration = TOAST_DURATION.WARNING) =>
     useToastStore.getState().add({ type: 'warning', message, duration }),
 };

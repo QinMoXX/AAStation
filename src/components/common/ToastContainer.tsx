@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useToastStore, type ToastType } from '../../store/toast-store';
+import { useToastStore, TOAST_DURATION, type ToastType } from '../../store/toast-store';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -85,7 +85,7 @@ const icons: Record<ToastType, string> = {
 // Component
 // ---------------------------------------------------------------------------
 
-function ToastItem({ id, type, message, duration = 4000 }: {
+function ToastItem({ id, type, message, duration = TOAST_DURATION.DEFAULT }: {
   id: string;
   type: ToastType;
   message: string;

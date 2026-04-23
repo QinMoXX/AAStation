@@ -263,7 +263,7 @@ function exportCsv(
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 150);
 }
 
 function RequestDetailDrawer({

@@ -4,6 +4,7 @@ import { useFlowStore } from '../../store/flow-store';
 import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
 import ClaudeCodeDialog, { type ClaudeCodeAppInfo } from '../common/ClaudeCodeDialog';
+import type { AAStationNode, ApplicationNodeData } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -184,15 +185,14 @@ export default function Header() {
 
       // 4. Check for Claude Code application nodes
       const claudeCodeApps: ClaudeCodeAppInfo[] = doc.nodes
-        .filter((n) => n.data.nodeType === 'application' && (n.data as any).appType === 'claude_code')
-        .map((n) => {
-          const data = n.data as any;
-          return {
-            nodeId: n.id,
-            label: data.label || 'Claude Code',
-            listenPort: data.listenPort || 0,
-          };
-        });
+        .filter((n): n is AAStationNode & { data: ApplicationNodeData } =>
+          n.data.nodeType === 'application' && (n.data as ApplicationNodeData).appType === 'claude_code'
+        )
+        .map((n) => ({
+          nodeId: n.id,
+          label: n.data.label || 'Claude Code',
+          listenPort: n.data.listenPort || 0,
+        }));
 
       if (claudeCodeApps.length > 0) {
         // Only show dialog if Claude Code is not already configured
