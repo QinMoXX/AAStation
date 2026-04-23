@@ -165,18 +165,27 @@ export default function Header() {
     setPublishing(true);
     setError(null);
 
+    // Track whether publishDag succeeded so we can give a precise error message
+    // and avoid resetting "published" state if only the proxy start fails.
+    let dagPublished = false;
+
     try {
       // 1. Publish DAG (validate → compile → hot-load routes)
       const doc = getDocument();
       await publishDag(doc);
+
+      // Mark published immediately after DAG save succeeds — independently of
+      // whether the proxy start below will succeed. This prevents the UI from
+      // staying in "Draft" state when only the proxy start fails.
+      dagPublished = true;
+      markPublished();
 
       // 2. Start proxy server (if not already running)
       if (!proxyStatus.running) {
         await startProxy();
       }
 
-      // 3. Update UI state
-      markPublished();
+      // 3. Sync proxy status
       const status = await getProxyStatus();
       setProxyStatus(status);
 
@@ -206,7 +215,14 @@ export default function Header() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
-      toast.error(`发布或保存失败：${msg}`);
+      if (dagPublished) {
+        // DAG was saved; only the proxy start (or a later step) failed.
+        toast.error(`代理启动失败：${msg}`);
+        // Best-effort status refresh so the UI reflects the actual proxy state.
+        getProxyStatus().then(setProxyStatus).catch(() => {});
+      } else {
+        toast.error(`发布失败：${msg}`);
+      }
       console.error('[Header] Publish failed:', err);
     } finally {
       setPublishing(false);
