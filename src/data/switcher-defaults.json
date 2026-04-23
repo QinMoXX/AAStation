@@ -28,5 +28,15 @@
         "pattern": "MiniMax-M2.7"
       }
     ]
+  },
+  "codex_cli": {
+    "label": "Codex CLI Model Router",
+    "entries": [
+      {
+        "label": "codex-MiniMax-M2.7",
+        "matchType": "model",
+        "pattern": "codex-MiniMax-M2.7"
+      }
+    ]
   }
 }

@@ -221,3 +221,27 @@ export async function unconfigureOpenCode(): Promise<void> {
 export async function restoreOpenCodeConfig(): Promise<void> {
   return invoke<void>('restore_open_code_config');
 }
+
+// ---------------------------------------------------------------------------
+// Codex CLI app configuration commands
+// ---------------------------------------------------------------------------
+
+/** Configure Codex CLI to use the local proxy. */
+export async function configureCodexCli(proxyUrl: string): Promise<void> {
+  return invoke<void>('configure_codex_cli', { proxyUrl });
+}
+
+/** Check whether Codex CLI is already configured by AAStation. */
+export async function isCodexCliConfigured(): Promise<boolean> {
+  return invoke<boolean>('is_codex_cli_configured');
+}
+
+/** Remove the AAStation-managed entries from Codex CLI config. */
+export async function unconfigureCodexCli(): Promise<void> {
+  return invoke<void>('unconfigure_codex_cli');
+}
+
+/** Restore Codex CLI config from the .aastation-backup backup file. */
+export async function restoreCodexCliConfig(): Promise<void> {
+  return invoke<void>('restore_codex_cli_config');
+}

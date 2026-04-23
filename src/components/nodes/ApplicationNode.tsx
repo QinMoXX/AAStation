@@ -1,17 +1,19 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { ClaudeCode, OpenCode } from '@lobehub/icons';
+import { ClaudeCode, Codex, OpenCode } from '@lobehub/icons';
 import type { ApplicationNodeData } from '../../types';
 
 const APP_TYPE_LABELS: Record<string, string> = {
   listener: '自定义监听',
   claude_code: 'Claude Code',
   open_code: 'OpenCode',
+  codex_cli: 'Codex CLI',
 };
 
 function AppTypeIcon({ appType }: { appType: string }) {
   if (appType === 'claude_code') return <ClaudeCode.Color size={18} />;
   if (appType === 'open_code') return <OpenCode.Mono size={18} />;
+  if (appType === 'codex_cli') return <Codex.Color size={18} />;
   return <span style={{ fontSize: 16 }}>📡</span>;
 }
 

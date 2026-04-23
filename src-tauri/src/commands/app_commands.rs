@@ -80,3 +80,46 @@ pub async fn unconfigure_open_code() -> Result<(), String> {
 pub async fn restore_open_code_config() -> Result<(), String> {
     crate::opencode_config::restore_open_code_config().map_err(|e| e.to_string())
 }
+
+// ---------------------------------------------------------------------------
+// Codex CLI app configuration commands
+// ---------------------------------------------------------------------------
+
+/// Configure Codex CLI to use the local AAStation proxy.
+///
+/// Writes (or merges) `~/.codex/config.toml` with an `[model_providers.aastation]`
+/// entry pointing at the local proxy and a `[profiles.aastation]` profile.
+/// Original config is backed up as `*.aastation-backup` before modification.
+#[tauri::command]
+pub async fn configure_codex_cli(
+    state: State<'_, AppState>,
+    proxy_url: String,
+) -> Result<(), String> {
+    let auth_token = state.proxy_auth_token.read().await.clone();
+    crate::codex_config::configure_codex_cli(&proxy_url, &auth_token)
+        .map_err(|e| e.to_string())
+}
+
+/// Check whether Codex CLI is already configured by AAStation.
+///
+/// Returns `true` if `~/.codex/config.toml` exists and contains
+/// `model_providers.aastation.base_url`.
+#[tauri::command]
+pub async fn is_codex_cli_configured() -> Result<bool, String> {
+    crate::codex_config::is_codex_cli_configured().map_err(|e| e.to_string())
+}
+
+/// Remove the AAStation-managed entries from Codex CLI config.
+///
+/// Removes `model_providers.aastation` and `profiles.aastation` from
+/// `~/.codex/config.toml`.
+#[tauri::command]
+pub async fn unconfigure_codex_cli() -> Result<(), String> {
+    crate::codex_config::unconfigure_codex_cli().map_err(|e| e.to_string())
+}
+
+/// Restore Codex CLI config from the `.aastation-backup` backup file.
+#[tauri::command]
+pub async fn restore_codex_cli_config() -> Result<(), String> {
+    crate::codex_config::restore_codex_cli_config().map_err(|e| e.to_string())
+}

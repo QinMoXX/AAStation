@@ -1,4 +1,5 @@
 mod claude_config;
+mod codex_config;
 mod commands;
 mod dag;
 mod dag_store;
@@ -84,6 +85,10 @@ pub fn run() {
             commands::app_commands::is_open_code_configured,
             commands::app_commands::unconfigure_open_code,
             commands::app_commands::restore_open_code_config,
+            commands::app_commands::configure_codex_cli,
+            commands::app_commands::is_codex_cli_configured,
+            commands::app_commands::unconfigure_codex_cli,
+            commands::app_commands::restore_codex_cli_config,
         ])
         .setup(move |app| {
             // Setup system tray

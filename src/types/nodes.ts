@@ -55,7 +55,7 @@ export interface SwitcherNodeData extends BaseNodeData {
 }
 
 /** Application type discriminator. */
-export type AppType = 'listener' | 'claude_code' | 'open_code';
+export type AppType = 'listener' | 'claude_code' | 'open_code' | 'codex_cli';
 
 /** Application node: represents an end application/tool that uses the proxy. */
 export interface ApplicationNodeData extends BaseNodeData {

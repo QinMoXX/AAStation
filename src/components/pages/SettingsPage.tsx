@@ -4,16 +4,20 @@ import { useFlowStore } from '../../store/flow-store';
 import { toast } from '../../store/toast-store';
 import {
   configureClaudeCode,
+  configureCodexCli,
   configureOpenCode,
   getLogRuntimeStatus,
   isClaudeConfigured,
+  isCodexCliConfigured,
   isOpenCodeConfigured,
   openLogDir,
   pollRuntimeLogs,
   restoreClaudeConfig,
+  restoreCodexCliConfig,
   restoreOpenCodeConfig,
   type LogRuntimeStatus,
   unconfigureClaudeCode,
+  unconfigureCodexCli,
   unconfigureOpenCode,
 } from '../../lib/tauri-api';
 import type { ApplicationNodeData } from '../../types';
@@ -145,6 +149,10 @@ export default function SettingsPage() {
   const [openCodeActioning, setOpenCodeActioning] = useState(false);
   const [openCodeTokenVisible, setOpenCodeTokenVisible] = useState(false);
 
+  const [codexCliConfigured, setCodexCliConfigured] = useState(false);
+  const [codexCliActioning, setCodexCliActioning] = useState(false);
+  const [codexCliTokenVisible, setCodexCliTokenVisible] = useState(false);
+
   const claudeNodes = useMemo(
     () => applicationNodes.filter((n) => (n.data as ApplicationNodeData).appType === 'claude_code'),
     [applicationNodes],
@@ -152,6 +160,11 @@ export default function SettingsPage() {
 
   const openCodeNodes = useMemo(
     () => applicationNodes.filter((n) => (n.data as ApplicationNodeData).appType === 'open_code'),
+    [applicationNodes],
+  );
+
+  const codexCliNodes = useMemo(
+    () => applicationNodes.filter((n) => (n.data as ApplicationNodeData).appType === 'codex_cli'),
     [applicationNodes],
   );
 
@@ -169,6 +182,13 @@ export default function SettingsPage() {
     return valid ? `http://127.0.0.1:${valid.listenPort}` : null;
   }, [openCodeNodes]);
 
+  const codexCliProxyUrl = useMemo(() => {
+    const valid = codexCliNodes
+      .map((n) => n.data as ApplicationNodeData)
+      .find((d) => Number.isInteger(d.listenPort) && d.listenPort > 0);
+    return valid ? `http://127.0.0.1:${valid.listenPort}` : null;
+  }, [codexCliNodes]);
+
   const refreshClaudeConfigStatus = useCallback(async () => {
     setClaudeLoading(true);
     try {
@@ -176,6 +196,8 @@ export default function SettingsPage() {
       setClaudeConfigured(configured);
       const ocConfigured = await isOpenCodeConfigured();
       setOpenCodeConfigured(ocConfigured);
+      const codexConfigured = await isCodexCliConfigured();
+      setCodexCliConfigured(codexConfigured);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`读取配置状态失败：${msg}`);
@@ -288,6 +310,59 @@ export default function SettingsPage() {
       toast.error(`恢复 OpenCode 备份失败：${msg}`);
     } finally {
       setOpenCodeActioning(false);
+    }
+  };
+
+  // -----------------------------------------------------------------------
+  // Codex CLI config actions
+  // -----------------------------------------------------------------------
+
+  const handleConfigureCodexCli = async () => {
+    if (codexCliActioning) return;
+    if (!codexCliProxyUrl) {
+      toast.warning('未发现可用的 Codex CLI 监听端口，请先发布并确保端口已分配。');
+      return;
+    }
+    setCodexCliActioning(true);
+    try {
+      await configureCodexCli(codexCliProxyUrl);
+      toast.success('Codex CLI 配置文件已写入，并自动生成备份。');
+      await refreshClaudeConfigStatus();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`写入 Codex CLI 配置失败：${msg}`);
+    } finally {
+      setCodexCliActioning(false);
+    }
+  };
+
+  const handleUnconfigureCodexCli = async () => {
+    if (codexCliActioning) return;
+    setCodexCliActioning(true);
+    try {
+      await unconfigureCodexCli();
+      toast.success('已移除 Codex CLI 的 AAStation 管理配置。');
+      await refreshClaudeConfigStatus();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`移除 Codex CLI 配置失败：${msg}`);
+    } finally {
+      setCodexCliActioning(false);
+    }
+  };
+
+  const handleRestoreCodexCliBackup = async () => {
+    if (codexCliActioning) return;
+    setCodexCliActioning(true);
+    try {
+      await restoreCodexCliConfig();
+      toast.success('Codex CLI 配置已从备份恢复。');
+      await refreshClaudeConfigStatus();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`恢复 Codex CLI 备份失败：${msg}`);
+    } finally {
+      setCodexCliActioning(false);
     }
   };
 
@@ -736,6 +811,124 @@ export default function SettingsPage() {
             <button
               onClick={handleUnconfigureOpenCode}
               disabled={openCodeActioning}
+              className="ui-btn"
+              style={{
+                ...buttonBaseStyle,
+              }}
+            >
+              移除托管配置
+            </button>
+          </div>
+        </div>
+
+        {/* Codex CLI configuration card */}
+        <div
+          className="ui-card"
+          style={{
+            marginTop: 16,
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>Codex CLI 配置管理</div>
+              <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+                用于写入或恢复 `~/.codex/config.toml`。
+                将在配置文件中添加 `[model_providers.aastation]` 和 `[profiles.aastation]` 条目。
+                后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
+              </div>
+            </div>
+            <div
+              style={{
+                alignSelf: 'flex-start',
+                fontSize: 12,
+                color: 'var(--ui-text)',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: 999,
+                padding: '4px 10px',
+              }}
+            >
+              {codexCliConfigured ? '已配置' : '未配置'}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
+            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Codex CLI 节点</div>
+              <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{codexCliNodes.length}</div>
+            </div>
+            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
+              <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
+                {codexCliProxyUrl ?? '暂无可用端口'}
+              </div>
+            </div>
+          </div>
+
+          {codexCliNodes.length > 0 && (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {codexCliNodes.map((node) => {
+                const data = node.data as ApplicationNodeData;
+                return (
+                  <div
+                    key={node.id}
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--ui-text)',
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      background: 'rgba(0, 0, 0, 0.28)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                    }}
+                  >
+                    {data.label} · {node.id} · 端口 :{data.listenPort || 0}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
+            将写入：`model_providers.aastation.base_url={codexCliProxyUrl ?? '<待分配端口>'}`，
+            API Key 环境变量 `AASTATION_API_KEY={codexCliTokenVisible ? authToken : maskedToken}`（存储至 `~/.codex/aastation_env.txt`）。
+            <br />
+            写入后请运行：<code style={{ color: '#a78bfa' }}>codex --profile aastation</code> 以使用 AAStation 代理。
+          </div>
+          <button
+            onClick={() => setCodexCliTokenVisible((v) => !v)}
+            className="ui-btn"
+            style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
+          >
+            {codexCliTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
+          </button>
+
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={handleConfigureCodexCli}
+              disabled={codexCliActioning || codexCliNodes.length === 0 || !codexCliProxyUrl}
+              className="ui-btn ui-btn-primary"
+              style={{
+                ...buttonBaseStyle,
+                cursor: codexCliActioning ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {codexCliActioning ? '处理中...' : '一键写入配置'}
+            </button>
+            <button
+              onClick={handleRestoreCodexCliBackup}
+              disabled={codexCliActioning}
+              className="ui-btn"
+              style={{
+                ...buttonBaseStyle,
+              }}
+            >
+              从备份恢复
+            </button>
+            <button
+              onClick={handleUnconfigureCodexCli}
+              disabled={codexCliActioning}
               className="ui-btn"
               style={{
                 ...buttonBaseStyle,

@@ -5,7 +5,11 @@
       "Bash(cat)",
       "Read(//tmp/**)",
       "WebFetch(domain:platform.minimaxi.com)",
-      "Bash(cargo check *)"
+      "Bash(cargo check *)",
+      "Bash(npm list *)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(node *)",
+      "Bash(cargo search *)"
     ]
   }
 }
