@@ -152,6 +152,7 @@ export default function SettingsPage() {
   const [codexCliConfigured, setCodexCliConfigured] = useState(false);
   const [codexCliActioning, setCodexCliActioning] = useState(false);
   const [codexCliTokenVisible, setCodexCliTokenVisible] = useState(false);
+  const [expandedAppPanel, setExpandedAppPanel] = useState<'claude' | 'opencode' | 'codex' | null>(null);
 
   const claudeNodes = useMemo(
     () => applicationNodes.filter((n) => (n.data as ApplicationNodeData).appType === 'claude_code'),
@@ -572,10 +573,36 @@ export default function SettingsPage() {
     </div>
   );
 
-  const renderApplicationsPanel = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div className="ui-card" style={{ ...cardStyle, padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+  const renderApplicationsPanel = () => {
+    const claudeExpandable = expandedAppPanel === 'claude';
+    const openCodeExpandable = expandedAppPanel === 'opencode';
+    const codexExpandable = expandedAppPanel === 'codex';
+    const claudeConfigurable = claudeNodes.length > 0 && !!claudeProxyUrl;
+    const openCodeConfigurable = openCodeNodes.length > 0 && !!openCodeProxyUrl;
+    const codexConfigurable = codexCliNodes.length > 0 && !!codexCliProxyUrl;
+
+    const statusBadgeStyle = (configured: boolean): React.CSSProperties => ({
+      position: 'absolute',
+      top: 14,
+      right: 14,
+      fontSize: 12,
+      borderRadius: 999,
+      padding: '3px 10px',
+      border: configured ? '1px solid rgba(34, 197, 94, 0.36)' : '1px solid rgba(255, 255, 255, 0.14)',
+      background: configured ? 'rgba(34, 197, 94, 0.14)' : 'rgba(255, 255, 255, 0.08)',
+      color: configured ? '#22c55e' : '#cbd5e1',
+    });
+
+    const briefBoxStyle: React.CSSProperties = {
+      borderRadius: 10,
+      padding: 12,
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      background: 'rgba(2, 6, 23, 0.38)',
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 980 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
             <h2 style={{ fontSize: 22, color: '#f8fafc', margin: 0 }}>应用设置</h2>
             <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8 }}>
@@ -592,355 +619,347 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        <div
-          className="ui-card"
-          style={{
-            marginTop: 16,
-            borderRadius: 12,
-            padding: 16,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>Claude Code 配置管理</div>
-              <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+        <div className="ui-card" style={{ ...cardStyle, padding: 16, position: 'relative' }}>
+          <div style={statusBadgeStyle(claudeConfigured)}>
+            {claudeConfigured ? '已配置' : '未配置'}
+          </div>
+          <button
+            onClick={() => setExpandedAppPanel((v) => (v === 'claude' ? null : 'claude'))}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'inherit',
+              padding: 0,
+              margin: 0,
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+              paddingRight: 100,
+            }}
+          >
+            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>Claude Code 配置管理</div>
+            <div style={{ fontSize: 12, color: claudeConfigurable ? '#86efac' : '#fca5a5', marginTop: 6 }}>
+              {claudeConfigurable ? '可配置' : '不可配置'} · {claudeExpandable ? '点击折叠' : '点击展开'}
+            </div>
+          </button>
+
+          {claudeExpandable && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
                 用于写入或恢复 `~/.claude/settings.json` 和 `~/.claude.json`。
                 后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
               </div>
-            </div>
-            <div
-              style={{
-                alignSelf: 'flex-start',
-                fontSize: 12,
-                color: 'var(--ui-text)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: 999,
-                padding: '4px 10px',
-              }}
-            >
-              {claudeConfigured ? '已配置' : '未配置'}
-            </div>
-          </div>
 
-          <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Claude Code 节点</div>
-              <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{claudeNodes.length}</div>
-            </div>
-            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
-              <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
-                {claudeProxyUrl ?? '暂无可用端口'}
+              <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
+                <div style={briefBoxStyle}>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Claude Code 节点</div>
+                  <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{claudeNodes.length}</div>
+                </div>
+                <div style={briefBoxStyle}>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
+                  <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
+                    {claudeProxyUrl ?? '暂无可用端口'}
+                  </div>
+                </div>
+              </div>
+
+              {claudeNodes.length > 0 && (
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {claudeNodes.map((node) => {
+                    const data = node.data as ApplicationNodeData;
+                    return (
+                      <div
+                        key={node.id}
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--ui-text)',
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          background: 'rgba(0, 0, 0, 0.28)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                        }}
+                      >
+                        {data.label} · {node.id} · 端口 :{data.listenPort || 0}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
+                将写入变量：`ANTHROPIC_BASE_URL={claudeProxyUrl ?? '<待分配端口>'}`，
+                `ANTHROPIC_AUTH_TOKEN={claudeTokenVisible ? authToken : maskedToken}`。
+              </div>
+              <button
+                onClick={() => setClaudeTokenVisible((v) => !v)}
+                className="ui-btn"
+                style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
+              >
+                {claudeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
+              </button>
+
+              <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleConfigureClaude}
+                  disabled={claudeActioning || !claudeConfigurable}
+                  className="ui-btn ui-btn-primary"
+                  style={{
+                    ...buttonBaseStyle,
+                    cursor: claudeActioning ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {claudeActioning ? '处理中...' : '一键写入配置'}
+                </button>
+                <button
+                  onClick={handleRestoreClaudeBackup}
+                  disabled={claudeActioning}
+                  className="ui-btn"
+                  style={buttonBaseStyle}
+                >
+                  从备份恢复
+                </button>
+                <button
+                  onClick={handleUnconfigureClaude}
+                  disabled={claudeActioning}
+                  className="ui-btn"
+                  style={buttonBaseStyle}
+                >
+                  移除托管配置
+                </button>
               </div>
             </div>
-          </div>
-
-          {claudeNodes.length > 0 && (
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {claudeNodes.map((node) => {
-                const data = node.data as ApplicationNodeData;
-                return (
-                  <div
-                    key={node.id}
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--ui-text)',
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      background: 'rgba(0, 0, 0, 0.28)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                    }}
-                  >
-                    {data.label} · {node.id} · 端口 :{data.listenPort || 0}
-                  </div>
-                );
-              })}
-            </div>
           )}
-
-          <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
-            将写入变量：`ANTHROPIC_BASE_URL={claudeProxyUrl ?? '<待分配端口>'}`，
-            `ANTHROPIC_AUTH_TOKEN={claudeTokenVisible ? authToken : maskedToken}`。
-          </div>
-          <button
-            onClick={() => setClaudeTokenVisible((v) => !v)}
-            className="ui-btn"
-            style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
-          >
-            {claudeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
-          </button>
-
-          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={handleConfigureClaude}
-              disabled={claudeActioning || claudeNodes.length === 0 || !claudeProxyUrl}
-              className="ui-btn ui-btn-primary"
-              style={{
-                ...buttonBaseStyle,
-                cursor: claudeActioning ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {claudeActioning ? '处理中...' : '一键写入配置'}
-            </button>
-            <button
-              onClick={handleRestoreClaudeBackup}
-              disabled={claudeActioning}
-              className="ui-btn"
-              style={{
-                ...buttonBaseStyle,
-              }}
-            >
-              从备份恢复
-            </button>
-            <button
-              onClick={handleUnconfigureClaude}
-              disabled={claudeActioning}
-              className="ui-btn"
-              style={{
-                ...buttonBaseStyle,
-              }}
-            >
-              移除托管配置
-            </button>
-          </div>
         </div>
 
-        {/* OpenCode configuration card */}
-        <div
-          className="ui-card"
-          style={{
-            marginTop: 16,
-            borderRadius: 12,
-            padding: 16,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>OpenCode 配置管理</div>
-              <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+        <div className="ui-card" style={{ ...cardStyle, padding: 16, position: 'relative' }}>
+          <div style={statusBadgeStyle(openCodeConfigured)}>
+            {openCodeConfigured ? '已配置' : '未配置'}
+          </div>
+          <button
+            onClick={() => setExpandedAppPanel((v) => (v === 'opencode' ? null : 'opencode'))}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'inherit',
+              padding: 0,
+              margin: 0,
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+              paddingRight: 100,
+            }}
+          >
+            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>OpenCode 配置管理</div>
+            <div style={{ fontSize: 12, color: openCodeConfigurable ? '#86efac' : '#fca5a5', marginTop: 6 }}>
+              {openCodeConfigurable ? '可配置' : '不可配置'} · {openCodeExpandable ? '点击折叠' : '点击展开'}
+            </div>
+          </button>
+
+          {openCodeExpandable && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
                 用于写入或恢复 `~/.config/opencode/opencode.json`。
                 后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
               </div>
-            </div>
-            <div
-              style={{
-                alignSelf: 'flex-start',
-                fontSize: 12,
-                color: 'var(--ui-text)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: 999,
-                padding: '4px 10px',
-              }}
-            >
-              {openCodeConfigured ? '已配置' : '未配置'}
-            </div>
-          </div>
 
-          <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>检测到 OpenCode 节点</div>
-              <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{openCodeNodes.length}</div>
-            </div>
-            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
-              <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
-                {openCodeProxyUrl ?? '暂无可用端口'}
+              <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
+                <div style={briefBoxStyle}>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>检测到 OpenCode 节点</div>
+                  <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{openCodeNodes.length}</div>
+                </div>
+                <div style={briefBoxStyle}>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
+                  <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
+                    {openCodeProxyUrl ?? '暂无可用端口'}
+                  </div>
+                </div>
+              </div>
+
+              {openCodeNodes.length > 0 && (
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {openCodeNodes.map((node) => {
+                    const data = node.data as ApplicationNodeData;
+                    return (
+                      <div
+                        key={node.id}
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--ui-text)',
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          background: 'rgba(0, 0, 0, 0.28)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                        }}
+                      >
+                        {data.label} · {node.id} · 端口 :{data.listenPort || 0}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
+                将写入：`provider.aastation.options.baseURL={openCodeProxyUrl ?? '<待分配端口>'}`，
+                `provider.aastation.options.apiKey={openCodeTokenVisible ? authToken : maskedToken}`。
+              </div>
+              <button
+                onClick={() => setOpenCodeTokenVisible((v) => !v)}
+                className="ui-btn"
+                style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
+              >
+                {openCodeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
+              </button>
+
+              <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleConfigureOpenCode}
+                  disabled={openCodeActioning || !openCodeConfigurable}
+                  className="ui-btn ui-btn-primary"
+                  style={{
+                    ...buttonBaseStyle,
+                    cursor: openCodeActioning ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {openCodeActioning ? '处理中...' : '一键写入配置'}
+                </button>
+                <button
+                  onClick={handleRestoreOpenCodeBackup}
+                  disabled={openCodeActioning}
+                  className="ui-btn"
+                  style={buttonBaseStyle}
+                >
+                  从备份恢复
+                </button>
+                <button
+                  onClick={handleUnconfigureOpenCode}
+                  disabled={openCodeActioning}
+                  className="ui-btn"
+                  style={buttonBaseStyle}
+                >
+                  移除托管配置
+                </button>
               </div>
             </div>
-          </div>
-
-          {openCodeNodes.length > 0 && (
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {openCodeNodes.map((node) => {
-                const data = node.data as ApplicationNodeData;
-                return (
-                  <div
-                    key={node.id}
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--ui-text)',
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      background: 'rgba(0, 0, 0, 0.28)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                    }}
-                  >
-                    {data.label} · {node.id} · 端口 :{data.listenPort || 0}
-                  </div>
-                );
-              })}
-            </div>
           )}
-
-          <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
-            将写入：`provider.aastation.options.baseURL={openCodeProxyUrl ?? '<待分配端口>'}`，
-            `provider.aastation.options.apiKey={openCodeTokenVisible ? authToken : maskedToken}`。
-          </div>
-          <button
-            onClick={() => setOpenCodeTokenVisible((v) => !v)}
-            className="ui-btn"
-            style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
-          >
-            {openCodeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
-          </button>
-
-          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={handleConfigureOpenCode}
-              disabled={openCodeActioning || openCodeNodes.length === 0 || !openCodeProxyUrl}
-              className="ui-btn ui-btn-primary"
-              style={{
-                ...buttonBaseStyle,
-                cursor: openCodeActioning ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {openCodeActioning ? '处理中...' : '一键写入配置'}
-            </button>
-            <button
-              onClick={handleRestoreOpenCodeBackup}
-              disabled={openCodeActioning}
-              className="ui-btn"
-              style={{
-                ...buttonBaseStyle,
-              }}
-            >
-              从备份恢复
-            </button>
-            <button
-              onClick={handleUnconfigureOpenCode}
-              disabled={openCodeActioning}
-              className="ui-btn"
-              style={{
-                ...buttonBaseStyle,
-              }}
-            >
-              移除托管配置
-            </button>
-          </div>
         </div>
 
-        {/* Codex CLI configuration card */}
-        <div
-          className="ui-card"
-          style={{
-            marginTop: 16,
-            borderRadius: 12,
-            padding: 16,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>Codex CLI 配置管理</div>
-              <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+        <div className="ui-card" style={{ ...cardStyle, padding: 16, position: 'relative' }}>
+          <div style={statusBadgeStyle(codexCliConfigured)}>
+            {codexCliConfigured ? '已配置' : '未配置'}
+          </div>
+          <button
+            onClick={() => setExpandedAppPanel((v) => (v === 'codex' ? null : 'codex'))}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'inherit',
+              padding: 0,
+              margin: 0,
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+              paddingRight: 100,
+            }}
+          >
+            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>Codex CLI 配置管理</div>
+            <div style={{ fontSize: 12, color: codexConfigurable ? '#86efac' : '#fca5a5', marginTop: 6 }}>
+              {codexConfigurable ? '可配置' : '不可配置'} · {codexExpandable ? '点击折叠' : '点击展开'}
+            </div>
+          </button>
+
+          {codexExpandable && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
                 用于写入或恢复 `~/.codex/config.toml`。
                 将在配置文件中添加 `[model_providers.aastation]` 和 `[profiles.aastation]` 条目。
                 后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
               </div>
-            </div>
-            <div
-              style={{
-                alignSelf: 'flex-start',
-                fontSize: 12,
-                color: 'var(--ui-text)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: 999,
-                padding: '4px 10px',
-              }}
-            >
-              {codexCliConfigured ? '已配置' : '未配置'}
-            </div>
-          </div>
 
-          <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Codex CLI 节点</div>
-              <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{codexCliNodes.length}</div>
-            </div>
-            <div className="ui-card" style={{ ...cardStyle, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
-              <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
-                {codexCliProxyUrl ?? '暂无可用端口'}
+              <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
+                <div style={briefBoxStyle}>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Codex CLI 节点</div>
+                  <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{codexCliNodes.length}</div>
+                </div>
+                <div style={briefBoxStyle}>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
+                  <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
+                    {codexCliProxyUrl ?? '暂无可用端口'}
+                  </div>
+                </div>
+              </div>
+
+              {codexCliNodes.length > 0 && (
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {codexCliNodes.map((node) => {
+                    const data = node.data as ApplicationNodeData;
+                    return (
+                      <div
+                        key={node.id}
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--ui-text)',
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          background: 'rgba(0, 0, 0, 0.28)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                        }}
+                      >
+                        {data.label} · {node.id} · 端口 :{data.listenPort || 0}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
+                将写入：`model_providers.aastation.base_url={codexCliProxyUrl ?? '<待分配端口>'}`，
+                API Key 环境变量 `AASTATION_API_KEY={codexCliTokenVisible ? authToken : maskedToken}`（存储至 `~/.codex/aastation_env.txt`）。
+                <br />
+                写入后请运行：<code style={{ color: '#a78bfa' }}>codex --profile aastation</code> 以使用 AAStation 代理。
+              </div>
+              <button
+                onClick={() => setCodexCliTokenVisible((v) => !v)}
+                className="ui-btn"
+                style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
+              >
+                {codexCliTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
+              </button>
+
+              <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleConfigureCodexCli}
+                  disabled={codexCliActioning || !codexConfigurable}
+                  className="ui-btn ui-btn-primary"
+                  style={{
+                    ...buttonBaseStyle,
+                    cursor: codexCliActioning ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {codexCliActioning ? '处理中...' : '一键写入配置'}
+                </button>
+                <button
+                  onClick={handleRestoreCodexCliBackup}
+                  disabled={codexCliActioning}
+                  className="ui-btn"
+                  style={buttonBaseStyle}
+                >
+                  从备份恢复
+                </button>
+                <button
+                  onClick={handleUnconfigureCodexCli}
+                  disabled={codexCliActioning}
+                  className="ui-btn"
+                  style={buttonBaseStyle}
+                >
+                  移除托管配置
+                </button>
               </div>
             </div>
-          </div>
-
-          {codexCliNodes.length > 0 && (
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {codexCliNodes.map((node) => {
-                const data = node.data as ApplicationNodeData;
-                return (
-                  <div
-                    key={node.id}
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--ui-text)',
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      background: 'rgba(0, 0, 0, 0.28)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                    }}
-                  >
-                    {data.label} · {node.id} · 端口 :{data.listenPort || 0}
-                  </div>
-                );
-              })}
-            </div>
           )}
-
-          <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
-            将写入：`model_providers.aastation.base_url={codexCliProxyUrl ?? '<待分配端口>'}`，
-            API Key 环境变量 `AASTATION_API_KEY={codexCliTokenVisible ? authToken : maskedToken}`（存储至 `~/.codex/aastation_env.txt`）。
-            <br />
-            写入后请运行：<code style={{ color: '#a78bfa' }}>codex --profile aastation</code> 以使用 AAStation 代理。
-          </div>
-          <button
-            onClick={() => setCodexCliTokenVisible((v) => !v)}
-            className="ui-btn"
-            style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
-          >
-            {codexCliTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
-          </button>
-
-          <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={handleConfigureCodexCli}
-              disabled={codexCliActioning || codexCliNodes.length === 0 || !codexCliProxyUrl}
-              className="ui-btn ui-btn-primary"
-              style={{
-                ...buttonBaseStyle,
-                cursor: codexCliActioning ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {codexCliActioning ? '处理中...' : '一键写入配置'}
-            </button>
-            <button
-              onClick={handleRestoreCodexCliBackup}
-              disabled={codexCliActioning}
-              className="ui-btn"
-              style={{
-                ...buttonBaseStyle,
-              }}
-            >
-              从备份恢复
-            </button>
-            <button
-              onClick={handleUnconfigureCodexCli}
-              disabled={codexCliActioning}
-              className="ui-btn"
-              style={{
-                ...buttonBaseStyle,
-              }}
-            >
-              移除托管配置
-            </button>
-          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderLogsPanel = () => (
     <div className="ui-card" style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
