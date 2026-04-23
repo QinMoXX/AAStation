@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useFlowStore, PRESET_PROVIDERS } from '../../store/flow-store';
 import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
+import { ClaudeCode, OpenCode } from '@lobehub/icons';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -226,9 +227,7 @@ export default function HomeSubNav() {
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       >
                         <span style={categoryIconStyle}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
-                          </svg>
+                          <ClaudeCode.Color size={14} />
                         </span>
                         <span style={{ fontWeight: 500 }}>Claude Code</span>
                       </div>
@@ -239,9 +238,7 @@ export default function HomeSubNav() {
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       >
                         <span style={categoryIconStyle}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
-                          </svg>
+                          <OpenCode.Mono size={14} />
                         </span>
                         <span style={{ fontWeight: 500 }}>OpenCode</span>
                       </div>

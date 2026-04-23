@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
+import { ClaudeCode, OpenCode } from '@lobehub/icons';
 import type { ApplicationNodeData } from '../../types';
 
 const APP_TYPE_LABELS: Record<string, string> = {
@@ -8,14 +9,13 @@ const APP_TYPE_LABELS: Record<string, string> = {
   open_code: 'OpenCode',
 };
 
-const APP_TYPE_ICONS: Record<string, string> = {
-  listener: '📡',
-  claude_code: '🤖',
-  open_code: '💻',
-};
+function AppTypeIcon({ appType }: { appType: string }) {
+  if (appType === 'claude_code') return <ClaudeCode.Color size={18} />;
+  if (appType === 'open_code') return <OpenCode.Mono size={18} />;
+  return <span style={{ fontSize: 16 }}>📡</span>;
+}
 
 function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
-  const icon = APP_TYPE_ICONS[data.appType] || '🖥️';
   const appLabel = APP_TYPE_LABELS[data.appType] || data.appType || 'Application';
 
   return (
@@ -50,8 +50,9 @@ function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
       />
 
       {/* Header */}
-      <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151' }}>
-        {icon} {data.label || 'Listener'}
+      <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <AppTypeIcon appType={data.appType} />
+        <span>{data.label || 'Listener'}</span>
       </div>
 
       {/* App type + port */}
