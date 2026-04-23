@@ -500,7 +500,7 @@ function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpda
 
       {data.appType === 'open_code' && (
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
-          发布后将自动配置 OpenCode 使用本地代理（写入 ~/.config/opencode/config.json），API Key 由 Provider 节点提供。
+          发布后将自动配置 OpenCode 使用本地代理（写入 ~/.config/opencode/opencode.json），API Key 由 Provider 节点提供。
         </div>
       )}
     </>

@@ -23,9 +23,19 @@
     "label": "OpenCode Model Router",
     "entries": [
       {
-        "label": "MiniMax-M2.7",
+        "label": "High",
         "matchType": "model",
-        "pattern": "MiniMax-M2.7"
+        "pattern": "High"
+      },
+      {
+        "label": "Medium",
+        "matchType": "model",
+        "pattern": "Medium"
+      },
+      {
+        "label": "Low",
+        "matchType": "model",
+        "pattern": "Low"
       }
     ]
   },

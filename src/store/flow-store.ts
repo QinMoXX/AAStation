@@ -55,6 +55,7 @@ export function defaultApplicationData(appType: AppType = 'listener'): Applicati
     nodeType: 'application',
     label: appType === 'claude_code' ? 'Claude Code'
          : appType === 'open_code'   ? 'OpenCode'
+         : appType === 'codex_cli'   ? 'Codex CLI'
          : 'Listener',
     appType,
     listenPort: 0, // 0 = unassigned, will be auto-assigned

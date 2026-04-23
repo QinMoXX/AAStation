@@ -33,29 +33,20 @@ fn dirs_home_dir() -> Result<PathBuf, AppError> {
 
 /// Get the path to OpenCode's config file.
 ///
-/// - Windows: `%APPDATA%\opencode\config.json`
-/// - macOS/Linux: `~/.config/opencode/config.json`
+/// - Windows/macOS/Linux: `~/.config/opencode/opencode.json`
 fn opencode_config_path() -> Result<PathBuf, AppError> {
-    // On Windows prefer %APPDATA% (e.g. C:\Users\<user>\AppData\Roaming)
-    #[cfg(target_os = "windows")]
-    {
-        if let Some(appdata) = std::env::var_os("APPDATA") {
-            return Ok(PathBuf::from(appdata).join("opencode").join("config.json"));
-        }
-    }
-
-    // Fall back to XDG_CONFIG_HOME or ~/.config
+    // Prefer XDG_CONFIG_HOME when available, otherwise use ~/.config.
     if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
-        return Ok(PathBuf::from(xdg).join("opencode").join("config.json"));
+        return Ok(PathBuf::from(xdg).join("opencode").join("opencode.json"));
     }
 
     let home = dirs_home_dir()?;
-    Ok(home.join(".config").join("opencode").join("config.json"))
+    Ok(home.join(".config").join("opencode").join("opencode.json"))
 }
 
 /// Configure OpenCode to use the local AAStation proxy.
 ///
-/// Writes (or merges) `~/.config/opencode/config.json` so that the
+/// Writes (or merges) `~/.config/opencode/opencode.json` so that the
 /// `provider.aastation` entry points at the local proxy URL and uses the
 /// proxy auth token as its API key.
 ///
@@ -85,12 +76,17 @@ pub fn configure_open_code(proxy_url: &str, auth_token: &str) -> Result<(), AppE
 
     // Build the aastation provider entry
     let provider_entry = serde_json::json!({
-        "npm": "@ai-sdk/anthropic",
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "AAStation",
         "options": {
-            "baseURL": proxy_url,
-            "apiKey": auth_token
+            "apiKey": auth_token,
+            "baseURL": proxy_url
         },
-        "models": {}
+        "models": {
+            "High": { "name": "High" },
+            "Medium": { "name": "Medium" },
+            "Low": { "name": "Low" }
+        }
     });
 
     // Insert / update root["provider"]["aastation"]

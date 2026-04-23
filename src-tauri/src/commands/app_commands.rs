@@ -48,7 +48,7 @@ pub async fn restore_claude_config() -> Result<(), String> {
 
 /// Configure OpenCode to use the local AAStation proxy.
 ///
-/// Writes `~/.config/opencode/config.json` (Windows: `%APPDATA%\opencode\config.json`)
+/// Writes `~/.config/opencode/opencode.json`
 /// with the proxy URL and auth token under `provider.aastation`.
 /// Original config is backed up as `*.aastation-backup` before modification.
 #[tauri::command]

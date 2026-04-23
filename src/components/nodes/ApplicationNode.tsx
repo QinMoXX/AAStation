@@ -12,7 +12,7 @@ const APP_TYPE_LABELS: Record<string, string> = {
 
 function AppTypeIcon({ appType }: { appType: string }) {
   if (appType === 'claude_code') return <ClaudeCode.Color size={18} />;
-  if (appType === 'open_code') return <OpenCode.Mono size={18} />;
+  if (appType === 'open_code') return <OpenCode size={18} />;
   if (appType === 'codex_cli') return <Codex.Color size={18} />;
   return <span style={{ fontSize: 16 }}>📡</span>;
 }

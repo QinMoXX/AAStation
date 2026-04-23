@@ -719,7 +719,7 @@ export default function SettingsPage() {
             <div>
               <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>OpenCode 配置管理</div>
               <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
-                用于写入或恢复 `~/.config/opencode/config.json`（Windows：`%APPDATA%\opencode\config.json`）。
+                用于写入或恢复 `~/.config/opencode/opencode.json`。
                 后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
               </div>
             </div>

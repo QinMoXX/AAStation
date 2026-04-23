@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useFlowStore, PRESET_PROVIDERS } from '../../store/flow-store';
 import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
-import { ClaudeCode, OpenCode } from '@lobehub/icons';
+import { ClaudeCode, Codex, OpenCode } from '@lobehub/icons';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -238,9 +238,20 @@ export default function HomeSubNav() {
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       >
                         <span style={categoryIconStyle}>
-                          <OpenCode.Mono size={14} />
+                          <OpenCode size={14} />
                         </span>
                         <span style={{ fontWeight: 500 }}>OpenCode</span>
+                      </div>
+                      <div
+                        style={itemStyle}
+                        onClick={() => addNode('application', undefined, 'codex_cli')}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span style={categoryIconStyle}>
+                          <Codex.Color size={14} />
+                        </span>
+                        <span style={{ fontWeight: 500 }}>Codex CLI</span>
                       </div>
                     </>
                   )}

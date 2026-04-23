@@ -177,12 +177,17 @@ export default function OpenCodeDialog({ apps, proxyUrl, onClose }: OpenCodeDial
       $schema: 'https://opencode.ai/config.json',
       provider: {
         aastation: {
-          npm: '@ai-sdk/anthropic',
+          npm: '@ai-sdk/openai-compatible',
+          name: 'AAStation',
           options: {
-            baseURL: displayProxyUrl,
             apiKey: tokenVisible ? authToken : maskedToken,
+            baseURL: displayProxyUrl,
           },
-          models: {},
+          models: {
+            High: { name: 'High' },
+            Medium: { name: 'Medium' },
+            Low: { name: 'Low' },
+          },
         },
       },
     },
@@ -191,9 +196,7 @@ export default function OpenCodeDialog({ apps, proxyUrl, onClose }: OpenCodeDial
   );
 
   // Config file path hint
-  const configPath = navigator.platform.startsWith('Win')
-    ? '%APPDATA%\\opencode\\config.json'
-    : '~/.config/opencode/config.json';
+  const configPath = '~/.config/opencode/opencode.json';
 
   return (
     <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
