@@ -130,6 +130,10 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTableSe
                 if let Some(edge) = source_edge_map.get(&(node.id.as_str(), default_handle)) {
                     let provider = resolve_provider(&edge.target, &node_map)?;
                     let provider_data: ProviderNodeData = deserialize_node_data(provider)?;
+                    let target_model = resolve_model_name(
+                        edge.target_handle.as_deref(),
+                        &provider_data.models,
+                    );
 
                     default_route = Some(CompiledRoute {
                         id: format!("route-default-{}", node.id),
@@ -142,7 +146,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTableSe
                         api_key: provider_data.api_key,
                         extra_headers: HashMap::new(),
                         is_default: true,
-                        target_model: String::new(),
+                        target_model,
                         fuzzy_match: false,
                     });
                 }
@@ -159,6 +163,10 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTableSe
             if let Some(target) = target_node {
                 if target.node_type == NodeType::Provider {
                     let provider_data: ProviderNodeData = deserialize_node_data(target)?;
+                    let target_model = resolve_model_name(
+                        edge.target_handle.as_deref(),
+                        &provider_data.models,
+                    );
                     if default_route.is_none() {
                         default_route = Some(CompiledRoute {
                             id: format!("route-direct-{}", app_node.id),
@@ -171,7 +179,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTableSe
                             api_key: provider_data.api_key,
                             extra_headers: HashMap::new(),
                             is_default: true,
-                            target_model: String::new(),
+                            target_model,
                             fuzzy_match: false,
                         });
                     }
@@ -518,6 +526,7 @@ mod tests {
         assert_eq!(table.routes[0].match_type, ProxyMatchType::Model);
         assert!(table.default_route.is_some());
         assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.anthropic.com/v1");
+        assert_eq!(table.default_route.as_ref().unwrap().target_model, "");
     }
 
     #[test]
@@ -545,6 +554,37 @@ mod tests {
         assert!(table.routes.is_empty());
         assert!(table.default_route.is_some());
         assert_eq!(table.default_route.as_ref().unwrap().upstream_url, "https://api.openai.com/v1");
+        assert_eq!(table.default_route.as_ref().unwrap().target_model, "");
+    }
+
+    #[test]
+    fn test_application_direct_to_provider_model_handle_sets_target_model() {
+        let provider = make_provider(
+            "p1", "OpenAI",
+            "https://api.openai.com/v1", "sk-test",
+            vec![ProviderModel { id: "m1".to_string(), name: "openai/gpt-5.2".to_string(), enabled: true }],
+        );
+
+        let application = make_application("a1", "Listener", "listener", 9527);
+
+        let edges = vec![
+            make_edge("e1", "a1", "p1", Some("output"), Some("model-m1")),
+        ];
+
+        let doc = DAGDocument {
+            nodes: vec![application, provider],
+            edges,
+            ..Default::default()
+        };
+
+        let set = compile(&doc, &default_settings()).unwrap();
+        let table = &set.tables[0];
+        assert!(table.routes.is_empty());
+        assert!(table.default_route.is_some());
+        assert_eq!(
+            table.default_route.as_ref().unwrap().target_model,
+            "openai/gpt-5.2"
+        );
     }
 
     #[test]
