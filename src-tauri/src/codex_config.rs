@@ -11,6 +11,10 @@ const AASTATION_PROFILE_KEY: &str = "aastation";
 /// Suffix appended to config files when creating backups.
 const BACKUP_SUFFIX: &str = ".aastation-backup";
 
+/// The environment variable key written to `auth.json` for Codex CLI authentication.
+/// Codex reads this when `requires_openai_auth = true` is set in the provider config.
+const CODEX_AUTH_KEY: &str = "OPENAI_API_KEY";
+
 /// Cross-platform home directory resolution.
 fn dirs_home_dir() -> Result<PathBuf, AppError> {
     if let Some(p) = std::env::var_os("HOME") {
@@ -37,6 +41,12 @@ fn dirs_home_dir() -> Result<PathBuf, AppError> {
 fn codex_config_path() -> Result<PathBuf, AppError> {
     let home = dirs_home_dir()?;
     Ok(home.join(".codex").join("config.toml"))
+}
+
+/// Get the path to Codex CLI's auth file: `~/.codex/auth.json`
+fn codex_auth_path() -> Result<PathBuf, AppError> {
+    let home = dirs_home_dir()?;
+    Ok(home.join(".codex").join("auth.json"))
 }
 
 /// Configure Codex CLI to use the local AAStation proxy.
@@ -85,7 +95,7 @@ pub fn configure_codex_cli(proxy_url: &str, auth_token: &str) -> Result<(), AppE
         let mut entry = toml_edit::Table::new();
         entry["name"] = toml_edit::value("AAStation Proxy");
         entry["base_url"] = toml_edit::value(proxy_url);
-        entry["env_key"] = toml_edit::value("AASTATION_API_KEY");
+        entry["env_key"] = toml_edit::value(CODEX_AUTH_KEY);
         entry["wire_api"] = toml_edit::value("responses");
         entry["requires_openai_auth"] = toml_edit::value(true);
 
@@ -130,6 +140,29 @@ pub fn configure_codex_cli(proxy_url: &str, auth_token: &str) -> Result<(), AppE
     );
     std::fs::write(&env_hint_path, &env_content)?;
 
+    // -------------------------------------------------------------------------
+    // ~/.codex/auth.json — write OPENAI_API_KEY so Codex CLI picks it up via
+    // `requires_openai_auth = true` in the provider config.
+    // Matches the lingyaai default scheme: auth.json = { "OPENAI_API_KEY": "..." }
+    // -------------------------------------------------------------------------
+    let auth_path = codex_auth_path()?;
+    if auth_path.exists() {
+        backup_file(&auth_path)?;
+    }
+    let mut auth_obj: serde_json::Map<String, serde_json::Value> = if auth_path.exists() {
+        let content = std::fs::read_to_string(&auth_path)?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        serde_json::Map::new()
+    };
+    auth_obj.insert(
+        CODEX_AUTH_KEY.to_string(),
+        serde_json::Value::String(auth_token.to_string()),
+    );
+    let auth_content = serde_json::to_string_pretty(&serde_json::Value::Object(auth_obj))
+        .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+    std::fs::write(&auth_path, &auth_content)?;
+
     Ok(())
 }
 
@@ -168,13 +201,32 @@ pub fn unconfigure_codex_cli() -> Result<(), AppError> {
         let _ = std::fs::remove_file(&env_hint_path);
     }
 
+    // Remove OPENAI_API_KEY from ~/.codex/auth.json.
+    // Only remove the key AAStation manages; preserve any other keys the user may have.
+    // If the resulting object is empty, delete the file entirely.
+    let auth_path = codex_auth_path()?;
+    if auth_path.exists() {
+        let content = std::fs::read_to_string(&auth_path)?;
+        let mut auth_obj: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(&content).unwrap_or_default();
+        auth_obj.remove(CODEX_AUTH_KEY);
+        if auth_obj.is_empty() {
+            let _ = std::fs::remove_file(&auth_path);
+        } else {
+            let updated = serde_json::to_string_pretty(&serde_json::Value::Object(auth_obj))
+                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+            std::fs::write(&auth_path, &updated)?;
+        }
+    }
+
     Ok(())
 }
 
 /// Check whether Codex CLI is already configured by AAStation.
 ///
 /// Returns `true` if `~/.codex/config.toml` exists and contains
-/// `model_providers.aastation.base_url`.
+/// `model_providers.aastation.base_url`, AND `~/.codex/auth.json` exists
+/// and contains the `OPENAI_API_KEY` entry.
 pub fn is_codex_cli_configured() -> Result<bool, AppError> {
     let config_path = codex_config_path()?;
 
@@ -185,7 +237,7 @@ pub fn is_codex_cli_configured() -> Result<bool, AppError> {
     let content = std::fs::read_to_string(&config_path)?;
     let doc: toml_edit::DocumentMut = content.parse().unwrap_or_default();
 
-    let configured = doc
+    let toml_configured = doc
         .get("model_providers")
         .and_then(|v| v.as_table())
         .and_then(|t| t.get(AASTATION_PROVIDER_KEY))
@@ -195,7 +247,24 @@ pub fn is_codex_cli_configured() -> Result<bool, AppError> {
         .map(|s| !s.is_empty())
         .unwrap_or(false);
 
-    Ok(configured)
+    if !toml_configured {
+        return Ok(false);
+    }
+
+    // Also verify auth.json has the key
+    let auth_path = codex_auth_path()?;
+    if !auth_path.exists() {
+        return Ok(false);
+    }
+    let auth_content = std::fs::read_to_string(&auth_path)?;
+    let auth_obj: serde_json::Value = serde_json::from_str(&auth_content).unwrap_or_default();
+    let auth_configured = auth_obj
+        .get(CODEX_AUTH_KEY)
+        .and_then(|v| v.as_str())
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
+
+    Ok(auth_configured)
 }
 
 /// Restore Codex CLI config from the `.aastation-backup` backup file.
@@ -204,6 +273,12 @@ pub fn restore_codex_cli_config() -> Result<(), AppError> {
 
     if backup_path(&config_path).exists() {
         restore_file(&config_path)?;
+    }
+
+    // Also restore auth.json from backup if present
+    let auth_path = codex_auth_path()?;
+    if backup_path(&auth_path).exists() {
+        restore_file(&auth_path)?;
     }
 
     Ok(())

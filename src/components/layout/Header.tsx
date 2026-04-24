@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
-import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured, isOpenCodeConfigured } from '../../lib/tauri-api';
+import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured, isOpenCodeConfigured, isCodexCliConfigured } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
 import ClaudeCodeDialog, { type ClaudeCodeAppInfo } from '../common/ClaudeCodeDialog';
 import OpenCodeDialog, { type OpenCodeAppInfo } from '../common/OpenCodeDialog';
+import CodexCliDialog, { type CodexCliAppInfo } from '../common/CodexCliDialog';
 import type { AAStationNode, ApplicationNodeData } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -135,6 +136,11 @@ export default function Header() {
     proxyUrl: string;
   } | null>(null);
 
+  const [codexCliDialog, setCodexCliDialog] = useState<{
+    apps: CodexCliAppInfo[];
+    proxyUrl: string;
+  } | null>(null);
+
   // -----------------------------------------------------------------------
   // Toggle proxy on/off (independent of publish)
   // -----------------------------------------------------------------------
@@ -239,6 +245,27 @@ export default function Header() {
           setOpenCodeDialog({ apps: openCodeApps, proxyUrl });
         }
       }
+
+      // 6. Check for Codex CLI application nodes
+      const codexCliApps: CodexCliAppInfo[] = doc.nodes
+        .filter((n): n is AAStationNode & { data: ApplicationNodeData } =>
+          n.data.nodeType === 'application' && (n.data as ApplicationNodeData).appType === 'codex_cli'
+        )
+        .map((n) => ({
+          nodeId: n.id,
+          label: n.data.label || 'Codex CLI',
+          listenPort: n.data.listenPort || 0,
+        }));
+
+      if (codexCliApps.length > 0) {
+        // Only show dialog if Codex CLI is not already configured
+        const codexConfigured = await isCodexCliConfigured().catch(() => false);
+        if (!codexConfigured) {
+          const firstApp = codexCliApps[0];
+          const proxyUrl = `http://127.0.0.1:${firstApp.listenPort}`;
+          setCodexCliDialog({ apps: codexCliApps, proxyUrl });
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -326,6 +353,15 @@ export default function Header() {
           apps={openCodeDialog.apps}
           proxyUrl={openCodeDialog.proxyUrl}
           onClose={() => setOpenCodeDialog(null)}
+        />
+      )}
+
+      {/* Codex CLI configuration dialog */}
+      {codexCliDialog && (
+        <CodexCliDialog
+          apps={codexCliDialog.apps}
+          proxyUrl={codexCliDialog.proxyUrl}
+          onClose={() => setCodexCliDialog(null)}
         />
       )}
     </header>
