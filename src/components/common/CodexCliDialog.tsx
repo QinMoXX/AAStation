@@ -171,25 +171,26 @@ export default function CodexCliDialog({ apps, proxyUrl, onClose }: CodexCliDial
     ? authToken.slice(0, 8) + '••••••••' + authToken.slice(-4)
     : '••••••••';
 
-  // Build config.toml content to display (mirrors lingyaai default scheme)
+  // Build config.toml content to display
   const configToml = [
     `model_provider = "aastation"`,
-    `model = "codex-auto"`,
+    `model = "gpt-5.4"`,
     `model_reasoning_effort = "high"`,
-    `network_access = "enabled"`,
     `disable_response_storage = true`,
+    `preferred_auth_method = "apikey"`,
     ``,
     `[model_providers.aastation]`,
-    `name = "AAStation Proxy"`,
+    `name = "aastation"`,
     `base_url = "${displayProxyUrl}"`,
-    `env_key = "OPENAI_API_KEY"`,
     `wire_api = "responses"`,
-    `requires_openai_auth = true`,
   ].join('\n');
 
   // Build auth.json content to display
   const authJson = JSON.stringify(
-    { OPENAI_API_KEY: tokenVisible ? authToken : maskedToken },
+    {
+      OPENAI_API_KEY: tokenVisible ? authToken : maskedToken,
+      auth_mode: 'apikey',
+    },
     null,
     2,
   );
