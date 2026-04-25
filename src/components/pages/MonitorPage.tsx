@@ -944,6 +944,9 @@ export default function MonitorPage() {
             <div style={{ fontSize: 28, fontWeight: 700, color: '#f8fafc', marginBottom: 10 }}>
               API 监控中心
             </div>
+            <div style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8 }}>
+              Token 由本地估算，和实际计费可能有偏差。
+            </div>
             <div style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.7, maxWidth: 680 }}>
               实时观察本地代理收到的 API 请求次数、Token 使用量、请求耗时与最近调用明细。
               可按应用和供应商筛选，快速定位流量热点与异常来源。

@@ -7,13 +7,14 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
+use tokio::sync::oneshot;
 
 use super::body_parser::{detect_request_protocol, extract_model};
 use super::error::ProxyError;
 use super::forwarder::forward_request;
 use super::server::HandlerState;
 use super::sse_patch::AnthropicSsePatchStream;
-use super::stream::{is_sse_response, LoggedStream};
+use super::stream::{is_sse_response, LoggedStream, MeteredStream};
 use super::types::{ProxyRequestMetric, RequestProtocol};
 use super::workflow::{execute_workflow, WorkflowRuntime};
 
@@ -32,6 +33,7 @@ struct RequestMetricContext {
     listen_port: u16,
     request_model: Option<String>,
     target_model: Option<String>,
+    estimated_input_tokens: u64,
 }
 
 #[derive(Default)]
@@ -182,6 +184,7 @@ pub async fn proxy_handler(
         } else {
             Some(matched_route.target_model.clone())
         },
+        estimated_input_tokens: estimate_tokens_from_bytes(&body_bytes),
     };
 
     drop(route_table);
@@ -204,7 +207,12 @@ pub async fn proxy_handler(
                 &metric_ctx,
                 None,
                 false,
-                None,
+                Some(ParsedUsage {
+                    input_tokens: metric_ctx.estimated_input_tokens,
+                    output_tokens: 0,
+                    total_tokens: metric_ctx.estimated_input_tokens,
+                    response_model: None,
+                }),
                 Some(e.to_string()),
             )
             .await;
@@ -363,15 +371,39 @@ async fn build_response(
     // SSE detection: stream passthrough
     if is_sse_response(&upstream.headers()) {
         tracing::info!("← Upstream SSE stream response (status: {})", status);
-        record_metric(state, &metric_ctx, Some(status), true, None, None).await;
-        let body = if source_protocol == RequestProtocol::Anthropic {
+        let (bytes_tx, bytes_rx) = oneshot::channel::<u64>();
+        let raw_stream: super::stream::BoxStream = if source_protocol == RequestProtocol::Anthropic {
             // Patch Anthropic SSE to fix missing fields (e.g. input_tokens in usage)
             let patched = AnthropicSsePatchStream::new(upstream.bytes_stream());
-            Body::from_stream(patched)
+            Box::pin(patched)
         } else {
             let logged = LoggedStream::new(upstream.bytes_stream());
-            Body::from_stream(logged)
+            Box::pin(logged)
         };
+        let body = Body::from_stream(MeteredStream::new(raw_stream, bytes_tx));
+
+        let state_for_metrics = state.clone();
+        let metric_ctx_for_metrics = metric_ctx.clone();
+        tokio::spawn(async move {
+            let output_bytes = bytes_rx.await.unwrap_or(0);
+            let usage = ParsedUsage {
+                input_tokens: metric_ctx_for_metrics.estimated_input_tokens,
+                output_tokens: estimate_tokens_from_len(output_bytes),
+                total_tokens: metric_ctx_for_metrics
+                    .estimated_input_tokens
+                    .saturating_add(estimate_tokens_from_len(output_bytes)),
+                response_model: None,
+            };
+            record_metric(
+                &state_for_metrics,
+                &metric_ctx_for_metrics,
+                Some(status),
+                true,
+                Some(usage),
+                None,
+            )
+            .await;
+        });
         return (status, response_headers, body).into_response();
     }
 
@@ -379,9 +411,24 @@ async fn build_response(
     let body_bytes = match upstream.bytes().await {
         Ok(bytes) => bytes,
         Err(e) => {
+            let err_msg = format!("Failed to read upstream response body: {e}");
+            record_metric(
+                state,
+                &metric_ctx,
+                Some(StatusCode::BAD_GATEWAY),
+                false,
+                Some(ParsedUsage {
+                    input_tokens: metric_ctx.estimated_input_tokens,
+                    output_tokens: 0,
+                    total_tokens: metric_ctx.estimated_input_tokens,
+                    response_model: None,
+                }),
+                Some(err_msg.clone()),
+            )
+            .await;
             return (
                 StatusCode::BAD_GATEWAY,
-                format!("Failed to read upstream response body: {e}"),
+                err_msg,
             )
                 .into_response();
         }
@@ -396,7 +443,14 @@ async fn build_response(
         body_bytes
     };
 
-    let parsed_usage = parse_usage_from_response(&body_bytes);
+    let parsed_usage = ParsedUsage {
+        input_tokens: metric_ctx.estimated_input_tokens,
+        output_tokens: estimate_tokens_from_bytes(&body_bytes),
+        total_tokens: metric_ctx
+            .estimated_input_tokens
+            .saturating_add(estimate_tokens_from_bytes(&body_bytes)),
+        response_model: parse_response_model(&body_bytes),
+    };
     record_metric(
         state,
         &metric_ctx,
@@ -504,45 +558,25 @@ fn ensure_usage_in_obj(obj: &mut serde_json::Map<String, serde_json::Value>, nee
     }
 }
 
-fn parse_usage_from_response(body: &[u8]) -> ParsedUsage {
+fn parse_response_model(body: &[u8]) -> Option<String> {
     let value: serde_json::Value = match serde_json::from_slice(body) {
         Ok(v) => v,
-        Err(_) => return ParsedUsage::default(),
+        Err(_) => return None,
     };
 
-    let response_model = value
-        .get("model")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let usage = value.get("usage");
-    let input_tokens = usage
-        .and_then(|u| u.get("input_tokens"))
-        .and_then(as_u64)
-        .or_else(|| usage.and_then(|u| u.get("prompt_tokens")).and_then(as_u64))
-        .unwrap_or(0);
-    let output_tokens = usage
-        .and_then(|u| u.get("output_tokens"))
-        .and_then(as_u64)
-        .or_else(|| usage.and_then(|u| u.get("completion_tokens")).and_then(as_u64))
-        .unwrap_or(0);
-    let total_tokens = usage
-        .and_then(|u| u.get("total_tokens"))
-        .and_then(as_u64)
-        .unwrap_or(input_tokens + output_tokens);
-
-    ParsedUsage {
-        input_tokens,
-        output_tokens,
-        total_tokens,
-        response_model,
-    }
+    value.get("model").and_then(|v| v.as_str()).map(|s| s.to_string())
 }
 
-fn as_u64(value: &serde_json::Value) -> Option<u64> {
-    value
-        .as_u64()
-        .or_else(|| value.as_i64().and_then(|v| if v >= 0 { Some(v as u64) } else { None }))
+fn estimate_tokens_from_bytes(bytes: &[u8]) -> u64 {
+    estimate_tokens_from_len(bytes.len() as u64)
+}
+
+fn estimate_tokens_from_len(len: u64) -> u64 {
+    if len == 0 {
+        0
+    } else {
+        (len + 3) / 4
+    }
 }
 
 async fn record_metric(

@@ -229,6 +229,16 @@ html, body {
   box-shadow: 0 0 0 3px var(--ui-focus-ring);
 }
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .ui-checkbox {
   width: 18px;
   height: 18px;
