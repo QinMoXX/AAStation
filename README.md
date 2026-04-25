@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/nicepkg/AAStation/releases">
-    <img src="https://img.shields.io/badge/version-0.5.5-blue" alt="Version" />
+    <img src="https://img.shields.io/badge/version-0.5.6-blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
   <img src="https://img.shields.io/badge/Tauri-2.0-orange" alt="Tauri" />
