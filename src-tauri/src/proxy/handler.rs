@@ -11,7 +11,6 @@ use chrono::Utc;
 use super::body_parser::{detect_request_protocol, extract_model};
 use super::error::ProxyError;
 use super::forwarder::forward_request;
-use super::responses_sse::OpenAiResponsesSseBridgeStream;
 use super::server::HandlerState;
 use super::sse_patch::AnthropicSsePatchStream;
 use super::stream::{is_sse_response, LoggedStream};
@@ -339,12 +338,6 @@ fn connectivity_check_response(path: &str) -> Response {
     (StatusCode::OK, "OK").into_response()
 }
 
-fn is_responses_request_path(path: &str) -> bool {
-    let path_only = path.split_once('?').map(|(p, _)| p).unwrap_or(path);
-    let trimmed = path_only.trim_end_matches('/');
-    trimmed == "/responses" || trimmed == "/v1/responses"
-}
-
 /// Convert an upstream reqwest::Response into an axum Response.
 /// SSE responses are streamed through; non-SSE responses are buffered fully.
 /// When the client is using Anthropic protocol, SSE streams are patched to ensure
@@ -375,11 +368,6 @@ async fn build_response(
             // Patch Anthropic SSE to fix missing fields (e.g. input_tokens in usage)
             let patched = AnthropicSsePatchStream::new(upstream.bytes_stream());
             Body::from_stream(patched)
-        } else if is_responses_request_path(&metric_ctx.path) {
-            // Codex Responses API expects `response.*` SSE events and a terminal
-            // `response.completed`. Bridge OpenAI chat chunks into that format.
-            let bridged = OpenAiResponsesSseBridgeStream::new(upstream.bytes_stream());
-            Body::from_stream(bridged)
         } else {
             let logged = LoggedStream::new(upstream.bytes_stream());
             Body::from_stream(logged)

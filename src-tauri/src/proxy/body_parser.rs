@@ -42,7 +42,6 @@ pub fn replace_model(body: &[u8], new_model: &str) -> Option<Vec<u8>> {
 ///
 /// - `/v1/messages` → Anthropic
 /// - `/v1/chat/completions` → OpenAI
-/// - `/responses` / `/v1/responses` → OpenAI
 /// - Other paths → defaults to OpenAI
 pub fn detect_request_protocol(path: &str) -> RequestProtocol {
     // Strip query string before matching (e.g. "/v1/messages?beta=true" → "/v1/messages")
@@ -54,234 +53,6 @@ pub fn detect_request_protocol(path: &str) -> RequestProtocol {
         // Default to OpenAI for /v1/chat/completions and any other path
         RequestProtocol::OpenAI
     }
-}
-
-fn is_openai_responses_payload(obj: &serde_json::Map<String, serde_json::Value>) -> bool {
-    // Keep detection conservative to avoid rewriting non-Responses OpenAI payloads.
-    obj.contains_key("input")
-        && !obj.contains_key("messages")
-        && (obj.contains_key("max_output_tokens")
-            || obj.contains_key("instructions")
-            || obj.contains_key("reasoning")
-            || obj.contains_key("text")
-            || obj.contains_key("previous_response_id")
-            || obj.contains_key("store")
-            || obj.contains_key("tools")
-            || obj.contains_key("tool_choice"))
-}
-
-fn extract_text(value: &serde_json::Value) -> Option<String> {
-    match value {
-        serde_json::Value::String(s) if !s.trim().is_empty() => Some(s.clone()),
-        serde_json::Value::Array(items) => {
-            let mut parts: Vec<String> = Vec::new();
-            for item in items {
-                if let Some(text) = extract_text(item) {
-                    parts.push(text);
-                } else if let Some(obj) = item.as_object() {
-                    if let Some(text) = obj.get("text").and_then(|v| v.as_str()) {
-                        if !text.trim().is_empty() {
-                            parts.push(text.to_string());
-                        }
-                    }
-                }
-            }
-            if parts.is_empty() {
-                None
-            } else {
-                Some(parts.join("\n"))
-            }
-        }
-        serde_json::Value::Object(obj) => {
-            if let Some(text) = obj.get("text").and_then(|v| v.as_str()) {
-                if !text.trim().is_empty() {
-                    return Some(text.to_string());
-                }
-            }
-            if let Some(content) = obj.get("content") {
-                return extract_text(content);
-            }
-            None
-        }
-        _ => None,
-    }
-}
-
-fn normalize_role(role: &str) -> &'static str {
-    match role {
-        "assistant" => "assistant",
-        "system" => "system",
-        // Responses API may emit developer messages; map to system for chat-completions compatibility.
-        "developer" => "system",
-        _ => "user",
-    }
-}
-
-fn responses_input_to_messages(input: serde_json::Value) -> Vec<serde_json::Value> {
-    let mut messages: Vec<serde_json::Value> = Vec::new();
-    let mut roleless_parts: Vec<String> = Vec::new();
-
-    match input {
-        serde_json::Value::String(s) => {
-            if !s.trim().is_empty() {
-                messages.push(serde_json::json!({"role":"user","content": s}));
-            }
-        }
-        serde_json::Value::Array(items) => {
-            for item in items {
-                match item {
-                    serde_json::Value::String(s) => {
-                        if !s.trim().is_empty() {
-                            roleless_parts.push(s);
-                        }
-                    }
-                    serde_json::Value::Object(obj) => {
-                        if let Some(role) = obj.get("role").and_then(|v| v.as_str()) {
-                            let content = obj
-                                .get("content")
-                                .and_then(extract_text)
-                                .or_else(|| extract_text(&serde_json::Value::Object(obj.clone())));
-                            if let Some(content) = content {
-                                messages.push(serde_json::json!({
-                                    "role": normalize_role(role),
-                                    "content": content,
-                                }));
-                            }
-                        } else if let Some(text) = extract_text(&serde_json::Value::Object(obj)) {
-                            roleless_parts.push(text);
-                        }
-                    }
-                    other => {
-                        if let Some(text) = extract_text(&other) {
-                            roleless_parts.push(text);
-                        }
-                    }
-                }
-            }
-        }
-        serde_json::Value::Object(obj) => {
-            if let Some(role) = obj.get("role").and_then(|v| v.as_str()) {
-                if let Some(content) = obj.get("content").and_then(extract_text) {
-                    messages.push(serde_json::json!({
-                        "role": normalize_role(role),
-                        "content": content,
-                    }));
-                }
-            } else if let Some(text) = extract_text(&serde_json::Value::Object(obj)) {
-                roleless_parts.push(text);
-            }
-        }
-        other => {
-            if let Some(text) = extract_text(&other) {
-                roleless_parts.push(text);
-            }
-        }
-    }
-
-    if !roleless_parts.is_empty() {
-        messages.push(serde_json::json!({
-            "role": "user",
-            "content": roleless_parts.join("\n"),
-        }));
-    }
-
-    messages
-}
-
-fn convert_responses_payload_to_chat(value: &mut serde_json::Value) {
-    let Some(obj) = value.as_object_mut() else {
-        return;
-    };
-
-    if !is_openai_responses_payload(obj) {
-        return;
-    }
-
-    let mut messages: Vec<serde_json::Value> = Vec::new();
-
-    if let Some(instructions) = obj.remove("instructions") {
-        if let Some(text) = extract_text(&instructions) {
-            messages.push(serde_json::json!({"role":"system","content": text}));
-        }
-    }
-
-    if let Some(input) = obj.remove("input") {
-        messages.extend(responses_input_to_messages(input));
-    }
-
-    if !messages.is_empty() {
-        obj.insert("messages".to_string(), serde_json::Value::Array(messages));
-    }
-
-    if let Some(max_output_tokens) = obj.remove("max_output_tokens") {
-        obj.insert("max_tokens".to_string(), max_output_tokens);
-    }
-
-    // Convert Responses tools to Chat Completions tools and drop unsupported types.
-    if let Some(tools) = obj.get_mut("tools").and_then(|v| v.as_array_mut()) {
-        let mut normalized_tools: Vec<serde_json::Value> = Vec::new();
-        for mut tool in tools.drain(..) {
-            let Some(tool_obj) = tool.as_object_mut() else {
-                continue;
-            };
-            let tool_type = tool_obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
-            if tool_type != "function" {
-                continue;
-            }
-            if !tool_obj.contains_key("function") {
-                let name = tool_obj
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let description = tool_obj
-                    .get("description")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let parameters = tool_obj
-                    .get("parameters")
-                    .cloned()
-                    .unwrap_or_else(|| serde_json::json!({}));
-                tool_obj.insert(
-                    "function".to_string(),
-                    serde_json::json!({
-                        "name": name,
-                        "description": description,
-                        "parameters": parameters,
-                    }),
-                );
-                tool_obj.remove("name");
-                tool_obj.remove("description");
-                tool_obj.remove("parameters");
-            }
-            normalized_tools.push(tool);
-        }
-
-        if normalized_tools.is_empty() {
-            obj.remove("tools");
-        } else {
-            obj.insert("tools".to_string(), serde_json::Value::Array(normalized_tools));
-        }
-    }
-
-    // Responses API may send non-chat tool_choice variants (e.g. {"type":"custom"}).
-    // Keep only OpenAI chat-completions compatible variants.
-    if let Some(tool_choice) = obj.get("tool_choice").cloned() {
-        if let Some(choice_obj) = tool_choice.as_object() {
-            let choice_type = choice_obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
-            if choice_type != "function" {
-                obj.remove("tool_choice");
-            }
-        }
-    }
-
-    // Remove Responses-only fields that most Chat Completions backends reject.
-    obj.remove("text");
-    obj.remove("reasoning");
-    obj.remove("previous_response_id");
-    obj.remove("store");
-    obj.remove("parallel_tool_calls");
 }
 
 /// Adapt the request body from the client's protocol style to the upstream provider's protocol style.
@@ -310,10 +81,6 @@ pub fn adapt_request_body(
             return body.to_vec();
         }
     };
-
-    // Normalize OpenAI Responses API payloads (`input`, `instructions`, etc.)
-    // into Chat Completions shape (`messages`, `max_tokens`, ...).
-    convert_responses_payload_to_chat(&mut value);
 
     // Model replacement
     if !target_model.is_empty() && value.get("model").is_some() {
@@ -458,7 +225,6 @@ pub fn adapt_request_body(
 /// Path mapping:
 /// - OpenAI-style endpoint: `/chat/completions`
 /// - Anthropic-style endpoint: `/messages`
-/// - OpenAI Responses endpoint (`/responses` or `/v1/responses`) is mapped to chat-style endpoints
 ///
 /// For non-standard paths (neither /v1/chat/completions nor /v1/messages),
 /// we pass them through as-is.
@@ -477,8 +243,6 @@ pub fn adapt_request_path(original_path: &str, target_api_type: ApiType, preserv
             // Map any chat-style request to OpenAI endpoint suffix
             if trimmed == "/v1/chat/completions"
                 || trimmed == "/v1/messages"
-                || trimmed == "/responses"
-                || trimmed == "/v1/responses"
             {
                 if preserve_v1_prefix {
                     "/v1/chat/completions".to_string()
@@ -505,8 +269,6 @@ pub fn adapt_request_path(original_path: &str, target_api_type: ApiType, preserv
             // Map any chat-style request to Anthropic endpoint suffix
             if trimmed == "/v1/messages"
                 || trimmed == "/v1/chat/completions"
-                || trimmed == "/responses"
-                || trimmed == "/v1/responses"
             {
                 if preserve_v1_prefix {
                     "/v1/messages".to_string()
@@ -619,8 +381,6 @@ mod tests {
     fn test_detect_openai_protocol() {
         assert_eq!(detect_request_protocol("/v1/chat/completions"), RequestProtocol::OpenAI);
         assert_eq!(detect_request_protocol("/v1/chat/completions?stream=true"), RequestProtocol::OpenAI);
-        assert_eq!(detect_request_protocol("/responses"), RequestProtocol::OpenAI);
-        assert_eq!(detect_request_protocol("/v1/responses"), RequestProtocol::OpenAI);
         assert_eq!(detect_request_protocol("/v1/engines"), RequestProtocol::OpenAI);
         assert_eq!(detect_request_protocol("/api/paas/v4/chat/completions"), RequestProtocol::OpenAI);
     }
@@ -650,24 +410,12 @@ mod tests {
             adapt_request_path("/v1/messages", ApiType::OpenAI, false),
             "/chat/completions"
         );
-        assert_eq!(
-            adapt_request_path("/responses", ApiType::OpenAI, false),
-            "/chat/completions"
-        );
-        assert_eq!(
-            adapt_request_path("/v1/responses", ApiType::OpenAI, true),
-            "/v1/chat/completions"
-        );
     }
 
     #[test]
     fn test_adapt_path_openai_to_anthropic() {
         assert_eq!(
             adapt_request_path("/v1/chat/completions", ApiType::Anthropic, false),
-            "/messages"
-        );
-        assert_eq!(
-            adapt_request_path("/responses", ApiType::Anthropic, false),
             "/messages"
         );
     }
@@ -760,64 +508,6 @@ mod tests {
         assert_eq!(messages[0]["content"], "You are helpful");
         assert_eq!(messages[1]["role"], "user");
         assert_eq!(v["max_tokens"], 1024);
-    }
-
-    #[test]
-    fn test_adapt_body_responses_to_chat_openai() {
-        let body = br#"{
-            "model":"gpt-5.4",
-            "instructions":"You are concise",
-            "input":"hello",
-            "max_output_tokens":256,
-            "store":false,
-            "reasoning":{"effort":"high"}
-        }"#;
-        let result = adapt_request_body(body, RequestProtocol::OpenAI, ApiType::OpenAI, "");
-        let v: serde_json::Value = serde_json::from_slice(&result).unwrap();
-        let messages = v["messages"].as_array().unwrap();
-        assert_eq!(messages[0]["role"], "system");
-        assert_eq!(messages[0]["content"], "You are concise");
-        assert_eq!(messages[1]["role"], "user");
-        assert_eq!(messages[1]["content"], "hello");
-        assert_eq!(v["max_tokens"], 256);
-        assert!(v.get("input").is_none());
-        assert!(v.get("instructions").is_none());
-        assert!(v.get("reasoning").is_none());
-        assert!(v.get("store").is_none());
-    }
-
-    #[test]
-    fn test_adapt_body_responses_drops_non_function_tools_and_invalid_tool_choice() {
-        let body = br#"{
-            "model":"gpt-5.4",
-            "input":"hello",
-            "tools":[
-                {"type":"function","name":"ok_fn","description":"ok","parameters":{"type":"object"}},
-                {"type":"custom","name":"local_tool","description":"custom impl"}
-            ],
-            "tool_choice":{"type":"custom","name":"local_tool"}
-        }"#;
-        let result = adapt_request_body(body, RequestProtocol::OpenAI, ApiType::OpenAI, "");
-        let v: serde_json::Value = serde_json::from_slice(&result).unwrap();
-        let tools = v["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 1);
-        assert_eq!(tools[0]["type"], "function");
-        assert_eq!(tools[0]["function"]["name"], "ok_fn");
-        assert!(v.get("tool_choice").is_none());
-    }
-
-    #[test]
-    fn test_adapt_body_responses_to_chat_then_anthropic() {
-        let body = br#"{
-            "model":"claude-sonnet-4-20250514",
-            "input":[{"role":"user","content":[{"type":"input_text","text":"hi"}]}],
-            "max_output_tokens":128
-        }"#;
-        let result = adapt_request_body(body, RequestProtocol::OpenAI, ApiType::Anthropic, "");
-        let v: serde_json::Value = serde_json::from_slice(&result).unwrap();
-        assert_eq!(v["messages"][0]["role"], "user");
-        assert_eq!(v["messages"][0]["content"], "hi");
-        assert_eq!(v["max_tokens"], 128);
     }
 
     #[test]

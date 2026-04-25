@@ -538,7 +538,7 @@ export default function SettingsPage() {
           开机自启动
         </label>
         <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-          勾选后会在系统启动时自动启动 AAStation。
+          勾选后会在系统启动时自动启动 AAStation。当前已实现 Windows，Linux/macOS 预留扩展。
         </div>
       </div>
 

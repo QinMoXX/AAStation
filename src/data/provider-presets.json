@@ -8,10 +8,8 @@
     "defaultLabel": "DeepSeek",
     "tag": "any",
     "models": [
-      { "name": "deepseek-v4-flash", "label": "DeepSeek-V4-Flash" },
-      { "name": "deepseek-v4-pro", "label": "DeepSeek-V4-Pro" },
-      { "name": "deepseek-chat", "label": "DeepSeek Chat(旧版)" },
-      { "name": "deepseek-reasoner", "label": "DeepSeek Reasoner(旧版)" }
+      { "name": "deepseek-chat", "label": "DeepSeek Chat" },
+      { "name": "deepseek-reasoner", "label": "DeepSeek Reasoner" }
     ]
   },
   {
@@ -90,18 +88,9 @@
       { "name": "moonshot-v1-8k", "label": "Moonshot V1 8K" },
       { "name": "moonshot-v1-32k", "label": "Moonshot V1 32K" },
       { "name": "moonshot-v1-128k", "label": "Moonshot V1 128K" },
-      {
-        "name": "moonshot-v1-8k-vision-preview",
-        "label": "Moonshot V1 8K Vision"
-      },
-      {
-        "name": "moonshot-v1-32k-vision-preview",
-        "label": "Moonshot V1 32K Vision"
-      },
-      {
-        "name": "moonshot-v1-128k-vision-preview",
-        "label": "Moonshot V1 128K Vision"
-      }
+      { "name": "moonshot-v1-8k-vision-preview", "label": "Moonshot V1 8K Vision" },
+      { "name": "moonshot-v1-32k-vision-preview", "label": "Moonshot V1 32K Vision" },
+      { "name": "moonshot-v1-128k-vision-preview", "label": "Moonshot V1 128K Vision" }
     ]
   },
   {
@@ -114,22 +103,10 @@
     "tag": "any",
     "models": [
       { "name": "doubao-seed-2-0-pro-260215", "label": "Doubao Seed 2.0 Pro" },
-      {
-        "name": "doubao-seed-2-0-lite-260215",
-        "label": "Doubao Seed 2.0 Lite"
-      },
-      {
-        "name": "doubao-seed-2-0-mini-260215",
-        "label": "Doubao Seed 2.0 Mini"
-      },
-      {
-        "name": "doubao-seed-2-0-code-preview-260215",
-        "label": "Doubao Seed 2.0 Code Preview"
-      },
-      {
-        "name": "doubao-seed-character-251128",
-        "label": "Doubao Seed Character"
-      },
+      { "name": "doubao-seed-2-0-lite-260215", "label": "Doubao Seed 2.0 Lite" },
+      { "name": "doubao-seed-2-0-mini-260215", "label": "Doubao Seed 2.0 Mini" },
+      { "name": "doubao-seed-2-0-code-preview-260215", "label": "Doubao Seed 2.0 Code Preview" },
+      { "name": "doubao-seed-character-251128", "label": "Doubao Seed Character" },
       { "name": "glm-4-7-251222", "label": "GLM-4.7" },
       { "name": "deepseek-v3-2-251201", "label": "DeepSeek Chat" },
       { "name": "deepseek-v3-1-terminus", "label": "DeepSeek V3.1" }
@@ -148,10 +125,7 @@
       { "name": "anthropic/claude-3.5-sonnet", "label": "Claude 3.5 Sonnet" },
       { "name": "openai/gpt-4o", "label": "GPT-4o" },
       { "name": "google/gemini-pro-1.5", "label": "Gemini Pro 1.5" },
-      {
-        "name": "meta-llama/llama-3.1-405b-instruct",
-        "label": "Llama 3.1 405B"
-      }
+      { "name": "meta-llama/llama-3.1-405b-instruct", "label": "Llama 3.1 405B" }
     ]
   },
   {

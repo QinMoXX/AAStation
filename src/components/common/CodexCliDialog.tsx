@@ -182,7 +182,6 @@ export default function CodexCliDialog({ apps, proxyUrl, onClose }: CodexCliDial
     `[model_providers.aastation]`,
     `name = "aastation"`,
     `base_url = "${displayProxyUrl}"`,
-    `# AAStation 代理已兼容 /responses 请求`,
     `wire_api = "responses"`,
   ].join('\n');
 
@@ -203,7 +202,7 @@ export default function CodexCliDialog({ apps, proxyUrl, onClose }: CodexCliDial
         <div style={subtitleStyle}>
           检测到 {apps.length} 个 Codex CLI 应用节点。发布后需要将本地代理 URL 和认证令牌写入
           Codex CLI 配置文件，使其通过 AAStation 代理转发请求。认证令牌仅用于代理验证，不会转发到上游 API；
-          上游 API Key 由 Provider 节点提供。当前代理已兼容 `wire_api = "responses"`（含 `/responses` 路径与请求体转换）。
+          上游 API Key 由 Provider 节点提供。
         </div>
 
         {apps.map((app) => (
