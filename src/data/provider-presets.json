@@ -137,19 +137,24 @@
     "defaultLabel": "腾讯云",
     "tag": "any",
     "models": [
-      { "name": "glm-5", "label": "GLM-5" },
+      { "name": "hy3-preview", "label": "Hy3 preview" },
       { "name": "hunyuan-2.0-thinking-20251109", "label": "HY 2.0 Think" },
       { "name": "hunyuan-2.0-instruct-20251111", "label": "HY 2.0 Instruct" },
-      { "name": "hunyuan-role-latest", "label": "Hunyuan Role" },
+      { "name": "hunyuan-role-latest", "label": "Hunyuan-role" },
+      { "name": "deepseek-v4-flash", "label": "DeepSeek-V4-Flash" },
+      { "name": "deepseek-v4-pro", "label": "DeepSeek-V4-Pro" },
       { "name": "deepseek-v3.2", "label": "Deepseek-v3.2" },
       { "name": "deepseek-v3.1-terminus", "label": "Deepseek-v3.1" },
       { "name": "deepseek-r1-0528", "label": "Deepseek-r1-0528" },
       { "name": "deepseek-v3-0324", "label": "Deepseek-v3-0324" },
-      { "name": "kimi-k2.5", "label": "Kimi K2.5" },
-      { "name": "kimi-k2-thinking-turbo", "label": "Kimi K2 Thinking Turbo" },
-      { "name": "kimi-k2-turbo-preview", "label": "Kimi K2 Turbo Preview" },
-      { "name": "minimax-m2.5", "label": "MiniMax M2.5" },
-      { "name": "minimax-m2.7", "label": "MiniMax M2.7" }
+      { "name": "glm-5.1", "label": "GLM-5.1" },
+      { "name": "glm-5v-turbo", "label": "GLM-5V-Turbo" },
+      { "name": "glm-5-turbo", "label": "GLM-5-Turbo" },
+      { "name": "glm-5", "label": "GLM-5" },
+      { "name": "kimi-k2.6", "label": "Kimi-K2.6" },
+      { "name": "kimi-k2.5", "label": "Kimi-K2.5" },
+      { "name": "minimax-m2.7", "label": "MiniMax-M2.7" },
+      { "name": "minimax-m2.5", "label": "MiniMax-M2.5" }
     ]
   },
   {
