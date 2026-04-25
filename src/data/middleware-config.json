@@ -1,6 +1,5 @@
-[
-  {
-    "type": "switcher",
+{
+  "switcher": {
     "name": "Switcher"
   }
-]
+}

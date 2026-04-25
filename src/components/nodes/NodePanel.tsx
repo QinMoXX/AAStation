@@ -513,9 +513,6 @@ export default function NodePanel() {
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
-  const middlewareNameByType = Object.fromEntries(
-    MIDDLEWARE_CONFIG.map((item) => [item.type, item.name]),
-  ) as Record<string, string>;
 
   const handleUpdate = useCallback(
     (patch: Partial<AAStationNodeData>) => {
@@ -539,7 +536,7 @@ export default function NodePanel() {
   const theme = headerColors[data.nodeType] ?? headerColors.provider;
   const nodeDisplayName =
     data.nodeType === 'switcher'
-      ? middlewareNameByType[data.middlewareType] || data.middlewareType || 'Middleware'
+      ? MIDDLEWARE_CONFIG[data.middlewareType]?.name || data.middlewareType || 'Middleware'
       : data.nodeType;
 
   return (

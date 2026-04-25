@@ -240,11 +240,11 @@ export default function HomeSubNav() {
                   {/* Middleware items */}
                   {cat.id === 'middleware' && (
                     <>
-                      {MIDDLEWARE_CONFIG.map((middleware) => (
+                      {Object.entries(MIDDLEWARE_CONFIG).map(([middlewareType, middleware]) => (
                         <div
-                          key={middleware.type}
+                          key={middlewareType}
                           style={itemStyle}
-                          onClick={() => addMiddlewareNode(middleware.type as MiddlewareType)}
+                          onClick={() => addMiddlewareNode(middlewareType as MiddlewareType)}
                           onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >

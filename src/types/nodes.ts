@@ -4,11 +4,10 @@ export type NodeType = 'provider' | 'switcher' | 'application';
 /** Middleware type discriminator (used by switcher-like nodes). */
 export type MiddlewareType = 'switcher';
 
-/** Config for one middleware entry in the left sidebar. */
-export interface MiddlewareConfig {
-  type: MiddlewareType;
+/** Middleware config keyed by middleware type, used by UI and defaults. */
+export type MiddlewareConfig = Record<MiddlewareType, {
   name: string;
-}
+}>;
 
 /** Handle type discriminator for connection validation. */
 export type HandleType = 'model' | 'any';

@@ -47,7 +47,7 @@ export function defaultProviderData(): ProviderNodeData {
 }
 
 function getMiddlewareName(middlewareType: MiddlewareType): string {
-  const config = MIDDLEWARE_CONFIG.find((item) => item.type === middlewareType);
+  const config = MIDDLEWARE_CONFIG[middlewareType];
   return config?.name || 'Switcher';
 }
 
@@ -87,8 +87,8 @@ export const PRESET_PROVIDERS = presets as ProviderPreset[];
 export const SWITCHER_DEFAULTS = switcherDefaults as SwitcherDefaultsMap;
 /** Default Application labels/help text per appType, loaded from JSON config. */
 export const APPLICATION_DEFAULTS = applicationDefaults as ApplicationDefaultsMap;
-/** Middleware entries shown in sidebar, loaded from JSON config. */
-export const MIDDLEWARE_CONFIG = middlewareConfig as MiddlewareConfig[];
+/** Middleware entries keyed by type, loaded from JSON config. */
+export const MIDDLEWARE_CONFIG = middlewareConfig as MiddlewareConfig;
 
 export function createPresetProviderData(preset: ProviderPreset): ProviderNodeData {
   return {

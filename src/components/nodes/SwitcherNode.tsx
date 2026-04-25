@@ -18,7 +18,7 @@ const HANDLE_COLORS: Record<string, string> = {
 
 function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
   const middlewareName =
-    MIDDLEWARE_CONFIG.find((item) => item.type === data.middlewareType)?.name
+    MIDDLEWARE_CONFIG[data.middlewareType]?.name
     || data.middlewareType
     || 'Middleware';
   const isSwitcher = data.middlewareType === 'switcher';
