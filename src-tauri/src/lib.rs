@@ -8,6 +8,7 @@ mod logger;
 mod opencode_config;
 mod proxy;
 mod settings;
+mod startup;
 mod store;
 mod tray;
 

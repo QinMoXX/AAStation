@@ -8,4 +8,6 @@ export interface AppSettings {
   proxyAuthToken: string;
   /** Maximum total size of log files in MB. Oldest files are deleted on startup when exceeded. */
   logDirMaxMb: number;
+  /** Start AAStation automatically when the operating system starts. */
+  launchAtStartup: boolean;
 }

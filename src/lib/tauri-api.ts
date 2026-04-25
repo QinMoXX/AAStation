@@ -104,12 +104,19 @@ export async function getProxyMetrics(): Promise<ProxyMetricsSnapshot> {
 
 /** Load application settings from disk. Returns defaults if no file exists. */
 export async function loadSettings(): Promise<AppSettings> {
-  const raw = await invoke<{ listen_port_range: string; listen_address: string; proxy_auth_token: string; log_dir_max_mb: number }>('load_settings');
+  const raw = await invoke<{
+    listen_port_range: string;
+    listen_address: string;
+    proxy_auth_token: string;
+    log_dir_max_mb: number;
+    launch_at_startup?: boolean;
+  }>('load_settings');
   return {
     listenPortRange: raw.listen_port_range,
     listenAddress: raw.listen_address,
     proxyAuthToken: raw.proxy_auth_token,
     logDirMaxMb: raw.log_dir_max_mb ?? 500,
+    launchAtStartup: raw.launch_at_startup ?? false,
   };
 }
 
@@ -121,6 +128,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       listen_address: settings.listenAddress,
       proxy_auth_token: settings.proxyAuthToken,
       log_dir_max_mb: settings.logDirMaxMb,
+      launch_at_startup: settings.launchAtStartup,
     },
   });
 }

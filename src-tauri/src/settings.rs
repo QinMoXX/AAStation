@@ -27,6 +27,9 @@ pub struct AppSettings {
     /// Oldest log files are deleted on startup when the total exceeds this limit.
     #[serde(default = "default_log_dir_max_mb")]
     pub log_dir_max_mb: u64,
+    /// Whether the app should start automatically when the OS starts.
+    #[serde(default)]
+    pub launch_at_startup: bool,
 }
 
 fn default_port_range() -> String {
@@ -116,6 +119,7 @@ impl Default for AppSettings {
             listen_address: "127.0.0.1".to_string(),
             proxy_auth_token: generate_auth_token(),
             log_dir_max_mb: default_log_dir_max_mb(),
+            launch_at_startup: false,
         }
     }
 }

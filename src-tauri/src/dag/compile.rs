@@ -368,6 +368,7 @@ mod tests {
             listen_address: "127.0.0.1".to_string(),
             proxy_auth_token: String::new(),
             log_dir_max_mb: 500,
+            launch_at_startup: false,
         }
     }
 

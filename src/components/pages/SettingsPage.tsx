@@ -95,6 +95,7 @@ export default function SettingsPage() {
   const [portRange, setPortRange] = useState(settings.listenPortRange);
   const [address, setAddress] = useState(settings.listenAddress);
   const [logDirMaxMb, setLogDirMaxMb] = useState(String(settings.logDirMaxMb ?? 500));
+  const [launchAtStartup, setLaunchAtStartup] = useState(settings.launchAtStartup);
   const [tokenVisible, setTokenVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -102,6 +103,7 @@ export default function SettingsPage() {
     setPortRange(settings.listenPortRange);
     setAddress(settings.listenAddress);
     setLogDirMaxMb(String(settings.logDirMaxMb ?? 500));
+    setLaunchAtStartup(settings.launchAtStartup);
   }, [settings]);
 
   const handleSaveGeneral = async () => {
@@ -118,6 +120,7 @@ export default function SettingsPage() {
         listenAddress: address,
         proxyAuthToken: settings.proxyAuthToken,
         logDirMaxMb: parsedMb,
+        launchAtStartup,
       });
       toast.success('常规设置已保存');
     } catch (err) {
@@ -512,6 +515,30 @@ export default function SettingsPage() {
         />
         <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
           软件启动时若日志目录总大小超过此值，将自动从最旧的文件开始删除。默认 500 MB。
+        </div>
+      </div>
+
+      <div style={fieldStyle}>
+        <label style={labelStyle}>系统启动</label>
+        <label
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 14,
+            color: '#e2e8f0',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={launchAtStartup}
+            onChange={(e) => setLaunchAtStartup(e.target.checked)}
+          />
+          开机自启动
+        </label>
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+          勾选后会在系统启动时自动启动 AAStation。当前已实现 Windows，Linux/macOS 预留扩展。
         </div>
       </div>
 

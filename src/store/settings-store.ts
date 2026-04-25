@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   listenAddress: '127.0.0.1',
   proxyAuthToken: '',
   logDirMaxMb: 500,
+  launchAtStartup: false,
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({
