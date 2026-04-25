@@ -68,6 +68,21 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 - **Codex CLI** — 一键写入 `~/.codex/config.toml` 与认证配置
 - **备份恢复** — 写入前自动备份，支持恢复与移除托管配置
 
+### 供应商与客户端兼容性
+
+|            | Claude Code | OpenCode | Codex CLI    |
+| ---------- | ----------- | -------- | ------------ |
+| DeepSeek   | ✅           | ✅        | ❌            |
+| Zhipu AI   | ✅           | ✅        | ❌            |
+| 阿里云百炼      | ✅           | ✅        | qwen3.6-plus |
+| MiniMax    | ✅           | ✅        | ❌            |
+| Kimi       | ✅           | ✅        | ❌            |
+| 火山方舟       | ✅           | ✅        | ❌            |
+| OpenRouter | ✅           | ✅        | ✅            |
+| 腾讯云        | ✅           | ✅        | ❌            |
+
+> **Codex CLI 注意**：AAStation 不支持修改旧版本 Codex 配置，而新版 Codex 采用 Responses API，兼容性较差。建议优先使用 **Claude Code** 或 **OpenCode** 等兼容性更好的 CLI 工具。如需继续使用 Codex，请安装 **0.80.0 及以下**支持 Chat/Completions API 的旧版本（详见 [Codex 官方说明](https://github.com/openai/codex/discussions/7782)）。
+
 ### 本地代理服务器
 
 - 在本机运行 HTTP 代理
@@ -180,6 +195,21 @@ Whether you need to route requests based on model names, path prefixes, or HTTP 
 - **State Persistence** — Persisted metrics and automatic route restoration after restart
 - **Local Proxy Server** — Local proxy supporting both OpenAI and Anthropic API formats with Switcher + Poller workflow
 - **Desktop Experience** — Native desktop app with system tray integration, Windows launch-at-startup option, and dark theme UI
+
+### Provider-Client Compatibility
+
+|            | Claude Code | OpenCode | Codex CLI    |
+| ---------- | ----------- | -------- | ------------ |
+| DeepSeek   | ✅           | ✅        | ❌            |
+| Zhipu AI   | ✅           | ✅        | ❌            |
+| Bailian    | ✅           | ✅        | qwen3.6-plus |
+| MiniMax    | ✅           | ✅        | ❌            |
+| Kimi       | ✅           | ✅        | ❌            |
+| Ark        | ✅           | ✅        | ❌            |
+| OpenRouter | ✅           | ✅        | ✅            |
+| Tencent    | ✅           | ✅        | ❌            |
+
+> **Codex CLI Note**: AAStation cannot modify older Codex configurations, and newer Codex versions use the Responses API with limited compatibility. We recommend using **Claude Code** or **OpenCode** for better compatibility. If you must use Codex, install **v0.80.0 or below** which supports the Chat/Completions API (see [Codex announcement](https://github.com/openai/codex/discussions/7782)).
 
 ### Quick Start
 
