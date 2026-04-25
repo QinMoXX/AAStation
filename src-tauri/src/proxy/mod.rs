@@ -4,6 +4,7 @@ pub mod forwarder;
 pub mod health;
 pub mod handler;
 pub mod metrics;
+pub mod responses_sse;
 pub mod router;
 pub mod server;
 pub mod sse_patch;
