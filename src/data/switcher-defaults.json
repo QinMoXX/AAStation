@@ -43,9 +43,24 @@
     "label": "Codex CLI Model Router",
     "entries": [
       {
-        "label": "codex-MiniMax-M2.7",
+        "label": "GPT-5.4",
         "matchType": "model",
-        "pattern": "codex-MiniMax-M2.7"
+        "pattern": "gpt-5.4"
+      },
+      {
+        "label": "GPT-5.4 Mini",
+        "matchType": "model",
+        "pattern": "gpt-5.4-mini"
+      },
+      {
+        "label": "GPT-5.3 Codex",
+        "matchType": "model",
+        "pattern": "gpt-5.3-codex"
+      },
+      {
+        "label": "GPT-5.2",
+        "matchType": "model",
+        "pattern": "gpt-5.2"
       }
     ]
   }
