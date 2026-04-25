@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { SwitcherNodeData } from '../../types';
+import { MIDDLEWARE_CONFIG } from '../../store/flow-store';
 
 /** Match-type display labels. */
 const MATCH_TYPE_LABELS: Record<string, string> = {
@@ -16,6 +17,11 @@ const HANDLE_COLORS: Record<string, string> = {
 };
 
 function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
+  const middlewareName =
+    MIDDLEWARE_CONFIG.find((item) => item.type === data.middlewareType)?.name
+    || data.middlewareType
+    || 'Middleware';
+  const isSwitcher = data.middlewareType === 'switcher';
   const entryCount = data.entries.length;
 
   return (
@@ -52,7 +58,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
       {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, color: '#374151' }}>
         <span>🔀</span>
-        <span>{data.label || 'Switcher'}</span>
+        <span>{data.label || middlewareName}</span>
       </div>
 
       {/* Entry count */}
@@ -63,7 +69,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
       </div>
 
       {/* Matcher entries with RIGHT-side output handles (to Provider model handles) */}
-      {data.entries.map((entry, index, arr) => (
+      {isSwitcher && data.entries.map((entry, index, arr) => (
         <div
           key={entry.id}
           style={{
@@ -109,7 +115,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
       ))}
 
       {/* Default route with RIGHT-side output handle */}
-      {data.hasDefault && (
+      {isSwitcher && data.hasDefault && (
         <div
           style={{
             display: 'flex',
@@ -152,7 +158,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
       )}
 
       {/* Hint when no entries */}
-      {entryCount === 0 && !data.hasDefault && (
+      {isSwitcher && entryCount === 0 && !data.hasDefault && (
         <div
           style={{
             marginTop: 8,
@@ -165,6 +171,21 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
           }}
         >
           Add matchers or enable default route
+        </div>
+      )}
+      {!isSwitcher && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: '8px',
+            borderRadius: 6,
+            background: '#ffffff',
+            fontSize: 11,
+            color: '#6b7280',
+            textAlign: 'center',
+          }}
+        >
+          暂不支持的中间件类型：{data.middlewareType}
         </div>
       )}
     </div>

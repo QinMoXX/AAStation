@@ -189,6 +189,7 @@ function nodeDataToFrontend(
       });
       return {
         nodeType: 'switcher',
+        middlewareType: (camelData.middlewareType as string) || 'switcher',
         label: (camelData.label as string) || 'Switcher',
         entries,
         hasDefault: (camelData.hasDefault as boolean) ?? false,

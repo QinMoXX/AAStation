@@ -72,13 +72,15 @@ export default function FlowCanvas() {
       if (!sourceNode || !targetNode) return false;
 
       // Get entries from source node if it's a switcher
-      const sourceEntries = sourceNode.data.nodeType === 'switcher'
+      const sourceEntries = sourceNode.data.nodeType === 'switcher' && sourceNode.data.middlewareType === 'switcher'
         ? (sourceNode.data as SwitcherNodeData).entries
         : undefined;
 
       const result = isValidConnection(
         sourceNode.data.nodeType,
         targetNode.data.nodeType,
+        sourceNode.data.nodeType === 'switcher' ? sourceNode.data.middlewareType : undefined,
+        targetNode.data.nodeType === 'switcher' ? targetNode.data.middlewareType : undefined,
         edge.sourceHandle,
         edge.targetHandle,
         sourceEntries,

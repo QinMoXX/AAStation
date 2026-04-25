@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS } from '../../store/flow-store';
+import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import type {
   ProviderNodeData,
@@ -513,6 +513,9 @@ export default function NodePanel() {
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const middlewareNameByType = Object.fromEntries(
+    MIDDLEWARE_CONFIG.map((item) => [item.type, item.name]),
+  ) as Record<string, string>;
 
   const handleUpdate = useCallback(
     (patch: Partial<AAStationNodeData>) => {
@@ -534,6 +537,10 @@ export default function NodePanel() {
     application: { bg: '#16a34a', text: '#fff', icon: '🖥️' },
   };
   const theme = headerColors[data.nodeType] ?? headerColors.provider;
+  const nodeDisplayName =
+    data.nodeType === 'switcher'
+      ? middlewareNameByType[data.middlewareType] || data.middlewareType || 'Middleware'
+      : data.nodeType;
 
   return (
     <div style={panelStyle}>
@@ -551,7 +558,7 @@ export default function NodePanel() {
         }}
       >
         <span style={{ fontWeight: 600, fontSize: 14 }}>
-          {theme.icon} {data.label || data.nodeType}
+          {theme.icon} {data.label || nodeDisplayName}
         </span>
         <button
           onClick={() => setSelectedNodeId(null)}
@@ -574,7 +581,9 @@ export default function NodePanel() {
         <ProviderForm data={data} onUpdate={handleUpdate} />
       )}
       {data.nodeType === 'switcher' && (
-        <SwitcherForm data={data} onUpdate={handleUpdate} />
+        data.middlewareType === 'switcher'
+          ? <SwitcherForm data={data} onUpdate={handleUpdate} />
+          : <div style={{ fontSize: 12, color: '#9ca3af' }}>暂不支持的中间件类型：{data.middlewareType}</div>
       )}
       {data.nodeType === 'application' && (
         <ApplicationForm data={data} onUpdate={handleUpdate} />

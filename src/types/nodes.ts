@@ -1,6 +1,15 @@
 /** Node type discriminator. */
 export type NodeType = 'provider' | 'switcher' | 'application';
 
+/** Middleware type discriminator (used by switcher-like nodes). */
+export type MiddlewareType = 'switcher';
+
+/** Config for one middleware entry in the left sidebar. */
+export interface MiddlewareConfig {
+  type: MiddlewareType;
+  name: string;
+}
+
 /** Handle type discriminator for connection validation. */
 export type HandleType = 'model' | 'any';
 
@@ -48,6 +57,8 @@ export interface SwitcherEntry {
 /** Switcher node: routes requests by matchers to different Providers. */
 export interface SwitcherNodeData extends BaseNodeData {
   nodeType: 'switcher';
+  /** Concrete middleware behavior/type for this node. */
+  middlewareType: MiddlewareType;
   /** Matcher entries, each with a right-side output handle. */
   entries: SwitcherEntry[];
   /** Whether a "default" output handle exists for unmatched requests. */

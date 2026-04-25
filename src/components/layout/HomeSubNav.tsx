@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
-import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS } from '../../store/flow-store';
+import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
 import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
 import { ClaudeCode, Codex, OpenCode } from '@lobehub/icons';
-import type { AppType } from '../../types';
+import type { AppType, MiddlewareType } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -137,6 +137,7 @@ const APP_ITEM_ORDER: AppType[] = ['listener', 'claude_code', 'open_code', 'code
 
 export default function HomeSubNav() {
   const addNode = useFlowStore((s) => s.addNode);
+  const addMiddlewareNode = useFlowStore((s) => s.addMiddlewareNode);
   const addPresetProviderNode = useFlowStore((s) => s.addPresetProviderNode);
   const nodes = useFlowStore((s) => s.nodes);
 
@@ -238,19 +239,24 @@ export default function HomeSubNav() {
 
                   {/* Middleware items */}
                   {cat.id === 'middleware' && (
-                    <div
-                      style={itemStyle}
-                      onClick={() => addNode('switcher')}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <span style={categoryIconStyle}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
-                        </svg>
-                      </span>
-                      <span style={{ fontWeight: 500 }}>Switcher</span>
-                    </div>
+                    <>
+                      {MIDDLEWARE_CONFIG.map((middleware) => (
+                        <div
+                          key={middleware.type}
+                          style={itemStyle}
+                          onClick={() => addMiddlewareNode(middleware.type as MiddlewareType)}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <span style={categoryIconStyle}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
+                            </svg>
+                          </span>
+                          <span style={{ fontWeight: 500 }}>{middleware.name}</span>
+                        </div>
+                      ))}
+                    </>
                   )}
 
                   {/* Provider items */}

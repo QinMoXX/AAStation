@@ -69,9 +69,15 @@ function getTargetHandleType(
   return 'any';
 }
 
+function isSwitcherMiddleware(nodeType: string, middlewareType?: string): boolean {
+  return nodeType === 'switcher' && (middlewareType ?? 'switcher') === 'switcher';
+}
+
 export function isValidConnection(
   sourceNodeType: string,
   targetNodeType: string,
+  sourceMiddlewareType?: string,
+  targetMiddlewareType?: string,
   sourceHandle?: string | null,
   targetHandle?: string | null,
   sourceEntries?: SwitcherEntry[],
@@ -85,11 +91,14 @@ export function isValidConnection(
     return { valid: false, reason: EDGE_RULE_MESSAGES.CANNOT_TARGET_APPLICATION };
 
   // No Switcher-to-Switcher
-  if (sourceNodeType === 'switcher' && targetNodeType === 'switcher')
+  if (
+    isSwitcherMiddleware(sourceNodeType, sourceMiddlewareType) &&
+    isSwitcherMiddleware(targetNodeType, targetMiddlewareType)
+  )
     return { valid: false, reason: EDGE_RULE_MESSAGES.NO_NESTED_SWITCHER };
 
   // Application → Switcher (valid)
-  if (sourceNodeType === 'application' && targetNodeType === 'switcher')
+  if (sourceNodeType === 'application' && isSwitcherMiddleware(targetNodeType, targetMiddlewareType))
     return { valid: true };
 
   // Application → Provider (valid)
@@ -97,7 +106,7 @@ export function isValidConnection(
     return { valid: true };
 
   // Switcher → Provider: check handle type matching
-  if (sourceNodeType === 'switcher' && targetNodeType === 'provider') {
+  if (isSwitcherMiddleware(sourceNodeType, sourceMiddlewareType) && targetNodeType === 'provider') {
     const srcType = getSourceHandleType('switcher', sourceHandle ?? null, sourceEntries ?? []);
     const tgtType = getTargetHandleType('provider', targetHandle ?? null);
 
@@ -118,7 +127,7 @@ export function isValidConnection(
   }
 
   // Switcher → Application (wrong direction)
-  if (sourceNodeType === 'switcher' && targetNodeType === 'application')
+  if (isSwitcherMiddleware(sourceNodeType, sourceMiddlewareType) && targetNodeType === 'application')
     return { valid: false, reason: EDGE_RULE_MESSAGES.SWITCHER_CANNOT_TARGET_APPLICATION };
 
   return { valid: false, reason: EDGE_RULE_MESSAGES.UNSUPPORTED_CONNECTION };

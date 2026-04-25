@@ -19,15 +19,18 @@ import type {
   ApplicationNodeData,
   NodeType,
   AppType,
+  MiddlewareType,
   ProviderPreset,
   SwitcherDefaultsMap,
   ApplicationDefaultsMap,
+  MiddlewareConfig,
 } from '../types';
 import type { DAGDocument } from '../types/dag';
 import { allocatePort } from '../lib/tauri-api';
 import presets from '../data/provider-presets.json';
 import switcherDefaults from '../data/switcher-defaults.json';
 import applicationDefaults from '../data/application-defaults.json';
+import middlewareConfig from '../data/middleware-config.json';
 
 // ---------------------------------------------------------------------------
 // Default node data factories
@@ -43,10 +46,16 @@ export function defaultProviderData(): ProviderNodeData {
   };
 }
 
-export function defaultSwitcherData(): SwitcherNodeData {
+function getMiddlewareName(middlewareType: MiddlewareType): string {
+  const config = MIDDLEWARE_CONFIG.find((item) => item.type === middlewareType);
+  return config?.name || 'Switcher';
+}
+
+export function defaultSwitcherData(middlewareType: MiddlewareType = 'switcher'): SwitcherNodeData {
   return {
     nodeType: 'switcher',
-    label: 'Switcher',
+    middlewareType,
+    label: getMiddlewareName(middlewareType),
     entries: [],
     hasDefault: false,
   };
@@ -78,6 +87,8 @@ export const PRESET_PROVIDERS = presets as ProviderPreset[];
 export const SWITCHER_DEFAULTS = switcherDefaults as SwitcherDefaultsMap;
 /** Default Application labels/help text per appType, loaded from JSON config. */
 export const APPLICATION_DEFAULTS = applicationDefaults as ApplicationDefaultsMap;
+/** Middleware entries shown in sidebar, loaded from JSON config. */
+export const MIDDLEWARE_CONFIG = middlewareConfig as MiddlewareConfig[];
 
 export function createPresetProviderData(preset: ProviderPreset): ProviderNodeData {
   return {
@@ -120,6 +131,7 @@ interface FlowState {
 
   // CRUD
   addNode: (type: NodeType, position?: { x: number; y: number }, appType?: AppType) => string;
+  addMiddlewareNode: (middlewareType: MiddlewareType, position?: { x: number; y: number }) => string;
   /** Add a preset Provider node by preset ID. */
   addPresetProviderNode: (presetId: string, position?: { x: number; y: number }) => string;
   updateNodeData: (nodeId: string, data: Partial<AAStationNodeData>) => void;
@@ -170,7 +182,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
     if (
       sourceNode?.data.nodeType === 'application' &&
-      targetNode?.data.nodeType === 'switcher'
+      targetNode?.data.nodeType === 'switcher' &&
+      targetNode.data.middlewareType === 'switcher'
     ) {
       const appType = (sourceNode.data as ApplicationNodeData).appType;
       const defaultConfig = SWITCHER_DEFAULTS[appType];
@@ -246,6 +259,19 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       });
     }
 
+    return id;
+  },
+
+  addMiddlewareNode: (middlewareType: MiddlewareType, position?: { x: number; y: number }) => {
+    const id = nextNodeId();
+    const data = defaultSwitcherData(middlewareType);
+    const node: AAStationNode = {
+      id,
+      type: 'switcher',
+      position: position ?? { x: Math.random() * 400, y: Math.random() * 400 },
+      data,
+    };
+    set({ nodes: [...get().nodes, node] });
     return id;
   },
 
