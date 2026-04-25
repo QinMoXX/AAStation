@@ -130,6 +130,27 @@ function nextNodeId(): string {
   return `node-${Date.now()}-${_nextId++}`;
 }
 
+function uniqueProviderLabel(baseLabel: string, nodes: AAStationNode[]): string {
+  const normalizedBase = baseLabel || 'Provider';
+  const labels = new Set(
+    nodes
+      .filter((node) => node.data.nodeType === 'provider')
+      .map((node) => (node.data as ProviderNodeData).label),
+  );
+
+  if (!labels.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let suffix = 1;
+  let candidate = `${normalizedBase}-${suffix}`;
+  while (labels.has(candidate)) {
+    suffix += 1;
+    candidate = `${normalizedBase}-${suffix}`;
+  }
+  return candidate;
+}
+
 // ---------------------------------------------------------------------------
 // Store definition
 // ---------------------------------------------------------------------------
@@ -249,9 +270,16 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   addNode: (type: NodeType, position?: { x: number; y: number }, appType?: AppType) => {
     const id = nextNodeId();
-    const data = type === 'application' && appType
+    const baseData = type === 'application' && appType
       ? defaultApplicationData(appType)
       : DEFAULT_DATA_MAP[type]();
+    const data =
+      type === 'provider'
+        ? {
+            ...(baseData as ProviderNodeData),
+            label: uniqueProviderLabel((baseData as ProviderNodeData).label, get().nodes),
+          }
+        : baseData;
     const node: AAStationNode = {
       id,
       type, // maps to React Flow nodeTypes key
@@ -304,11 +332,15 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     }
     const id = nextNodeId();
     const data = createPresetProviderData(preset);
+    const uniqueData: ProviderNodeData = {
+      ...data,
+      label: uniqueProviderLabel(data.label, get().nodes),
+    };
     const node: AAStationNode = {
       id,
       type: 'provider',
       position: position ?? { x: Math.random() * 400, y: Math.random() * 400 },
-      data,
+      data: uniqueData,
     };
     set({ nodes: [...get().nodes, node] });
     return id;
