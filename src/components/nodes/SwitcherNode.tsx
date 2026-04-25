@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { SwitcherNodeData } from '../../types';
 import { MIDDLEWARE_CONFIG } from '../../store/flow-store';
+import { getProviderIcon } from '../icons/ProviderIcons';
 
 /** Match-type display labels. */
 const MATCH_TYPE_LABELS: Record<string, string> = {
@@ -17,10 +18,12 @@ const HANDLE_COLORS: Record<string, string> = {
 };
 
 function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
+  const middlewareConfig = MIDDLEWARE_CONFIG[data.middlewareType];
   const middlewareName =
-    MIDDLEWARE_CONFIG[data.middlewareType]?.name
+    middlewareConfig?.name
     || data.middlewareType
     || 'Middleware';
+  const MiddlewareIcon = middlewareConfig?.icon ? getProviderIcon(middlewareConfig.icon) : null;
   const isSwitcher = data.middlewareType === 'switcher';
   const entryCount = data.entries.length;
 
@@ -57,7 +60,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
 
       {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, color: '#374151' }}>
-        <span>🔀</span>
+        {MiddlewareIcon && <MiddlewareIcon style={{ width: 16, height: 16 }} />}
         <span>{data.label || middlewareName}</span>
       </div>
 

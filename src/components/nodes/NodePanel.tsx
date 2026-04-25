@@ -528,16 +528,24 @@ export default function NodePanel() {
   const { data } = selectedNode;
 
   // Color header by node type
-  const headerColors: Record<string, { bg: string; text: string; icon: string }> = {
-    provider: { bg: '#3b82f6', text: '#fff', icon: '☁️' },
-    switcher: { bg: '#f59e0b', text: '#fff', icon: '🔀' },
-    application: { bg: '#16a34a', text: '#fff', icon: '🖥️' },
+  const headerColors: Record<string, { bg: string; text: string }> = {
+    provider: { bg: '#3b82f6', text: '#fff' },
+    switcher: { bg: '#f59e0b', text: '#fff' },
+    application: { bg: '#16a34a', text: '#fff' },
   };
   const theme = headerColors[data.nodeType] ?? headerColors.provider;
   const nodeDisplayName =
     data.nodeType === 'switcher'
       ? MIDDLEWARE_CONFIG[data.middlewareType]?.name || data.middlewareType || 'Middleware'
       : data.nodeType;
+  const appIconKey = data.nodeType === 'application'
+    ? APPLICATION_DEFAULTS[data.appType]?.icon
+    : '';
+  const middlewareIconKey = data.nodeType === 'switcher'
+    ? MIDDLEWARE_CONFIG[data.middlewareType]?.icon
+    : '';
+  const headerIconKey = appIconKey || middlewareIconKey;
+  const HeaderIcon = headerIconKey ? getProviderIcon(headerIconKey) : null;
 
   return (
     <div style={panelStyle}>
@@ -554,8 +562,10 @@ export default function NodePanel() {
           marginBottom: 16,
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 14 }}>
-          {theme.icon} {data.label || nodeDisplayName}
+        <span style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {HeaderIcon && <HeaderIcon style={{ width: 16, height: 16 }} />}
+          {!HeaderIcon && data.nodeType === 'provider' && <span>☁️</span>}
+          {data.label || nodeDisplayName}
         </span>
         <button
           onClick={() => setSelectedNodeId(null)}

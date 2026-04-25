@@ -6,6 +6,8 @@ export interface ApplicationDefault {
   displayLabel: string;
   /** Default node label when creating this app type. */
   defaultNodeLabel: string;
+  /** Icon key string (supports [lobehub:IconName] and local keys). */
+  icon: string;
   /** Optional helper text shown in node panel. */
   helpText?: string;
 }

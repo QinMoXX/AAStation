@@ -7,6 +7,7 @@ export type MiddlewareType = 'switcher';
 /** Middleware config keyed by middleware type, used by UI and defaults. */
 export type MiddlewareConfig = Record<MiddlewareType, {
   name: string;
+  icon: string;
 }>;
 
 /** Handle type discriminator for connection validation. */

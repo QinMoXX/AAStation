@@ -11,6 +11,9 @@ import {
   Zhipu,
   OpenRouter,
   TencentCloud,
+  ClaudeCode,
+  Codex,
+  OpenCode,
 } from '@lobehub/icons';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +40,51 @@ export function CustomProviderIcon(props: SVGProps<SVGSVGElement>) {
     >
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+/** Local icon for listener application type. */
+function ListenerIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <rect width="20" height="14" x="2" y="3" rx="2" />
+      <line x1="8" x2="16" y1="21" y2="21" />
+      <line x1="12" x2="12" y1="17" y2="21" />
+    </svg>
+  );
+}
+
+/** Local icon for switcher middleware type. */
+function SwitcherIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M16 3h5v5" />
+      <path d="M8 3H3v5" />
+      <path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" />
+      <path d="m15 9 6-6" />
     </svg>
   );
 }
@@ -76,6 +124,16 @@ const LOBEHUB_ICONS: Record<string, React.FC<{ size?: number }>> = {
   zhipu: Zhipu,
   openrouter: OpenRouter,
   tencentcloud: TencentCloud,
+  claudecode: ClaudeCode.Color,
+  codex: Codex.Color,
+  opencode: OpenCode,
+};
+
+/** Local icon key mapping for app/middleware/custom presets. */
+const LOCAL_ICONS: Record<string, React.FC<SVGProps<SVGSVGElement>>> = {
+  custom: CustomProviderIcon,
+  listener: ListenerIcon,
+  switcher: SwitcherIcon,
 };
 
 // ---------------------------------------------------------------------------
@@ -96,35 +154,38 @@ const LOBEHUB_SUFFIX = ']';
 export function getProviderIcon(
   iconKey: string
 ): React.FC<SVGProps<SVGSVGElement>> | null {
+  const normalizedIconKey = iconKey.trim();
+
   // Handle [lobehub:IconName] format
-  if (iconKey.startsWith(LOBEHUB_PREFIX) && iconKey.endsWith(LOBEHUB_SUFFIX)) {
-    const iconName = iconKey.slice(LOBEHUB_PREFIX.length, -LOBEHUB_SUFFIX.length);
+  if (normalizedIconKey.startsWith(LOBEHUB_PREFIX) && normalizedIconKey.endsWith(LOBEHUB_SUFFIX)) {
+    const iconName = normalizedIconKey.slice(LOBEHUB_PREFIX.length, -LOBEHUB_SUFFIX.length);
     // Return a wrapper component that renders the LobeHub icon
     const LobeIcon = (props: SVGProps<SVGSVGElement>) => {
       const LobeComponent = LOBEHUB_ICONS[iconName.toLowerCase()];
       if (LobeComponent) {
-        return <LobeComponent size={Number(props.width) || 24} />;
+        return <LobeComponent size={Number(props.width) || Number(props.height) || 24} />;
       }
       return <FallbackIcon {...props} />;
     };
     return LobeIcon;
+  }
+
+  // Handle local key format (e.g., "custom", "listener", "switcher")
+  const localIcon = LOCAL_ICONS[normalizedIconKey.toLowerCase()];
+  if (localIcon) {
+    return localIcon;
   }
 
   // Handle preset ID format (e.g., "openai", "anthropic")
-  if (LOBEHUB_ICONS[iconKey.toLowerCase()]) {
+  if (LOBEHUB_ICONS[normalizedIconKey.toLowerCase()]) {
     const LobeIcon = (props: SVGProps<SVGSVGElement>) => {
-      const LobeComponent = LOBEHUB_ICONS[iconKey.toLowerCase()];
+      const LobeComponent = LOBEHUB_ICONS[normalizedIconKey.toLowerCase()];
       if (LobeComponent) {
-        return <LobeComponent size={Number(props.width) || 24} />;
+        return <LobeComponent size={Number(props.width) || Number(props.height) || 24} />;
       }
       return <FallbackIcon {...props} />;
     };
     return LobeIcon;
-  }
-
-  // Handle custom provider
-  if (iconKey === 'custom') {
-    return CustomProviderIcon;
   }
 
   // Fallback

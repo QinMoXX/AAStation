@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
 import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
-import { ClaudeCode, Codex, OpenCode } from '@lobehub/icons';
 import type { AppType, MiddlewareType } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -211,51 +210,49 @@ export default function HomeSubNav() {
                   {/* Application items */}
                   {cat.id === 'application' && (
                     <>
-                      {APP_ITEM_ORDER.map((appType) => (
-                        <div
-                          key={appType}
-                          style={itemStyle}
-                          onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                        >
-                          <span style={categoryIconStyle}>
-                            {appType === 'claude_code' && <ClaudeCode.Color size={14} />}
-                            {appType === 'open_code' && <OpenCode size={14} />}
-                            {appType === 'codex_cli' && <Codex.Color size={14} />}
-                            {appType === 'listener' && (
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
-                              </svg>
-                            )}
-                          </span>
-                          <span style={{ fontWeight: 500 }}>
-                            {APPLICATION_DEFAULTS[appType].displayLabel}
-                          </span>
-                        </div>
-                      ))}
+                      {APP_ITEM_ORDER.map((appType) => {
+                        const appDefault = APPLICATION_DEFAULTS[appType];
+                        const Icon = getProviderIcon(appDefault.icon);
+                        return (
+                          <div
+                            key={appType}
+                            style={itemStyle}
+                            onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <span style={categoryIconStyle}>
+                              {Icon && <Icon style={{ width: 14, height: 14 }} />}
+                            </span>
+                            <span style={{ fontWeight: 500 }}>
+                              {appDefault.displayLabel}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </>
                   )}
 
                   {/* Middleware items */}
                   {cat.id === 'middleware' && (
                     <>
-                      {Object.entries(MIDDLEWARE_CONFIG).map(([middlewareType, middleware]) => (
-                        <div
-                          key={middlewareType}
-                          style={itemStyle}
-                          onClick={() => addMiddlewareNode(middlewareType as MiddlewareType)}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                        >
-                          <span style={categoryIconStyle}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
-                            </svg>
-                          </span>
-                          <span style={{ fontWeight: 500 }}>{middleware.name}</span>
-                        </div>
-                      ))}
+                      {Object.entries(MIDDLEWARE_CONFIG).map(([middlewareType, middleware]) => {
+                        const Icon = getProviderIcon(middleware.icon);
+                        return (
+                          <div
+                            key={middlewareType}
+                            style={itemStyle}
+                            onClick={() => addMiddlewareNode(middlewareType as MiddlewareType)}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <span style={categoryIconStyle}>
+                              {Icon && <Icon style={{ width: 14, height: 14 }} />}
+                            </span>
+                            <span style={{ fontWeight: 500 }}>{middleware.name}</span>
+                          </div>
+                        );
+                      })}
                     </>
                   )}
 
