@@ -9,6 +9,7 @@ import type {
   ProviderModel,
   SwitcherEntry,
 } from '../../types';
+import { NodeTag } from '../../types';
 import { getProviderIcon } from '../icons/ProviderIcons';
 
 // ---------------------------------------------------------------------------
@@ -58,6 +59,27 @@ const inputStyle: React.CSSProperties = {
 };
 
 const fieldGap: React.CSSProperties = { marginBottom: 12 };
+
+const tagPillStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '2px 10px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: '0.02em',
+  background: '#0f172a',
+  color: '#93c5fd',
+  border: '1px solid #1d4ed8',
+  userSelect: 'none',
+};
+
+const tagLabelMap: Record<NodeTag, string> = {
+  [NodeTag.Any]: 'ANY',
+  [NodeTag.ClaudeCode]: 'CLAUDE_CODE',
+  [NodeTag.OpenCode]: 'OPEN_CODE',
+  [NodeTag.CodexCli]: 'CODEX_CLI',
+};
 
 // ---------------------------------------------------------------------------
 // Provider form
@@ -546,6 +568,21 @@ export default function NodePanel() {
     : '';
   const headerIconKey = appIconKey || middlewareIconKey;
   const HeaderIcon = headerIconKey ? getProviderIcon(headerIconKey) : null;
+  const nodeTag: NodeTag = (() => {
+    if (data.nodeType === 'application') {
+      return APPLICATION_DEFAULTS[data.appType]?.tag ?? NodeTag.Any;
+    }
+    if (data.nodeType === 'switcher') {
+      return MIDDLEWARE_CONFIG[data.middlewareType]?.tag ?? NodeTag.Any;
+    }
+    if (data.nodeType === 'provider') {
+      const presetTag = data.presetId
+        ? PRESET_PROVIDERS.find((p) => p.id === data.presetId)?.tag
+        : undefined;
+      return presetTag ?? NodeTag.Any;
+    }
+    return NodeTag.Any;
+  })();
 
   return (
     <div style={panelStyle}>
@@ -581,6 +618,13 @@ export default function NodePanel() {
         >
           ✕
         </button>
+      </div>
+
+      <div style={fieldGap}>
+        <label style={labelStyle}>Tag</label>
+        <div style={tagPillStyle} title="只读标签，不可修改">
+          {tagLabelMap[nodeTag] ?? nodeTag}
+        </div>
       </div>
 
       {/* Type-specific form */}

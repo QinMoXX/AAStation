@@ -1,14 +1,19 @@
+import type { NodeTag } from './tag';
+
 /** Node type discriminator. */
 export type NodeType = 'provider' | 'switcher' | 'application';
 
 /** Middleware type discriminator (used by switcher-like nodes). */
 export type MiddlewareType = 'switcher';
 
-/** Middleware config keyed by middleware type, used by UI and defaults. */
-export type MiddlewareConfig = Record<MiddlewareType, {
+export interface MiddlewareDefinition {
   name: string;
   icon: string;
-}>;
+  tag: NodeTag;
+}
+
+/** Middleware config keyed by middleware type, used by UI and defaults. */
+export type MiddlewareConfig = Record<MiddlewareType, MiddlewareDefinition>;
 
 /** Handle type discriminator for connection validation. */
 export type HandleType = 'model' | 'any';

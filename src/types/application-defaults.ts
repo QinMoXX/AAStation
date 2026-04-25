@@ -1,4 +1,5 @@
 import type { AppType } from './nodes';
+import type { NodeTag } from './tag';
 
 /** Config for one application node type. */
 export interface ApplicationDefault {
@@ -10,6 +11,8 @@ export interface ApplicationDefault {
   icon: string;
   /** Optional helper text shown in node panel. */
   helpText?: string;
+  /** Capability tag for compatibility filtering. */
+  tag: NodeTag;
 }
 
 /** Map of application node defaults by app type. */

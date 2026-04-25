@@ -1,3 +1,5 @@
+import type { NodeTag } from './tag';
+
 /** Preset Provider configuration - loaded from JSON file. */
 export interface ProviderPreset {
   /** Unique identifier for this preset. */
@@ -18,6 +20,8 @@ export interface ProviderPreset {
   anthropicBaseUrl?: string;
   /** Default label for new nodes (user can modify). */
   defaultLabel: string;
+  /** Capability tag for compatibility filtering. */
+  tag: NodeTag;
   /** Available models for quick selection. */
   models: PresetModel[];
 }

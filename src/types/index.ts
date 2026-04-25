@@ -1,4 +1,4 @@
-export type { NodeType, HandleType, AppType, MiddlewareType, MiddlewareConfig, ProviderModel, ProviderNodeData, SwitcherEntry, SwitcherNodeData, ApplicationNodeData, AAStationNodeData } from './nodes';
+export type { NodeType, HandleType, AppType, MiddlewareType, MiddlewareDefinition, MiddlewareConfig, ProviderModel, ProviderNodeData, SwitcherEntry, SwitcherNodeData, ApplicationNodeData, AAStationNodeData } from './nodes';
 export type { ProviderPreset, PresetModel } from './preset';
 export type { AAStationEdgeData, AAStationNode, AAStationEdge, DAGDocument } from './dag';
 export type {
@@ -15,3 +15,4 @@ export type {
 export type { AppSettings } from './settings';
 export type { SwitcherDefault, SwitcherDefaultsMap } from './switcher-defaults';
 export type { ApplicationDefault, ApplicationDefaultsMap } from './application-defaults';
+export { NodeTag } from './tag';

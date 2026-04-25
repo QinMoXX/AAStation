@@ -1,6 +1,7 @@
 {
   "switcher": {
     "name": "Switcher",
-    "icon": "switcher"
+    "icon": "switcher",
+    "tag": "any"
   }
 }
