@@ -119,7 +119,7 @@ export interface ProviderRuntimeState {
   remaining_tokens: number;
 }
 
-export type PollerStrategyRuntime = 'weighted' | 'network_status' | 'weighted_network_status' | 'token_remaining';
+export type PollerStrategyRuntime = 'weighted' | 'network_status' | 'token_remaining';
 
 export interface PollerTargetRuntimeStat {
   target_id: string;

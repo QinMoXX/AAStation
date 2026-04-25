@@ -240,7 +240,6 @@ pub enum PollerStrategyRuntime {
     #[default]
     Weighted,
     NetworkStatus,
-    WeightedNetworkStatus,
     TokenRemaining,
 }
 

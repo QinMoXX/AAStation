@@ -1,10 +1,67 @@
 import { memo, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import type { ProviderNodeData } from '../../types';
+import type { ProviderNodeData, ProviderRuntimeState, ProviderRuntimeStatus } from '../../types';
 import { PRESET_PROVIDERS } from '../../store/flow-store';
 import { getProviderIcon } from '../icons/ProviderIcons';
 
-function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
+type ProviderNodeCanvasData = ProviderNodeData & {
+  runtimeState?: ProviderRuntimeState | null;
+};
+
+function formatCompactTokens(value: number | null | undefined): string {
+  if (value == null) return '--';
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return `${value}`;
+}
+
+function networkMeta(status: ProviderRuntimeStatus | undefined) {
+  switch (status) {
+    case 'healthy':
+      return { label: '健康', bars: 4, color: '#22c55e', soft: 'rgba(34, 197, 94, 0.12)' };
+    case 'half_open':
+      return { label: '半开', bars: 3, color: '#38bdf8', soft: 'rgba(56, 189, 248, 0.12)' };
+    case 'degraded':
+      return { label: '降级', bars: 2, color: '#f59e0b', soft: 'rgba(245, 158, 11, 0.12)' };
+    case 'circuit_open':
+      return { label: '熔断', bars: 1, color: '#ef4444', soft: 'rgba(239, 68, 68, 0.12)' };
+    default:
+      return { label: '未知', bars: 2, color: '#94a3b8', soft: 'rgba(148, 163, 184, 0.10)' };
+  }
+}
+
+function budgetMeta(
+  runtimeState: ProviderRuntimeState | null | undefined,
+  fallbackBudgetTokens: number,
+) {
+  if (!runtimeState || runtimeState.budget_tokens <= 0) {
+    return {
+      label: '100%',
+      percent: 100,
+      fillColor: '#22c55e',
+      soft: 'rgba(34, 197, 94, 0.12)',
+      remainingText: formatCompactTokens(fallbackBudgetTokens),
+    };
+  }
+
+  const percent = Math.max(
+    0,
+    Math.min(100, (runtimeState.remaining_tokens / runtimeState.budget_tokens) * 100),
+  );
+
+  const fillColor =
+    percent >= 60 ? '#22c55e' : percent >= 30 ? '#f59e0b' : '#ef4444';
+
+  return {
+    label: `${Math.round(percent)}%`,
+    percent,
+    fillColor,
+    soft: `${fillColor}22`,
+    remainingText: formatCompactTokens(runtimeState.remaining_tokens),
+  };
+}
+
+function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
   const hasApiKey = data.apiKey && data.apiKey.length > 0;
   const hasBaseUrl = data.baseUrl && data.baseUrl.length > 0;
   const hasAnthropicUrl = !!(data.anthropicBaseUrl && data.anthropicBaseUrl.length > 0);
@@ -27,18 +84,24 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
     return null;
   }, [preset]);
 
+  const runtimeState = data.runtimeState ?? null;
+  const signal = networkMeta(runtimeState?.status);
+  const fallbackBudgetTokens = Math.max(1, data.tokenLimit ?? 1) * 1_000_000;
+  const budget = budgetMeta(runtimeState, fallbackBudgetTokens);
+  const signalHeights = [5, 8, 11, 14];
+
   return (
     <div
       style={{
-        padding: '12px 16px',
-        borderRadius: 8,
-        border: selected ? '2px solid #f97316' : '2px solid #e5e7eb',
-        background: '#fff',
-        minWidth: 220,
+        padding: '12px 14px',
+        borderRadius: 10,
+        border: selected ? '2px solid #f97316' : '1px solid rgba(226, 232, 240, 0.92)',
+        background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+        minWidth: 252,
         fontSize: 13,
         position: 'relative',
         boxSizing: 'border-box',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        boxShadow: selected ? '0 10px 28px rgba(249,115,22,0.16)' : '0 8px 24px rgba(15,23,42,0.12)',
       }}
     >
       {/* Unified input handle - centered on left side of node */}
@@ -58,86 +121,171 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeData>) {
         title="Unified [any] — accepts any connection"
       />
 
-      {/* Header */}
-      <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ display: 'flex', alignItems: 'center', width: 18, height: 18 }}>
-          {IconComponent ? (
-            <IconComponent style={{ width: 18, height: 18 }} />
-          ) : (
-            <span>☁️</span>
-          )}
-        </span>
-        <span>{data.label || 'Provider'}</span>
-        {preset && (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 500,
-              marginLeft: 'auto',
-              padding: '1px 6px',
-              background: '#fef3c7',
-              color: '#92400e',
-              borderRadius: 4,
-            }}
-          >
-            preset
-          </span>
-        )}
-      </div>
-
-      {/* Protocol badges */}
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6 }}>
-        <div
-          style={{
-            display: 'inline-block',
-            fontSize: 11,
-            padding: '2px 8px',
-            borderRadius: 4,
-            background: hasBaseUrl ? '#eff6ff' : '#fef2f2',
-            color: hasBaseUrl ? '#1e40af' : '#991b1b',
-          }}
-        >
-          OpenAI
-        </div>
-        {hasAnthropicUrl && (
-          <div
-            style={{
-              display: 'inline-block',
-              fontSize: 11,
-              padding: '2px 8px',
-              borderRadius: 4,
-              background: '#fef3c7',
-              color: '#92400e',
-            }}
-            title={`Anthropic URL: ${data.anthropicBaseUrl}`}
-          >
-            Anthropic
-          </div>
-        )}
-      </div>
-
-      {/* URL */}
       <div
         style={{
-          color: hasBaseUrl ? '#6b7280' : '#ef4444',
-          fontSize: 12,
-          maxWidth: 180,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap' as const,
-          marginBottom: 4,
+          position: 'absolute',
+          top: 10,
+          right: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          zIndex: 2,
         }}
-        title={data.baseUrl || ''}
       >
-        {displayUrl}
+        <div
+          style={{
+            width: 24,
+            height: 18,
+            padding: '0 1px',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            gap: 2,
+          }}
+          title={`网络状态：${signal.label}`}
+        >
+          {signalHeights.map((height, index) => (
+            <span
+              key={height}
+              style={{
+                width: 2,
+                height,
+                borderRadius: 999,
+                background: index < signal.bars ? signal.color : 'rgba(148, 163, 184, 0.22)',
+                boxShadow: index < signal.bars ? `0 0 8px ${signal.color}22` : 'none',
+              }}
+            />
+          ))}
+        </div>
+
+        <div
+          style={{
+            position: 'relative',
+            width: 54,
+            height: 18,
+            borderRadius: 999,
+            background: 'rgba(255, 255, 255, 0.88)',
+            border: '1px solid rgba(100, 116, 139, 0.20)',
+            overflow: 'hidden',
+            boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.55)',
+          }}
+          title={
+            runtimeState
+              ? `剩余额度：${runtimeState.remaining_tokens} / ${runtimeState.budget_tokens}`
+              : `配置预算：${fallbackBudgetTokens}`
+          }
+        >
+          <div
+            style={{
+              position: 'absolute',
+              inset: 1,
+              width: `calc(${budget.percent}% - 2px)`,
+              minWidth: runtimeState ? 4 : 0,
+              borderRadius: 999,
+              background: `linear-gradient(90deg, ${budget.fillColor}CC 0%, ${budget.fillColor} 100%)`,
+              transition: 'width 0.25s ease',
+            }}
+          />
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 9,
+              fontWeight: 700,
+              color: runtimeState ? '#ffffff' : '#64748b',
+              textShadow: runtimeState ? '0 1px 2px rgba(15,23,42,0.25)' : 'none',
+              letterSpacing: '0.01em',
+            }}
+          >
+            {budget.label}
+          </div>
+        </div>
       </div>
 
-      {/* API Key status */}
-      <div style={{ color: '#6b7280', fontSize: 12 }}>
-        Key:{' '}
-        <span style={{ color: hasApiKey ? '#16a34a' : '#ef4444' }}>
-          {hasApiKey ? '••••••' : 'Not set'}
-        </span>
+      <div>
+        <div style={{ flex: 1, minWidth: 0, paddingRight: 72 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ display: 'flex', alignItems: 'center', width: 18, height: 18 }}>
+              {IconComponent ? (
+                <IconComponent style={{ width: 18, height: 18 }} />
+              ) : (
+                <span>☁️</span>
+              )}
+            </span>
+            <span>{data.label || 'Provider'}</span>
+            {preset && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '2px 7px',
+                  background: 'rgba(245, 158, 11, 0.14)',
+                  color: '#b45309',
+                  borderRadius: 999,
+                }}
+              >
+                预设
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'inline-block',
+                fontSize: 11,
+                padding: '2px 8px',
+                borderRadius: 999,
+                background: hasBaseUrl ? 'rgba(59, 130, 246, 0.10)' : 'rgba(239, 68, 68, 0.10)',
+                color: hasBaseUrl ? '#1d4ed8' : '#b91c1c',
+              }}
+            >
+              OpenAI
+            </div>
+            {hasAnthropicUrl && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  fontSize: 11,
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: '#b45309',
+                }}
+                title={`Anthropic URL: ${data.anthropicBaseUrl}`}
+              >
+                Anthropic
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              color: hasBaseUrl ? '#64748b' : '#ef4444',
+              fontSize: 12,
+              maxWidth: 170,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap' as const,
+              marginBottom: 6,
+            }}
+            title={data.baseUrl || ''}
+          >
+            {displayUrl}
+          </div>
+
+          <div style={{ color: '#64748b', fontSize: 12 }}>
+            密钥:
+            {' '}
+            <span style={{ color: hasApiKey ? '#16a34a' : '#ef4444' }}>
+              {hasApiKey ? '••••••' : '未设置'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Model entries with left-side input handles */}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   MiniMap,
@@ -11,13 +11,16 @@ import 'reactflow/dist/style.css';
 import { useFlowStore } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import { EDGE_RULE_MESSAGES, isValidConnection } from '../../lib/edge-rules';
+import { getProxyMetrics } from '../../lib/tauri-api';
 import { toast } from '../../store/toast-store';
-import type { SwitcherNodeData } from '../../types';
+import type { ProviderRuntimeState, SwitcherNodeData } from '../../types';
 import ProviderNode from '../nodes/ProviderNode';
 import SwitcherNode from '../nodes/SwitcherNode';
 import PollerNode from '../nodes/PollerNode';
 import ApplicationNode from '../nodes/ApplicationNode';
 import CustomEdge from '../edges/CustomEdge';
+
+const RUNTIME_POLL_INTERVAL_MS = 4000;
 
 // Register custom node type components.
 const nodeTypes: NodeTypes = {
@@ -41,6 +44,8 @@ export default function FlowCanvas() {
   const onEdgesChange = useFlowStore((s) => s.onEdgesChange);
   const onConnect = useFlowStore((s) => s.onConnect);
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
+  const proxyStatus = useAppStore((s) => s.proxyStatus);
+  const [providerRuntimeById, setProviderRuntimeById] = useState<Record<string, ProviderRuntimeState>>({});
 
   // Track the last validation failure reason for showing a toast
   const lastInvalidReason = useRef<string | null>(null);
@@ -113,10 +118,59 @@ export default function FlowCanvas() {
     [],
   );
 
+  useEffect(() => {
+    let disposed = false;
+    let timer: number | undefined;
+
+    const loadRuntime = async () => {
+      try {
+        const snapshot = await getProxyMetrics();
+        if (disposed) return;
+        setProviderRuntimeById(
+          Object.fromEntries(
+            snapshot.provider_runtime.map((item) => [item.provider_id, item]),
+          ),
+        );
+      } catch {
+        if (!disposed) {
+          setProviderRuntimeById({});
+        }
+      }
+    };
+
+    loadRuntime();
+    if (proxyStatus.running) {
+      timer = window.setInterval(loadRuntime, RUNTIME_POLL_INTERVAL_MS);
+    }
+
+    return () => {
+      disposed = true;
+      if (timer) {
+        window.clearInterval(timer);
+      }
+    };
+  }, [proxyStatus.running, proxyStatus.published_at]);
+
+  const renderedNodes = useMemo(
+    () =>
+      nodes.map((node) =>
+        node.data.nodeType === 'provider'
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                runtimeState: providerRuntimeById[node.id] ?? null,
+              },
+            }
+          : node,
+      ),
+    [nodes, providerRuntimeById],
+  );
+
   return (
     <div style={{ width: '100%', height: '100%', background: '#1a1a1a' }}>
       <ReactFlow
-        nodes={nodes}
+        nodes={renderedNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}

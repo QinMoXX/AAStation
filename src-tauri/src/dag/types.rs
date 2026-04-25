@@ -229,8 +229,8 @@ impl Default for SwitcherNodeData {
 pub enum PollerStrategy {
     RoundRobin,
     Weighted,
+    #[serde(alias = "weighted_network_status")]
     NetworkStatus,
-    WeightedNetworkStatus,
     TokenRemaining,
 }
 

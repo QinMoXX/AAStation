@@ -70,8 +70,8 @@ pub struct WorkflowBranch {
 pub enum PollerStrategy {
     RoundRobin,
     Weighted,
+    #[serde(alias = "weighted_network_status")]
     NetworkStatus,
-    WeightedNetworkStatus,
     TokenRemaining,
 }
 
@@ -264,6 +264,7 @@ async fn execute_poller(
 ) -> Result<CompiledRoute, ProxyError> {
     let mut candidates: Vec<(String, String, u32, CompiledRoute)> = Vec::new();
     for target in &poller_node.targets {
+        let weight = target_effective_weight(poller_node.strategy, target.weight);
         let route = Box::pin(execute_node(
             plan,
             &target.next_node_id,
@@ -276,7 +277,7 @@ async fn execute_poller(
         candidates.push((
             target.next_node_id.clone(),
             target.label.clone(),
-            target.weight.max(1),
+            weight,
             route,
         ));
     }
@@ -305,9 +306,6 @@ async fn execute_poller(
         }
         PollerStrategy::NetworkStatus => {
             select_by_network_status(node_id, &candidates, runtime, poller_node, peek_only).await
-        }
-        PollerStrategy::WeightedNetworkStatus => {
-            select_by_weighted_network_status(node_id, &candidates, runtime, poller_node, peek_only).await
         }
         PollerStrategy::TokenRemaining => {
             select_by_token_remaining(node_id, &candidates, runtime, peek_only).await
@@ -449,47 +447,7 @@ async fn select_by_network_status(
         .filter(|(next_node_id, _, _, _)| filtered.contains(next_node_id))
         .cloned()
         .collect();
-    if matches!(poller_node.strategy, PollerStrategy::Weighted | PollerStrategy::WeightedNetworkStatus) {
-        select_weighted(node_id, &rr_candidates, &runtime.poller_cursors, peek_only).await
-    } else {
-        select_weighted(node_id, &rr_candidates, &runtime.poller_cursors, peek_only).await
-    }
-}
-
-async fn select_by_weighted_network_status(
-    node_id: &str,
-    candidates: &[(String, String, u32, CompiledRoute)],
-    runtime: &WorkflowRuntime,
-    poller_node: &WorkflowPollerNode,
-    peek_only: bool,
-) -> String {
-    let mut weighted_candidates: Vec<(String, String, u32, CompiledRoute)> = Vec::new();
-    for (next_node_id, target_label, weight, route) in candidates {
-        let runtime_state = prepare_runtime_state(runtime, route, poller_node).await;
-        let health_weight = runtime_state
-            .map(|state| match state.status {
-                super::types::ProviderRuntimeStatus::Healthy => 3u32,
-                super::types::ProviderRuntimeStatus::HalfOpen => 1u32,
-                super::types::ProviderRuntimeStatus::Unknown => 2u32,
-                super::types::ProviderRuntimeStatus::Degraded => 1u32,
-                super::types::ProviderRuntimeStatus::CircuitOpen => 0u32,
-            })
-            .unwrap_or(1);
-        if health_weight == 0 {
-            continue;
-        }
-        weighted_candidates.push((
-            next_node_id.clone(),
-            target_label.clone(),
-            weight.saturating_mul(health_weight).max(1),
-            route.clone(),
-        ));
-    }
-
-    if weighted_candidates.is_empty() {
-        return select_weighted(node_id, candidates, &runtime.poller_cursors, peek_only).await;
-    }
-    select_weighted(node_id, &weighted_candidates, &runtime.poller_cursors, peek_only).await
+    select_weighted(node_id, &rr_candidates, &runtime.poller_cursors, peek_only).await
 }
 
 async fn select_by_token_remaining(
@@ -537,8 +495,14 @@ fn map_runtime_strategy(strategy: PollerStrategy) -> PollerStrategyRuntime {
         PollerStrategy::RoundRobin => PollerStrategyRuntime::Weighted,
         PollerStrategy::Weighted => PollerStrategyRuntime::Weighted,
         PollerStrategy::NetworkStatus => PollerStrategyRuntime::NetworkStatus,
-        PollerStrategy::WeightedNetworkStatus => PollerStrategyRuntime::WeightedNetworkStatus,
         PollerStrategy::TokenRemaining => PollerStrategyRuntime::TokenRemaining,
+    }
+}
+
+fn target_effective_weight(strategy: PollerStrategy, configured_weight: u32) -> u32 {
+    match strategy {
+        PollerStrategy::Weighted => configured_weight.max(1),
+        PollerStrategy::RoundRobin | PollerStrategy::NetworkStatus | PollerStrategy::TokenRemaining => 1,
     }
 }
 
@@ -1001,7 +965,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn weighted_network_status_prefers_health_and_weight() {
+    async fn network_status_ignores_target_weights() {
         let plan = WorkflowPlan {
             entry_node_id: "poller".to_string(),
             nodes: vec![
@@ -1009,7 +973,7 @@ mod tests {
                     id: "poller".to_string(),
                     kind: WorkflowNodeKind::Poller(WorkflowPollerNode {
                         label: "Smart Poller".to_string(),
-                        strategy: PollerStrategy::WeightedNetworkStatus,
+                        strategy: PollerStrategy::NetworkStatus,
                         failure_threshold: 3,
                         cooldown_seconds: 30,
                         probe_interval_seconds: 20,
@@ -1046,22 +1010,11 @@ mod tests {
         };
 
         let runtime = runtime();
-        runtime
-            .provider_runtime
-            .record_request_result("provider-a", "Provider A", 1_000_000, 0, false, Some("timeout".to_string()))
-            .await;
-        runtime
-            .provider_runtime
-            .record_request_result("provider-a", "Provider A", 1_000_000, 0, false, Some("timeout".to_string()))
-            .await;
-        runtime
-            .provider_runtime
-            .record_request_result("provider-a", "Provider A", 1_000_000, 0, false, Some("timeout".to_string()))
-            .await;
-
         let headers = HeaderMap::new();
-        let selected = execute_workflow(&plan, &runtime, "/", &headers, None).await.unwrap();
-        assert_eq!(selected.id, "b");
+        let first = execute_workflow(&plan, &runtime, "/", &headers, None).await.unwrap();
+        let second = execute_workflow(&plan, &runtime, "/", &headers, None).await.unwrap();
+        assert_eq!(first.id, "a");
+        assert_eq!(second.id, "b");
     }
 
     #[tokio::test]

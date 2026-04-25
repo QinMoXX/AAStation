@@ -593,6 +593,7 @@ function RuntimeStatusCard({
   providers: ProviderRuntimeState[];
   pollers: PollerRuntimeState[];
 }) {
+  const [collapsed, setCollapsed] = useState(true);
   const statusColor = (status: ProviderRuntimeState['status']) => {
     switch (status) {
       case 'healthy': return '#22c55e';
@@ -616,18 +617,49 @@ function RuntimeStatusCard({
     switch (strategy) {
       case 'weighted': return '加权轮询';
       case 'network_status': return '网络状态优先';
-      case 'weighted_network_status': return '加权 + 网络状态';
       case 'token_remaining': return '剩余额度优先';
       default: return strategy;
     }
   };
 
+  const showTargetWeight = (strategy: PollerRuntimeState['strategy']) => strategy === 'weighted';
+
   return (
     <div className="ui-card" style={{ ...cardStyle, padding: 20 }}>
-      <div style={{ fontSize: 16, fontWeight: 600, color: '#f8fafc', marginBottom: 18 }}>
-        运行时状态
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+      <button
+        type="button"
+        onClick={() => setCollapsed((value) => !value)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: 'inherit',
+          marginBottom: collapsed ? 0 : 18,
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 600, color: '#f8fafc' }}>
+          运行时状态
+        </span>
+        <span
+          style={{
+            fontSize: 20,
+            color: '#94a3b8',
+            transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)',
+            transition: 'transform 0.2s ease',
+            lineHeight: 1,
+          }}
+          aria-hidden="true"
+        >
+          ›
+        </span>
+      </button>
+      {!collapsed && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 12, color: '#94a3b8' }}>供应商健康 / 熔断</div>
           {providers.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>暂无供应商运行态数据</div>}
@@ -720,15 +752,28 @@ function RuntimeStatusCard({
                 最近时间: {formatDateTime(poller.last_selected_at)}
               </div>
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>权重命中统计</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
+                  {showTargetWeight(poller.strategy) ? '权重命中统计' : '目标命中统计'}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {poller.target_stats.length === 0 && (
                     <div style={{ fontSize: 11, color: '#64748b' }}>暂无目标命中数据</div>
                   )}
                   {poller.target_stats.slice(0, 4).map((stat) => (
-                    <div key={`${poller.poller_id}-${stat.target_id}`} style={{ fontSize: 11, color: '#cbd5e1', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8 }}>
+                    <div
+                      key={`${poller.poller_id}-${stat.target_id}`}
+                      style={{
+                        fontSize: 11,
+                        color: '#cbd5e1',
+                        display: 'grid',
+                        gridTemplateColumns: showTargetWeight(poller.strategy) ? '1fr auto auto' : '1fr auto',
+                        gap: 8,
+                      }}
+                    >
                       <span>{stat.target_label || stat.target_id}</span>
-                      <span style={{ color: '#a78bfa' }}>权重 {stat.configured_weight}</span>
+                      {showTargetWeight(poller.strategy) && (
+                        <span style={{ color: '#a78bfa' }}>权重 {stat.configured_weight}</span>
+                      )}
                       <span style={{ color: '#94a3b8' }}>命中 {formatNumber(stat.hits)}</span>
                     </div>
                   ))}
@@ -737,7 +782,8 @@ function RuntimeStatusCard({
             </div>
           ))}
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -425,7 +425,6 @@ fn map_poller_strategy(strategy: PollerStrategy) -> WorkflowPollerStrategy {
         PollerStrategy::RoundRobin => WorkflowPollerStrategy::RoundRobin,
         PollerStrategy::Weighted => WorkflowPollerStrategy::Weighted,
         PollerStrategy::NetworkStatus => WorkflowPollerStrategy::NetworkStatus,
-        PollerStrategy::WeightedNetworkStatus => WorkflowPollerStrategy::WeightedNetworkStatus,
         PollerStrategy::TokenRemaining => WorkflowPollerStrategy::TokenRemaining,
     }
 }

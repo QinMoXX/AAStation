@@ -611,7 +611,7 @@ export default function SettingsPage() {
     const statusBadgeStyle = (configured: boolean): React.CSSProperties => ({
       position: 'absolute',
       top: 14,
-      right: 14,
+      right: 48,
       fontSize: 12,
       borderRadius: 999,
       padding: '3px 10px',
@@ -626,6 +626,17 @@ export default function SettingsPage() {
       border: '1px solid rgba(255, 255, 255, 0.08)',
       background: 'rgba(2, 6, 23, 0.38)',
     };
+
+    const expandIconStyle = (expanded: boolean): React.CSSProperties => ({
+      position: 'absolute',
+      top: 14,
+      right: 14,
+      fontSize: 20,
+      color: '#94a3b8',
+      transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+      transition: 'transform 0.2s ease',
+      lineHeight: 1,
+    });
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 980 }}>
@@ -661,13 +672,11 @@ export default function SettingsPage() {
               cursor: 'pointer',
               textAlign: 'left',
               width: '100%',
-              paddingRight: 100,
+              paddingRight: 140,
             }}
           >
-            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>Claude Code 配置管理</div>
-            <div style={{ fontSize: 12, color: claudeConfigurable ? '#86efac' : '#fca5a5', marginTop: 6 }}>
-              {claudeConfigurable ? '可配置' : '不可配置'} · {claudeExpandable ? '点击折叠' : '点击展开'}
-            </div>
+            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700, minHeight: 24 }}>Claude Code 配置管理</div>
+            <span style={expandIconStyle(claudeExpandable)} aria-hidden="true">›</span>
           </button>
 
           {claudeExpandable && (
@@ -773,13 +782,11 @@ export default function SettingsPage() {
               cursor: 'pointer',
               textAlign: 'left',
               width: '100%',
-              paddingRight: 100,
+              paddingRight: 140,
             }}
           >
-            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>OpenCode 配置管理</div>
-            <div style={{ fontSize: 12, color: openCodeConfigurable ? '#86efac' : '#fca5a5', marginTop: 6 }}>
-              {openCodeConfigurable ? '可配置' : '不可配置'} · {openCodeExpandable ? '点击折叠' : '点击展开'}
-            </div>
+            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700, minHeight: 24 }}>OpenCode 配置管理</div>
+            <span style={expandIconStyle(openCodeExpandable)} aria-hidden="true">›</span>
           </button>
 
           {openCodeExpandable && (
@@ -885,13 +892,11 @@ export default function SettingsPage() {
               cursor: 'pointer',
               textAlign: 'left',
               width: '100%',
-              paddingRight: 100,
+              paddingRight: 140,
             }}
           >
-            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>Codex CLI 配置管理</div>
-            <div style={{ fontSize: 12, color: codexConfigurable ? '#86efac' : '#fca5a5', marginTop: 6 }}>
-              {codexConfigurable ? '可配置' : '不可配置'} · {codexExpandable ? '点击折叠' : '点击展开'}
-            </div>
+            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700, minHeight: 24 }}>Codex CLI 配置管理</div>
+            <span style={expandIconStyle(codexExpandable)} aria-hidden="true">›</span>
           </button>
 
           {codexExpandable && (

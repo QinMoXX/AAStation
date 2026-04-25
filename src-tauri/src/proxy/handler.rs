@@ -589,13 +589,20 @@ async fn record_metric(
         })
         .await;
 
+    let cumulative_used_tokens = state
+        .metrics
+        .provider_summary(&ctx.provider_id)
+        .await
+        .map(|summary| summary.summary.total_tokens)
+        .unwrap_or(usage.total_tokens);
+
     state
         .provider_runtime
         .record_request_result(
             &ctx.provider_id,
             &ctx.provider_label,
             ctx.token_limit.unwrap_or(1_000_000),
-            usage.total_tokens,
+            cumulative_used_tokens,
             success,
             error,
         )

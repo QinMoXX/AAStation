@@ -70,7 +70,7 @@ export interface SwitcherNodeData extends BaseNodeData {
   hasDefault: boolean;
 }
 
-export type PollerStrategy = 'round_robin' | 'weighted' | 'network_status' | 'weighted_network_status' | 'token_remaining';
+export type PollerStrategy = 'round_robin' | 'weighted' | 'network_status' | 'token_remaining';
 
 export interface PollerTarget {
   id: string; // uuid, also used as handle ID: "target-{id}"

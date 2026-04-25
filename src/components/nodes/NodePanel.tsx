@@ -505,6 +505,7 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
 // ---------------------------------------------------------------------------
 
 function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch: Partial<PollerNodeData>) => void }) {
+  const showTargetWeight = data.strategy === 'weighted' || data.strategy === 'round_robin';
   const addTarget = useCallback(() => {
     const newTarget: PollerTarget = {
       id: crypto.randomUUID(),
@@ -551,7 +552,6 @@ function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch
         >
           <option value="weighted">加权轮询</option>
           <option value="network_status">网络状态优先</option>
-          <option value="weighted_network_status">加权 + 网络状态</option>
           <option value="token_remaining">剩余额度优先</option>
         </select>
       </div>
@@ -663,16 +663,18 @@ function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch
             />
           </div>
 
-          <div style={{ marginBottom: 6 }}>
-            <label style={labelStyle}>权重</label>
-            <input
-              style={inputStyle}
-              type="number"
-              min={1}
-              value={target.weight}
-              onChange={(e) => updateTarget(target.id, { weight: Math.max(1, Number(e.target.value) || 1) })}
-            />
-          </div>
+          {showTargetWeight && (
+            <div style={{ marginBottom: 6 }}>
+              <label style={labelStyle}>权重</label>
+              <input
+                style={inputStyle}
+                type="number"
+                min={1}
+                value={target.weight}
+                onChange={(e) => updateTarget(target.id, { weight: Math.max(1, Number(e.target.value) || 1) })}
+              />
+            </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input

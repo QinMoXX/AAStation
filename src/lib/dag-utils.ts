@@ -199,8 +199,13 @@ function nodeDataToFrontend(
     }
     case 'poller':
     {
-      const strategy = (camelData.strategy as PollerNodeData['strategy']) || 'weighted';
-      const normalizedStrategy = strategy === 'round_robin' ? 'weighted' : strategy;
+      const strategy = String(camelData.strategy || 'weighted');
+      const normalizedStrategy =
+        strategy === 'round_robin'
+          ? 'weighted'
+          : strategy === 'weighted_network_status'
+            ? 'network_status'
+            : (strategy as PollerNodeData['strategy']);
       return {
         nodeType: 'poller',
         label: (camelData.label as string) || 'Poller',

@@ -8,13 +8,17 @@ const STRATEGY_LABELS: Record<PollerNodeData['strategy'], string> = {
   round_robin: '加权轮询',
   weighted: '加权轮询',
   network_status: '网络状态优先',
-  weighted_network_status: '加权 + 网络状态',
   token_remaining: '剩余额度优先',
 };
+
+function usesTargetWeight(strategy: PollerNodeData['strategy']): boolean {
+  return strategy === 'weighted' || strategy === 'round_robin';
+}
 
 function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
   const middlewareConfig = MIDDLEWARE_CONFIG.poller;
   const MiddlewareIcon = middlewareConfig?.icon ? getProviderIcon(middlewareConfig.icon) : null;
+  const showTargetWeight = usesTargetWeight(data.strategy);
 
   return (
     <div
@@ -79,7 +83,9 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
         >
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>{target.label || `目标 #${index + 1}`}</div>
-            <div style={{ color: '#6b7280', fontSize: 11 }}>运行时动态选择 · 权重 {target.weight}</div>
+            <div style={{ color: '#6b7280', fontSize: 11 }}>
+              {showTargetWeight ? `运行时动态选择 · 权重 ${target.weight}` : '运行时动态选择'}
+            </div>
           </div>
           <Handle
             type="source"
