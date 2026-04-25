@@ -143,5 +143,14 @@
       { "name": "minimax-m2.5", "label": "MiniMax M2.5" },
       { "name": "minimax-m2.7", "label": "MiniMax M2.7" }
     ]
+  },
+  {
+    "id": "custom_provider",
+    "name": "Custom Provider",
+    "icon": "custom",
+    "createMode": "custom",
+    "baseUrl": "",
+    "defaultLabel": "Provider",
+    "models": []
   }
 ]

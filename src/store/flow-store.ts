@@ -91,6 +91,9 @@ export const APPLICATION_DEFAULTS = applicationDefaults as ApplicationDefaultsMa
 export const MIDDLEWARE_CONFIG = middlewareConfig as MiddlewareConfig;
 
 export function createPresetProviderData(preset: ProviderPreset): ProviderNodeData {
+  if (preset.createMode === 'custom') {
+    throw new Error(`Preset "${preset.id}" is custom-only and cannot create a fixed preset provider`);
+  }
   return {
     nodeType: 'provider',
     presetId: preset.id,
@@ -279,6 +282,9 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const preset = PRESET_PROVIDERS.find((p) => p.id === presetId);
     if (!preset) {
       throw new Error(`Unknown preset: ${presetId}`);
+    }
+    if (preset.createMode === 'custom') {
+      throw new Error(`Preset "${presetId}" must be created via addNode('provider')`);
     }
     const id = nextNodeId();
     const data = createPresetProviderData(preset);

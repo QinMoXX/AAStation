@@ -6,6 +6,10 @@ export interface ProviderPreset {
   name: string;
   /** Icon identifier - maps to SVG component in ProviderIcons.tsx. */
   icon: string;
+  /** Creation mode:
+   *  - preset: create a preset provider with fixed URLs
+   *  - custom: create an empty custom provider node */
+  createMode?: 'preset' | 'custom';
   /** OpenAI-compatible base URL (immutable for presets).
    *  Should include version path prefix (e.g. "https://api.openai.com/v1"). */
   baseUrl: string;

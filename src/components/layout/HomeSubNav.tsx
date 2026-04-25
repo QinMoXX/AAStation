@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
-import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
+import { getProviderIcon } from '../icons/ProviderIcons';
 import type { AppType, MiddlewareType } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -128,8 +128,6 @@ const CATEGORIES: CategoryDef[] = [
   },
 ];
 
-const APP_ITEM_ORDER: AppType[] = ['listener', 'claude_code', 'open_code', 'codex_cli'];
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -139,6 +137,14 @@ export default function HomeSubNav() {
   const addMiddlewareNode = useFlowStore((s) => s.addMiddlewareNode);
   const addPresetProviderNode = useFlowStore((s) => s.addPresetProviderNode);
   const nodes = useFlowStore((s) => s.nodes);
+  const applicationItems = useMemo(
+    () => Object.entries(APPLICATION_DEFAULTS) as [AppType, (typeof APPLICATION_DEFAULTS)[AppType]][],
+    []
+  );
+  const middlewareItems = useMemo(
+    () => Object.entries(MIDDLEWARE_CONFIG) as [MiddlewareType, (typeof MIDDLEWARE_CONFIG)[MiddlewareType]][],
+    []
+  );
 
   const switcherCount = nodes.filter((n) => n.data.nodeType === 'switcher').length;
   const appCount = nodes.filter((n) => n.data.nodeType === 'application').length;
@@ -210,8 +216,7 @@ export default function HomeSubNav() {
                   {/* Application items */}
                   {cat.id === 'application' && (
                     <>
-                      {APP_ITEM_ORDER.map((appType) => {
-                        const appDefault = APPLICATION_DEFAULTS[appType];
+                      {applicationItems.map(([appType, appDefault]) => {
                         const Icon = getProviderIcon(appDefault.icon);
                         return (
                           <div
@@ -236,13 +241,13 @@ export default function HomeSubNav() {
                   {/* Middleware items */}
                   {cat.id === 'middleware' && (
                     <>
-                      {Object.entries(MIDDLEWARE_CONFIG).map(([middlewareType, middleware]) => {
+                      {middlewareItems.map(([middlewareType, middleware]) => {
                         const Icon = getProviderIcon(middleware.icon);
                         return (
                           <div
                             key={middlewareType}
                             style={itemStyle}
-                            onClick={() => addMiddlewareNode(middlewareType as MiddlewareType)}
+                            onClick={() => addMiddlewareNode(middlewareType)}
                             onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                           >
@@ -261,11 +266,12 @@ export default function HomeSubNav() {
                     <>
                       {PRESET_PROVIDERS.map((preset) => {
                         const Icon = getProviderIcon(preset.icon);
+                        const isCustomProvider = preset.createMode === 'custom';
                         return (
                           <div
                             key={preset.id}
                             style={itemStyle}
-                            onClick={() => handleAddPreset(preset.id)}
+                            onClick={() => (isCustomProvider ? handleAddCustom() : handleAddPreset(preset.id))}
                             onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                           >
@@ -276,17 +282,6 @@ export default function HomeSubNav() {
                           </div>
                         );
                       })}
-                      <div
-                        style={itemStyle}
-                        onClick={handleAddCustom}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <span style={categoryIconStyle}>
-                          <CustomProviderIcon style={{ width: 14, height: 14 }} />
-                        </span>
-                        <span style={{ fontWeight: 500 }}>Custom Provider</span>
-                      </div>
                     </>
                   )}
                 </div>
