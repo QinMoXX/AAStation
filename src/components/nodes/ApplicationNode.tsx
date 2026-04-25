@@ -2,13 +2,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { ClaudeCode, Codex, OpenCode } from '@lobehub/icons';
 import type { ApplicationNodeData } from '../../types';
-
-const APP_TYPE_LABELS: Record<string, string> = {
-  listener: '自定义监听',
-  claude_code: 'Claude Code',
-  open_code: 'OpenCode',
-  codex_cli: 'Codex CLI',
-};
+import { APPLICATION_DEFAULTS } from '../../store/flow-store';
 
 function AppTypeIcon({ appType }: { appType: string }) {
   if (appType === 'claude_code') return <ClaudeCode.Color size={18} />;
@@ -18,7 +12,8 @@ function AppTypeIcon({ appType }: { appType: string }) {
 }
 
 function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
-  const appLabel = APP_TYPE_LABELS[data.appType] || data.appType || 'Application';
+  const appDefault = APPLICATION_DEFAULTS[data.appType];
+  const appLabel = appDefault?.displayLabel || data.appType || 'Application';
 
   return (
     <div
@@ -54,7 +49,7 @@ function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
       {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
         <AppTypeIcon appType={data.appType} />
-        <span>{data.label || 'Listener'}</span>
+        <span>{data.label || appDefault?.defaultNodeLabel || 'Listener'}</span>
       </div>
 
       {/* App type + port */}

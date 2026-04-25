@@ -14,3 +14,4 @@ export type {
 } from './proxy';
 export type { AppSettings } from './settings';
 export type { SwitcherDefault, SwitcherDefaultsMap } from './switcher-defaults';
+export type { ApplicationDefault, ApplicationDefaultsMap } from './application-defaults';

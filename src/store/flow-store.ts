@@ -21,11 +21,13 @@ import type {
   AppType,
   ProviderPreset,
   SwitcherDefaultsMap,
+  ApplicationDefaultsMap,
 } from '../types';
 import type { DAGDocument } from '../types/dag';
 import { allocatePort } from '../lib/tauri-api';
 import presets from '../data/provider-presets.json';
 import switcherDefaults from '../data/switcher-defaults.json';
+import applicationDefaults from '../data/application-defaults.json';
 
 // ---------------------------------------------------------------------------
 // Default node data factories
@@ -51,12 +53,10 @@ export function defaultSwitcherData(): SwitcherNodeData {
 }
 
 export function defaultApplicationData(appType: AppType = 'listener'): ApplicationNodeData {
+  const appDefault = APPLICATION_DEFAULTS[appType];
   return {
     nodeType: 'application',
-    label: appType === 'claude_code' ? 'Claude Code'
-         : appType === 'open_code'   ? 'OpenCode'
-         : appType === 'codex_cli'   ? 'Codex CLI'
-         : 'Listener',
+    label: appDefault?.defaultNodeLabel || 'Listener',
     appType,
     listenPort: 0, // 0 = unassigned, will be auto-assigned
   };
@@ -76,6 +76,8 @@ export const PRESET_PROVIDERS = presets as ProviderPreset[];
 
 /** Default Switcher entries per appType, loaded from JSON config. */
 export const SWITCHER_DEFAULTS = switcherDefaults as SwitcherDefaultsMap;
+/** Default Application labels/help text per appType, loaded from JSON config. */
+export const APPLICATION_DEFAULTS = applicationDefaults as ApplicationDefaultsMap;
 
 export function createPresetProviderData(preset: ProviderPreset): ProviderNodeData {
   return {

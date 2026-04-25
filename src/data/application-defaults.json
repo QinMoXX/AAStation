@@ -1,0 +1,22 @@
+{
+  "listener": {
+    "displayLabel": "自定义监听",
+    "defaultNodeLabel": "Listener",
+    "helpText": ""
+  },
+  "claude_code": {
+    "displayLabel": "Claude Code",
+    "defaultNodeLabel": "Claude Code",
+    "helpText": "发布后将自动配置 Claude Code 使用本地代理，API Key 由 Provider 节点提供。"
+  },
+  "open_code": {
+    "displayLabel": "OpenCode",
+    "defaultNodeLabel": "OpenCode",
+    "helpText": "发布后将自动配置 OpenCode 使用本地代理（写入 ~/.config/opencode/opencode.json），API Key 由 Provider 节点提供。"
+  },
+  "codex_cli": {
+    "displayLabel": "Codex CLI",
+    "defaultNodeLabel": "Codex CLI",
+    "helpText": "发布后将自动配置 Codex CLI 使用本地代理（写入 ~/.codex/config.toml 和 ~/.codex/auth.json），API Key 由 Provider 节点提供。"
+  }
+}

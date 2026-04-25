@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { useFlowStore, PRESET_PROVIDERS } from '../../store/flow-store';
+import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS } from '../../store/flow-store';
 import { getProviderIcon, CustomProviderIcon } from '../icons/ProviderIcons';
 import { ClaudeCode, Codex, OpenCode } from '@lobehub/icons';
+import type { AppType } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -128,6 +129,8 @@ const CATEGORIES: CategoryDef[] = [
   },
 ];
 
+const APP_ITEM_ORDER: AppType[] = ['listener', 'claude_code', 'open_code', 'codex_cli'];
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -207,52 +210,29 @@ export default function HomeSubNav() {
                   {/* Application items */}
                   {cat.id === 'application' && (
                     <>
-                      <div
-                        style={itemStyle}
-                        onClick={() => addNode('application')}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <span style={categoryIconStyle}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
-                          </svg>
-                        </span>
-                        <span style={{ fontWeight: 500 }}>自定义监听</span>
-                      </div>
-                      <div
-                        style={itemStyle}
-                        onClick={() => addNode('application', undefined, 'claude_code')}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <span style={categoryIconStyle}>
-                          <ClaudeCode.Color size={14} />
-                        </span>
-                        <span style={{ fontWeight: 500 }}>Claude Code</span>
-                      </div>
-                      <div
-                        style={itemStyle}
-                        onClick={() => addNode('application', undefined, 'open_code')}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <span style={categoryIconStyle}>
-                          <OpenCode size={14} />
-                        </span>
-                        <span style={{ fontWeight: 500 }}>OpenCode</span>
-                      </div>
-                      <div
-                        style={itemStyle}
-                        onClick={() => addNode('application', undefined, 'codex_cli')}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <span style={categoryIconStyle}>
-                          <Codex.Color size={14} />
-                        </span>
-                        <span style={{ fontWeight: 500 }}>Codex CLI</span>
-                      </div>
+                      {APP_ITEM_ORDER.map((appType) => (
+                        <div
+                          key={appType}
+                          style={itemStyle}
+                          onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <span style={categoryIconStyle}>
+                            {appType === 'claude_code' && <ClaudeCode.Color size={14} />}
+                            {appType === 'open_code' && <OpenCode size={14} />}
+                            {appType === 'codex_cli' && <Codex.Color size={14} />}
+                            {appType === 'listener' && (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
+                              </svg>
+                            )}
+                          </span>
+                          <span style={{ fontWeight: 500 }}>
+                            {APPLICATION_DEFAULTS[appType].displayLabel}
+                          </span>
+                        </div>
+                      ))}
                     </>
                   )}
 

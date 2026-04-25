@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useFlowStore, PRESET_PROVIDERS } from '../../store/flow-store';
+import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS } from '../../store/flow-store';
 import { useAppStore } from '../../store/app-store';
 import type {
   ProviderNodeData,
@@ -465,6 +465,7 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
 // ---------------------------------------------------------------------------
 
 function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpdate: (patch: Partial<ApplicationNodeData>) => void }) {
+  const appDefault = APPLICATION_DEFAULTS[data.appType];
   return (
     <>
       <div style={fieldGap}>
@@ -492,21 +493,9 @@ function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpda
         </div>
       </div>
 
-      {data.appType === 'claude_code' && (
+      {appDefault?.helpText && (
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
-          发布后将自动配置 Claude Code 使用本地代理，API Key 由 Provider 节点提供。
-        </div>
-      )}
-
-      {data.appType === 'open_code' && (
-        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
-          发布后将自动配置 OpenCode 使用本地代理（写入 ~/.config/opencode/opencode.json），API Key 由 Provider 节点提供。
-        </div>
-      )}
-
-      {data.appType === 'codex_cli' && (
-        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
-          发布后将自动配置 Codex CLI 使用本地代理（写入 ~/.codex/config.toml 和 ~/.codex/auth.json），API Key 由 Provider 节点提供。
+          {appDefault.helpText}
         </div>
       )}
     </>
