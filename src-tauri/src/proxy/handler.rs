@@ -11,11 +11,11 @@ use chrono::Utc;
 use super::body_parser::{detect_request_protocol, extract_model};
 use super::error::ProxyError;
 use super::forwarder::forward_request;
-use super::router::match_route;
 use super::server::HandlerState;
 use super::sse_patch::AnthropicSsePatchStream;
 use super::stream::{is_sse_response, LoggedStream};
 use super::types::{ProxyRequestMetric, RequestProtocol};
+use super::workflow::{execute_workflow, WorkflowRuntime};
 
 #[derive(Clone)]
 struct RequestMetricContext {
@@ -28,6 +28,7 @@ struct RequestMetricContext {
     app_label: String,
     provider_id: String,
     provider_label: String,
+    token_limit: Option<u64>,
     listen_port: u16,
     request_model: Option<String>,
     target_model: Option<String>,
@@ -128,13 +129,28 @@ pub async fn proxy_handler(
     // Match route
     let route_table = state.route_table.read().await;
     tracing::info!(
-        "Incoming request: {} {} (model: {:?}, routes: {}, has_default: {})",
-        method, path, model,
+        "Incoming request: {} {} (model: {:?}, routes: {}, has_default: {}, workflow: {})",
+        method,
+        path,
+        model,
         route_table.routes.len(),
         route_table.default_route.is_some(),
+        route_table.workflow.is_some(),
     );
 
-    let match_result = match_route(&route_table.routes, &route_table.default_route, &path, &headers, model.as_deref());
+    let workflow = route_table.workflow.as_ref().ok_or_else(|| {
+        ProxyError::InvalidConfig("route table missing runtime workflow plan".to_string())
+    });
+    let runtime = WorkflowRuntime {
+        metrics: state.metrics.clone(),
+        poller_cursors: state.poller_cursors.clone(),
+        provider_runtime: state.provider_runtime.clone(),
+        poller_runtime: state.poller_runtime.clone(),
+    };
+    let match_result = match workflow {
+        Ok(plan) => execute_workflow(plan, &runtime, &path, &headers, model.as_deref()).await,
+        Err(err) => Err(err),
+    };
     let matched_route = match match_result {
         Ok(r) => r,
         Err(e) => {
@@ -158,6 +174,7 @@ pub async fn proxy_handler(
         app_label: route_table.app_label.clone(),
         provider_id: matched_route.provider_id.clone(),
         provider_label: matched_route.provider_label.clone(),
+        token_limit: matched_route.token_limit,
         listen_port: state.listen_port,
         request_model: model.clone(),
         target_model: if matched_route.target_model.is_empty() {
@@ -568,7 +585,19 @@ async fn record_metric(
             total_tokens: usage.total_tokens,
             started_at: ctx.started_at.clone(),
             completed_at,
-            error,
+            error: error.clone(),
         })
+        .await;
+
+    state
+        .provider_runtime
+        .record_request_result(
+            &ctx.provider_id,
+            &ctx.provider_label,
+            ctx.token_limit.unwrap_or(1_000_000),
+            usage.total_tokens,
+            success,
+            error,
+        )
         .await;
 }

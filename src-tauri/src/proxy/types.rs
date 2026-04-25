@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use super::workflow::WorkflowPlan;
+
 /// The protocol style of an incoming client request, detected from the request path.
 /// This determines how the request body is interpreted before protocol adaptation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,11 +30,20 @@ pub struct RouteTable {
     pub listen_address: String,
     pub routes: Vec<CompiledRoute>,
     pub default_route: Option<CompiledRoute>,
+    /// Runtime workflow plan used by the node-driven executor.
+    /// During migration this is auto-derived from `routes/default_route`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow: Option<WorkflowPlan>,
 }
 
 impl RouteTable {
     pub fn is_empty(&self) -> bool {
-        self.routes.is_empty() && self.default_route.is_none()
+        let has_workflow = self
+            .workflow
+            .as_ref()
+            .map(|workflow| !workflow.is_empty())
+            .unwrap_or(false);
+        !has_workflow && self.routes.is_empty() && self.default_route.is_none()
     }
 }
 
@@ -83,6 +94,10 @@ pub struct CompiledRoute {
     /// If empty, the original model is kept.
     #[serde(default)]
     pub target_model: String,
+    /// Token budget in absolute tokens used by token-aware pollers.
+    /// Compiled from the Provider form's "million tokens" unit.
+    #[serde(default)]
+    pub token_limit: Option<u64>,
     /// Whether to use substring matching for model patterns.
     /// When true, pattern matches if it is a substring of the request model.
     /// This is used for Claude Code connections where model names like
@@ -161,6 +176,100 @@ pub struct ProxyMetricsSnapshot {
     pub providers: Vec<ProxyMetricsEntitySummary>,
     pub app_provider_pairs: Vec<ProxyMetricsPairSummary>,
     pub recent_requests: Vec<ProxyRequestMetric>,
+    #[serde(default)]
+    pub provider_runtime: Vec<ProviderRuntimeState>,
+    #[serde(default)]
+    pub poller_runtime: Vec<PollerRuntimeState>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRuntimeStatus {
+    #[default]
+    Unknown,
+    Healthy,
+    HalfOpen,
+    Degraded,
+    CircuitOpen,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRuntimeEventKind {
+    CircuitOpened,
+    HalfOpened,
+    Recovered,
+    ProbeFailed,
+    RequestFailed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProviderRuntimeEvent {
+    pub at: String,
+    pub kind: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProviderRuntimeState {
+    pub provider_id: String,
+    pub provider_label: String,
+    pub status: ProviderRuntimeStatus,
+    pub failure_threshold: u32,
+    pub cooldown_seconds: u64,
+    pub probe_interval_seconds: u64,
+    pub consecutive_failures: u32,
+    pub last_request_at: Option<String>,
+    pub last_success_at: Option<String>,
+    pub last_failure_at: Option<String>,
+    pub last_probe_at: Option<String>,
+    pub last_error: Option<String>,
+    pub circuit_open_until: Option<String>,
+    pub half_open_since: Option<String>,
+    pub circuit_open_count: u32,
+    pub recovery_attempts: u32,
+    #[serde(default)]
+    pub timeline: Vec<ProviderRuntimeEvent>,
+    pub budget_tokens: u64,
+    pub remaining_tokens: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum PollerStrategyRuntime {
+    #[default]
+    Weighted,
+    NetworkStatus,
+    WeightedNetworkStatus,
+    TokenRemaining,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PollerTargetRuntimeStat {
+    pub target_id: String,
+    pub target_label: String,
+    pub configured_weight: u32,
+    pub hits: u64,
+    pub last_selected_at: Option<String>,
+    pub last_selected_provider_label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PollerRuntimeState {
+    pub poller_id: String,
+    pub poller_label: String,
+    pub strategy: PollerStrategyRuntime,
+    pub cursor: usize,
+    pub failure_threshold: u32,
+    pub cooldown_seconds: u64,
+    pub probe_interval_seconds: u64,
+    pub total_selections: u64,
+    pub last_selected_target: Option<String>,
+    pub last_selected_provider_id: Option<String>,
+    pub last_selected_provider_label: Option<String>,
+    pub last_selected_at: Option<String>,
+    #[serde(default)]
+    pub target_stats: Vec<PollerTargetRuntimeStat>,
 }
 
 /// Route match strategy.

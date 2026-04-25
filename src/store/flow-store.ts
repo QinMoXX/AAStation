@@ -16,6 +16,7 @@ import type {
   AAStationNodeData,
   ProviderNodeData,
   SwitcherNodeData,
+  PollerNodeData,
   ApplicationNodeData,
   NodeType,
   AppType,
@@ -42,22 +43,35 @@ export function defaultProviderData(): ProviderNodeData {
     label: 'Provider',
     baseUrl: '',
     apiKey: '',
+    tokenLimit: 1,
     models: [],
   };
 }
 
 function getMiddlewareName(middlewareType: MiddlewareType): string {
   const config = MIDDLEWARE_CONFIG[middlewareType];
-  return config?.name || 'Switcher';
+  return config?.name || 'Middleware';
 }
 
-export function defaultSwitcherData(middlewareType: MiddlewareType = 'switcher'): SwitcherNodeData {
+export function defaultSwitcherData(): SwitcherNodeData {
   return {
     nodeType: 'switcher',
-    middlewareType,
-    label: getMiddlewareName(middlewareType),
+    label: getMiddlewareName('switcher'),
     entries: [],
     hasDefault: false,
+  };
+}
+
+export function defaultPollerData(): PollerNodeData {
+  return {
+    nodeType: 'poller',
+    label: getMiddlewareName('poller'),
+    strategy: 'weighted',
+    targets: [],
+    hasDefault: false,
+    failureThreshold: 3,
+    cooldownSeconds: 30,
+    probeIntervalSeconds: 20,
   };
 }
 
@@ -75,6 +89,7 @@ const DEFAULT_DATA_MAP: Record<NodeType, () => AAStationNodeData> = {
   provider: defaultProviderData,
   switcher: defaultSwitcherData,
   application: defaultApplicationData,
+  poller: defaultPollerData,
 };
 
 // ---------------------------------------------------------------------------
@@ -101,6 +116,7 @@ export function createPresetProviderData(preset: ProviderPreset): ProviderNodeDa
     baseUrl: preset.baseUrl,
     anthropicBaseUrl: preset.anthropicBaseUrl,
     apiKey: '',
+    tokenLimit: 1,
     models: [],
   };
 }
@@ -185,8 +201,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
     if (
       sourceNode?.data.nodeType === 'application' &&
-      targetNode?.data.nodeType === 'switcher' &&
-      targetNode.data.middlewareType === 'switcher'
+      targetNode?.data.nodeType === 'switcher'
     ) {
       const appType = (sourceNode.data as ApplicationNodeData).appType;
       const defaultConfig = SWITCHER_DEFAULTS[appType];
@@ -267,10 +282,11 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   addMiddlewareNode: (middlewareType: MiddlewareType, position?: { x: number; y: number }) => {
     const id = nextNodeId();
-    const data = defaultSwitcherData(middlewareType);
+    const type: NodeType = middlewareType === 'poller' ? 'poller' : 'switcher';
+    const data = type === 'poller' ? defaultPollerData() : defaultSwitcherData();
     const node: AAStationNode = {
       id,
-      type: 'switcher',
+      type,
       position: position ?? { x: Math.random() * 400, y: Math.random() * 400 },
       data,
     };
@@ -321,6 +337,36 @@ export const useFlowStore = create<FlowState>((set, get) => ({
               edges: get().edges.filter(
                 (e) =>
                   !(e.target === nodeId && e.targetHandle && removedIds.has(e.targetHandle)),
+              ),
+            });
+          }
+        }
+
+        if (merged.nodeType === 'switcher' && n.data.nodeType === 'switcher') {
+          const oldHandles = new Set((n.data as SwitcherNodeData).entries.map((entry) => `entry-${entry.id}`));
+          const newHandles = new Set(merged.entries.map((entry) => `entry-${entry.id}`));
+          const removedHandles = new Set([...oldHandles].filter((handle) => !newHandles.has(handle)));
+
+          if (removedHandles.size > 0) {
+            set({
+              edges: get().edges.filter(
+                (edge) =>
+                  !(edge.source === nodeId && edge.sourceHandle && removedHandles.has(edge.sourceHandle)),
+              ),
+            });
+          }
+        }
+
+        if (merged.nodeType === 'poller' && n.data.nodeType === 'poller') {
+          const oldHandles = new Set((n.data as PollerNodeData).targets.map((target) => `target-${target.id}`));
+          const newHandles = new Set(merged.targets.map((target) => `target-${target.id}`));
+          const removedHandles = new Set([...oldHandles].filter((handle) => !newHandles.has(handle)));
+
+          if (removedHandles.size > 0) {
+            set({
+              edges: get().edges.filter(
+                (edge) =>
+                  !(edge.source === nodeId && edge.sourceHandle && removedHandles.has(edge.sourceHandle)),
               ),
             });
           }

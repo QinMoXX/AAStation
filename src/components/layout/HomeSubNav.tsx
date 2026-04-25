@@ -191,7 +191,7 @@ export default function HomeSubNav() {
   );
   const [selectedTag, setSelectedTag] = useState<NodeTag>(NodeTag.Any);
 
-  const switcherCount = nodes.filter((n) => n.data.nodeType === 'switcher').length;
+  const middlewareCount = nodes.filter((n) => n.data.nodeType === 'switcher' || n.data.nodeType === 'poller').length;
   const appCount = nodes.filter((n) => n.data.nodeType === 'application').length;
   const providerCount = nodes.filter((n) => n.data.nodeType === 'provider').length;
 
@@ -241,12 +241,12 @@ export default function HomeSubNav() {
     (id: string) => {
       switch (id) {
         case 'application': return appCount;
-        case 'middleware': return switcherCount;
+        case 'middleware': return middlewareCount;
         case 'provider': return providerCount;
         default: return 0;
       }
     },
-    [appCount, switcherCount, providerCount],
+    [appCount, middlewareCount, providerCount],
   );
 
   return (

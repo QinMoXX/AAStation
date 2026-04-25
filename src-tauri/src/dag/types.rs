@@ -56,6 +56,7 @@ pub struct DAGNode {
     /// - `Provider`  → `ProviderNodeData`
     /// - `Switcher`   → `SwitcherNodeData`
     /// - `Application`  → `ApplicationNodeData`
+    /// - `Poller`  → `PollerNodeData`
     pub data: serde_json::Value,
 }
 
@@ -92,6 +93,7 @@ pub enum NodeType {
     Provider,
     Switcher,
     Application,
+    Poller,
 }
 
 impl std::fmt::Display for NodeType {
@@ -100,6 +102,7 @@ impl std::fmt::Display for NodeType {
             NodeType::Provider => write!(f, "provider"),
             NodeType::Switcher => write!(f, "switcher"),
             NodeType::Application => write!(f, "application"),
+            NodeType::Poller => write!(f, "poller"),
         }
     }
 }
@@ -122,6 +125,10 @@ fn default_true() -> bool {
     true
 }
 
+fn default_provider_token_budget_millions() -> Option<u64> {
+    Some(1)
+}
+
 /// Provider node data: an upstream API endpoint with model sub-nodes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderNodeData {
@@ -139,6 +146,9 @@ pub struct ProviderNodeData {
     pub anthropic_base_url: Option<String>,
     /// API key for authentication.
     pub api_key: String,
+    /// Token budget in millions. `1` means 1,000,000 tokens.
+    #[serde(default = "default_provider_token_budget_millions")]
+    pub token_limit: Option<u64>,
     /// Model entries, each with its own right-side output handle.
     pub models: Vec<ProviderModel>,
 }
@@ -151,6 +161,7 @@ impl Default for ProviderNodeData {
             base_url: String::new(),
             anthropic_base_url: None,
             api_key: String::new(),
+            token_limit: default_provider_token_budget_millions(),
             models: Vec::new(),
         }
     }
@@ -208,6 +219,85 @@ impl Default for SwitcherNodeData {
             description: None,
             entries: Vec::new(),
             has_default: false,
+        }
+    }
+}
+
+/// Poller strategy for runtime target selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PollerStrategy {
+    RoundRobin,
+    Weighted,
+    NetworkStatus,
+    WeightedNetworkStatus,
+    TokenRemaining,
+}
+
+impl Default for PollerStrategy {
+    fn default() -> Self {
+        Self::Weighted
+    }
+}
+
+/// A poller output entry with its own source handle.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PollerTarget {
+    pub id: String,
+    pub label: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_target_weight")]
+    pub weight: u32,
+}
+
+fn default_target_weight() -> u32 {
+    1
+}
+
+/// Poller node data: chooses the next connected target at runtime.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PollerNodeData {
+    pub label: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub strategy: PollerStrategy,
+    #[serde(default)]
+    pub targets: Vec<PollerTarget>,
+    #[serde(default)]
+    pub has_default: bool,
+    #[serde(default = "default_failure_threshold")]
+    pub failure_threshold: u32,
+    #[serde(default = "default_cooldown_seconds")]
+    pub cooldown_seconds: u64,
+    #[serde(default = "default_probe_interval_seconds")]
+    pub probe_interval_seconds: u64,
+}
+
+fn default_failure_threshold() -> u32 {
+    3
+}
+
+fn default_cooldown_seconds() -> u64 {
+    30
+}
+
+fn default_probe_interval_seconds() -> u64 {
+    20
+}
+
+impl Default for PollerNodeData {
+    fn default() -> Self {
+        Self {
+            label: "Poller".to_string(),
+            description: None,
+            strategy: PollerStrategy::Weighted,
+            targets: Vec::new(),
+            has_default: false,
+            failure_threshold: default_failure_threshold(),
+            cooldown_seconds: default_cooldown_seconds(),
+            probe_interval_seconds: default_probe_interval_seconds(),
         }
     }
 }

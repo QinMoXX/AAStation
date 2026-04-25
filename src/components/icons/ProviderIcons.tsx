@@ -89,6 +89,29 @@ function SwitcherIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Local icon for poller middleware type. */
+function PollerIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      {...props}
+    >
+      <path d="M3 12a9 9 0 0 1 15.5-6.2" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15.5 6.2" />
+      <path d="M3 21v-5h5" />
+    </svg>
+  );
+}
+
 /** Fallback icon when provider icon not found */
 function FallbackIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -134,6 +157,7 @@ const LOCAL_ICONS: Record<string, React.FC<SVGProps<SVGSVGElement>>> = {
   custom: CustomProviderIcon,
   listener: ListenerIcon,
   switcher: SwitcherIcon,
+  poller: PollerIcon,
 };
 
 // ---------------------------------------------------------------------------

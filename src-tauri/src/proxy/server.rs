@@ -5,11 +5,14 @@ use std::time::Instant;
 use tokio::sync::{oneshot, RwLock};
 use tokio::task::JoinHandle;
 use std::collections::{HashMap, HashSet};
+use tokio::time::MissedTickBehavior;
 
 use super::error::ProxyError;
+use super::health::{probe_interval, PollerRuntimeStore, ProviderRuntimeStore};
 use super::metrics::MetricsStore;
 use super::handler::proxy_handler;
-use super::types::{ProxyConfig, ProxyStatus, RouteTable, RouteTableSet};
+use super::types::{CompiledRoute, ProxyConfig, ProxyStatus, RouteTable, RouteTableSet};
+use super::workflow::ensure_route_table_workflow;
 
 /// A single running listener — one per Application node.
 pub(crate) struct RunningListener {
@@ -31,6 +34,11 @@ pub struct ProxyState {
     /// Running listeners, keyed by port.
     pub listeners: Arc<RwLock<HashMap<u16, RunningListener>>>,
     pub config: Arc<RwLock<ProxyConfig>>,
+    pub poller_cursors: Arc<RwLock<HashMap<String, usize>>>,
+    pub provider_runtime: ProviderRuntimeStore,
+    pub poller_runtime: PollerRuntimeStore,
+    pub health_probe_shutdown: Arc<RwLock<Option<oneshot::Sender<()>>>>,
+    pub health_probe_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
 }
 
 /// Manages the axum proxy server lifecycle and holds runtime state.
@@ -50,6 +58,9 @@ pub struct HandlerState {
     pub listen_port: u16,
     pub metrics: MetricsStore,
     pub http_client: reqwest::Client,
+    pub poller_cursors: Arc<RwLock<HashMap<String, usize>>>,
+    pub provider_runtime: ProviderRuntimeStore,
+    pub poller_runtime: PollerRuntimeStore,
     /// Auth token for verifying client requests.
     /// Updated when settings are saved (via ProxyServer::update_auth_token).
     pub proxy_auth_token: Arc<RwLock<String>>,
@@ -66,6 +77,11 @@ impl ProxyServer {
                 metrics: MetricsStore::new(),
                 listeners: Arc::new(RwLock::new(HashMap::new())),
                 config: Arc::new(RwLock::new(ProxyConfig::default())),
+                poller_cursors: Arc::new(RwLock::new(HashMap::new())),
+                provider_runtime: ProviderRuntimeStore::new(),
+                poller_runtime: PollerRuntimeStore::new(),
+                health_probe_shutdown: Arc::new(RwLock::new(None)),
+                health_probe_handle: Arc::new(RwLock::new(None)),
             },
             proxy_auth_token: Arc::new(RwLock::new(String::new())),
         }
@@ -127,6 +143,9 @@ impl ProxyServer {
                     .timeout(std::time::Duration::from_secs(300))
                     .build()
                     .unwrap_or_else(|_| reqwest::Client::new()),
+                poller_cursors: Arc::clone(&self.state.poller_cursors),
+                provider_runtime: self.state.provider_runtime.clone(),
+                poller_runtime: self.state.poller_runtime.clone(),
                 proxy_auth_token: Arc::clone(&self.proxy_auth_token),
             };
 
@@ -166,6 +185,7 @@ impl ProxyServer {
         drop(status);
 
         *self.state.start_time.write().await = Some(Instant::now());
+        self.start_health_probe_loop().await;
 
         Ok(())
     }
@@ -193,6 +213,13 @@ impl ProxyServer {
 
         listeners.clear();
 
+        if let Some(tx) = self.state.health_probe_shutdown.write().await.take() {
+            let _ = tx.send(());
+        }
+        if let Some(handle) = self.state.health_probe_handle.write().await.take() {
+            let _ = handle.await;
+        }
+
         // Reset status
         let mut status = self.state.status.write().await;
         status.running = false;
@@ -218,14 +245,38 @@ impl ProxyServer {
         let mut updates: Vec<(Arc<RwLock<RouteTable>>, RouteTable)> = Vec::new();
         let mut desired_ports: HashSet<u16> = HashSet::new();
         let mut total_routes = 0;
+        let mut active_provider_ids = Vec::new();
 
         let mut tables_by_port = self.state.route_tables_by_port.write().await;
-        for table in new_set.tables {
+        for mut table in new_set.tables {
+            ensure_route_table_workflow(&mut table);
             if table.is_empty() {
                 continue;
             }
             desired_ports.insert(table.listen_port);
             total_routes += table.routes.len();
+            for route in &table.routes {
+                self.state
+                    .provider_runtime
+                    .observe_provider(
+                        &route.provider_id,
+                        &route.provider_label,
+                        route.token_limit.unwrap_or(1_000_000),
+                    )
+                    .await;
+                active_provider_ids.push(route.provider_id.clone());
+            }
+            if let Some(route) = &table.default_route {
+                self.state
+                    .provider_runtime
+                    .observe_provider(
+                        &route.provider_id,
+                        &route.provider_label,
+                        route.token_limit.unwrap_or(1_000_000),
+                    )
+                    .await;
+                active_provider_ids.push(route.provider_id.clone());
+            }
 
             if let Some(existing_table) = tables_by_port.get(&table.listen_port) {
                 // Keep the same Arc so running listeners immediately observe new routes.
@@ -248,6 +299,7 @@ impl ProxyServer {
             tables_by_port.remove(&port);
         }
         drop(tables_by_port);
+        self.state.provider_runtime.retain_only(&active_provider_ids).await;
 
         for (table_ref, new_table) in updates {
             let mut current = table_ref.write().await;
@@ -300,8 +352,119 @@ impl ProxyServer {
 
     /// Get a monitoring snapshot of all requests seen since app start.
     pub async fn get_metrics_snapshot(&self) -> super::types::ProxyMetricsSnapshot {
-        self.state.metrics.snapshot().await
+        self.state
+            .metrics
+            .snapshot(
+                self.state.provider_runtime.snapshot().await,
+                self.state.poller_runtime.snapshot().await,
+            )
+            .await
     }
+
+    async fn start_health_probe_loop(&self) {
+        let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
+        *self.state.health_probe_shutdown.write().await = Some(shutdown_tx);
+
+        let route_tables_by_port = Arc::clone(&self.state.route_tables_by_port);
+        let provider_runtime = self.state.provider_runtime.clone();
+        let metrics = self.state.metrics.clone();
+        let handle = tokio::spawn(async move {
+            let client = reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(3))
+                .timeout(std::time::Duration::from_secs(8))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new());
+            let mut ticker = tokio::time::interval(probe_interval());
+            ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+            loop {
+                tokio::select! {
+                    _ = &mut shutdown_rx => break,
+                    _ = ticker.tick() => {
+                        run_health_probe_cycle(&route_tables_by_port, &provider_runtime, &metrics, &client).await;
+                    }
+                }
+            }
+        });
+        *self.state.health_probe_handle.write().await = Some(handle);
+    }
+}
+
+async fn run_health_probe_cycle(
+    route_tables_by_port: &Arc<RwLock<HashMap<u16, Arc<RwLock<RouteTable>>>>>,
+    provider_runtime: &ProviderRuntimeStore,
+    metrics: &MetricsStore,
+    client: &reqwest::Client,
+) {
+    let provider_routes = collect_provider_routes(route_tables_by_port).await;
+    for route in provider_routes {
+        let used_tokens = metrics
+            .provider_summary(&route.provider_id)
+            .await
+            .map(|summary| summary.summary.total_tokens)
+            .unwrap_or(0);
+        let budget_tokens = route.token_limit.unwrap_or(1_000_000);
+        if let Some(runtime_state) = provider_runtime.get(&route.provider_id).await {
+            let interval = runtime_state.probe_interval_seconds.max(5);
+            let should_probe = runtime_state
+                .last_probe_at
+                .as_deref()
+                .and_then(|iso| chrono::DateTime::parse_from_rfc3339(iso).ok())
+                .map(|time| {
+                    chrono::Utc::now()
+                        .signed_duration_since(time.with_timezone(&chrono::Utc))
+                        .num_seconds()
+                        >= interval as i64
+                })
+                .unwrap_or(true);
+            if !should_probe {
+                continue;
+            }
+        }
+
+        let probe_result = client.head(&route.upstream_url).send().await;
+        let reachable = probe_result.is_ok();
+        let error = probe_result.err().map(|err| err.to_string());
+
+        provider_runtime
+            .record_probe_result(
+                &route.provider_id,
+                &route.provider_label,
+                budget_tokens,
+                used_tokens,
+                reachable,
+                error,
+            )
+            .await;
+    }
+}
+
+async fn collect_provider_routes(
+    route_tables_by_port: &Arc<RwLock<HashMap<u16, Arc<RwLock<RouteTable>>>>>,
+) -> Vec<CompiledRoute> {
+    let tables: Vec<Arc<RwLock<RouteTable>>> = route_tables_by_port
+        .read()
+        .await
+        .values()
+        .cloned()
+        .collect();
+    let mut providers = HashMap::<String, CompiledRoute>::new();
+
+    for table in tables {
+        let table = table.read().await;
+        for route in &table.routes {
+            providers
+                .entry(route.provider_id.clone())
+                .or_insert_with(|| route.clone());
+        }
+        if let Some(route) = &table.default_route {
+            providers
+                .entry(route.provider_id.clone())
+                .or_insert_with(|| route.clone());
+        }
+    }
+
+    providers.into_values().collect()
 }
 
 #[cfg(test)]
@@ -322,6 +485,7 @@ mod tests {
             extra_headers: HashMap::new(),
             is_default: false,
             target_model: String::new(),
+            token_limit: None,
             fuzzy_match: false,
         }
     }
@@ -334,6 +498,7 @@ mod tests {
             listen_address: "127.0.0.1".to_string(),
             routes: vec![make_route(route_id, provider_label)],
             default_route: None,
+            workflow: None,
         }
     }
 
@@ -371,5 +536,44 @@ mod tests {
         let table = original_table_ref.read().await;
         assert_eq!(table.routes[0].id, "new-route");
         assert_eq!(table.routes[0].provider_label, "New Provider");
+    }
+
+    #[tokio::test]
+    async fn metrics_snapshot_includes_runtime_status() {
+        let server = ProxyServer::new();
+        let port = 9527;
+
+        server
+            .reload_routes(RouteTableSet {
+                listen_address: "127.0.0.1".to_string(),
+                tables: vec![make_table("route-1", "Provider A", port)],
+            })
+            .await;
+
+        server
+            .state
+            .poller_runtime
+            .record_selection(
+                "poller-1",
+                "Poller 1",
+                super::super::types::PollerStrategyRuntime::Weighted,
+                1,
+                3,
+                30,
+                20,
+                &[("target-a".to_string(), "目标 A".to_string(), 1)],
+                "target-a",
+                "目标 A",
+                1,
+                "provider-1",
+                "Provider A",
+            )
+            .await;
+
+        let snapshot = server.get_metrics_snapshot().await;
+        assert_eq!(snapshot.provider_runtime.len(), 1);
+        assert_eq!(snapshot.provider_runtime[0].provider_id, "provider-1");
+        assert_eq!(snapshot.poller_runtime.len(), 1);
+        assert_eq!(snapshot.poller_runtime[0].poller_id, "poller-1");
     }
 }

@@ -1,10 +1,10 @@
 import type { NodeTag } from './tag';
 
 /** Node type discriminator. */
-export type NodeType = 'provider' | 'switcher' | 'application';
+export type NodeType = 'provider' | 'switcher' | 'application' | 'poller';
 
 /** Middleware type discriminator (used by switcher-like nodes). */
-export type MiddlewareType = 'switcher';
+export type MiddlewareType = 'switcher' | 'poller';
 
 export interface MiddlewareDefinition {
   name: string;
@@ -44,6 +44,8 @@ export interface ProviderNodeData extends BaseNodeData {
    *  Should NOT include version path prefix (e.g. "https://open.bigmodel.cn/api/anthropic"). */
   anthropicBaseUrl?: string;
   apiKey: string;
+  /** Token budget in millions. `1` means 1,000,000 tokens. */
+  tokenLimit?: number;
   /** Model entries, each with its own right-side output handle. */
   models: ProviderModel[];
 }
@@ -62,12 +64,29 @@ export interface SwitcherEntry {
 /** Switcher node: routes requests by matchers to different Providers. */
 export interface SwitcherNodeData extends BaseNodeData {
   nodeType: 'switcher';
-  /** Concrete middleware behavior/type for this node. */
-  middlewareType: MiddlewareType;
   /** Matcher entries, each with a right-side output handle. */
   entries: SwitcherEntry[];
   /** Whether a "default" output handle exists for unmatched requests. */
   hasDefault: boolean;
+}
+
+export type PollerStrategy = 'round_robin' | 'weighted' | 'network_status' | 'weighted_network_status' | 'token_remaining';
+
+export interface PollerTarget {
+  id: string; // uuid, also used as handle ID: "target-{id}"
+  label: string;
+  enabled: boolean;
+  weight: number;
+}
+
+export interface PollerNodeData extends BaseNodeData {
+  nodeType: 'poller';
+  strategy: PollerStrategy;
+  targets: PollerTarget[];
+  hasDefault: boolean;
+  failureThreshold: number;
+  cooldownSeconds: number;
+  probeIntervalSeconds: number;
 }
 
 /** Application type discriminator. */
@@ -86,4 +105,5 @@ export interface ApplicationNodeData extends BaseNodeData {
 export type AAStationNodeData =
   | ProviderNodeData
   | SwitcherNodeData
-  | ApplicationNodeData;
+  | ApplicationNodeData
+  | PollerNodeData;

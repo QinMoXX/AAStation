@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use super::types::{
-    ProxyMetricsEntitySummary, ProxyMetricsPairSummary, ProxyMetricsSnapshot,
-    ProxyMetricsSummary, ProxyRequestMetric,
+    PollerRuntimeState, ProviderRuntimeState, ProxyMetricsEntitySummary,
+    ProxyMetricsPairSummary, ProxyMetricsSnapshot, ProxyMetricsSummary, ProxyRequestMetric,
 };
 
 const MAX_RECENT_REQUESTS: usize = 5000;
@@ -146,7 +146,11 @@ impl MetricsStore {
         }
     }
 
-    pub async fn snapshot(&self) -> ProxyMetricsSnapshot {
+    pub async fn snapshot(
+        &self,
+        provider_runtime: Vec<ProviderRuntimeState>,
+        poller_runtime: Vec<PollerRuntimeState>,
+    ) -> ProxyMetricsSnapshot {
         let state = self.inner.read().await;
 
         let mut applications: Vec<_> = state.applications.values().cloned().collect();
@@ -181,7 +185,29 @@ impl MetricsStore {
             providers,
             app_provider_pairs,
             recent_requests: state.recent_requests.iter().cloned().collect(),
+            provider_runtime,
+            poller_runtime,
         }
+    }
+
+    pub async fn provider_summary(
+        &self,
+        provider_id: &str,
+    ) -> Option<ProxyMetricsEntitySummary> {
+        let state = self.inner.read().await;
+        state.providers.get(provider_id).cloned()
+    }
+
+    pub async fn latest_provider_request(
+        &self,
+        provider_id: &str,
+    ) -> Option<ProxyRequestMetric> {
+        let state = self.inner.read().await;
+        state
+            .recent_requests
+            .iter()
+            .find(|request| request.provider_id == provider_id)
+            .cloned()
     }
 }
 

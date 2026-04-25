@@ -85,6 +85,65 @@ export interface ProxyMetricsSnapshot {
   providers: ProxyMetricsEntitySummary[];
   app_provider_pairs: ProxyMetricsPairSummary[];
   recent_requests: ProxyRequestMetric[];
+  provider_runtime: ProviderRuntimeState[];
+  poller_runtime: PollerRuntimeState[];
+}
+
+export type ProviderRuntimeStatus = 'unknown' | 'healthy' | 'half_open' | 'degraded' | 'circuit_open';
+
+export interface ProviderRuntimeEvent {
+  at: string;
+  kind: string;
+  detail: string;
+}
+
+export interface ProviderRuntimeState {
+  provider_id: string;
+  provider_label: string;
+  status: ProviderRuntimeStatus;
+  failure_threshold: number;
+  cooldown_seconds: number;
+  probe_interval_seconds: number;
+  consecutive_failures: number;
+  last_request_at: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_probe_at: string | null;
+  last_error: string | null;
+  circuit_open_until: string | null;
+  half_open_since: string | null;
+  circuit_open_count: number;
+  recovery_attempts: number;
+  timeline: ProviderRuntimeEvent[];
+  budget_tokens: number;
+  remaining_tokens: number;
+}
+
+export type PollerStrategyRuntime = 'weighted' | 'network_status' | 'weighted_network_status' | 'token_remaining';
+
+export interface PollerTargetRuntimeStat {
+  target_id: string;
+  target_label: string;
+  configured_weight: number;
+  hits: number;
+  last_selected_at: string | null;
+  last_selected_provider_label: string | null;
+}
+
+export interface PollerRuntimeState {
+  poller_id: string;
+  poller_label: string;
+  strategy: PollerStrategyRuntime;
+  cursor: number;
+  failure_threshold: number;
+  cooldown_seconds: number;
+  probe_interval_seconds: number;
+  total_selections: number;
+  last_selected_target: string | null;
+  last_selected_provider_id: string | null;
+  last_selected_provider_label: string | null;
+  last_selected_at: string | null;
+  target_stats: PollerTargetRuntimeStat[];
 }
 
 /** A single application's compiled route table. */
@@ -120,5 +179,6 @@ export interface CompiledRoute {
   extra_headers: Record<string, string>;
   is_default: boolean;
   target_model: string;
+  token_limit?: number | null;
   fuzzy_match: boolean;
 }

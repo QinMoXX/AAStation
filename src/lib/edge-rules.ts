@@ -2,8 +2,14 @@
  * Connection validation rules for React Flow edges.
  * Enforces the allowed edge topology for left-to-right flow:
  *   Application → Switcher      ✅ (output → input)
+ *   Application → Poller        ✅ (output → input)
  *   Application → Provider      ✅ (output → unified)
  *   Switcher    → Provider      ✅ (entry/default → model/unified)
+ *   Switcher    → Switcher      ✅ (entry/default → input)
+ *   Switcher    → Poller        ✅ (entry/default → input)
+ *   Poller      → Switcher      ✅ (target/default → input)
+ *   Poller      → Poller        ✅ (target/default → input)
+ *   Poller      → Provider      ✅ (target/default → model/unified)
  *   Provider    → *             ❌ (provider has no output)
  *   Switcher    → Application   ❌ (wrong direction)
  *   Provider    → Provider      ❌ (no provider chaining)
@@ -26,10 +32,8 @@ export const EDGE_RULE_MESSAGES = {
   SOURCE_HANDLE_ALREADY_CONNECTED: '无法多节点输出',
   PROVIDER_HAS_NO_OUTPUT: 'Provider 是终点节点，不能作为连线起点',
   CANNOT_TARGET_APPLICATION: '不能连接到 Application 节点',
-  NO_NESTED_SWITCHER: '不支持嵌套交换器',
   MODEL_MATCHER_NEEDS_MODEL_HANDLE:
     '模型匹配器的连线目标应该是 Provider 上的具体模型连接点，而非统一入口',
-  SWITCHER_CANNOT_TARGET_APPLICATION: '交换器节点不能连接到 Application 节点',
   UNSUPPORTED_CONNECTION: '不支持的连接类型',
 } as const;
 
@@ -52,6 +56,7 @@ function getSourceHandleType(
     }
     return 'any';
   }
+  if (sourceNodeType === 'poller') return 'any';
   return 'any';
 }
 
@@ -60,7 +65,7 @@ function getTargetHandleType(
   targetNodeType: string,
   targetHandle: string | null | undefined,
 ): 'model' | 'any' {
-  if (targetNodeType === 'switcher') return 'any';
+  if (targetNodeType === 'switcher' || targetNodeType === 'poller') return 'any';
   if (targetNodeType === 'provider') {
     if (!targetHandle) return 'any';
     if (targetHandle.startsWith('model-')) return 'model';
@@ -69,15 +74,9 @@ function getTargetHandleType(
   return 'any';
 }
 
-function isSwitcherMiddleware(nodeType: string, middlewareType?: string): boolean {
-  return nodeType === 'switcher' && (middlewareType ?? 'switcher') === 'switcher';
-}
-
 export function isValidConnection(
   sourceNodeType: string,
   targetNodeType: string,
-  sourceMiddlewareType?: string,
-  targetMiddlewareType?: string,
   sourceHandle?: string | null,
   targetHandle?: string | null,
   sourceEntries?: SwitcherEntry[],
@@ -90,24 +89,17 @@ export function isValidConnection(
   if (targetNodeType === 'application')
     return { valid: false, reason: EDGE_RULE_MESSAGES.CANNOT_TARGET_APPLICATION };
 
-  // No Switcher-to-Switcher
-  if (
-    isSwitcherMiddleware(sourceNodeType, sourceMiddlewareType) &&
-    isSwitcherMiddleware(targetNodeType, targetMiddlewareType)
-  )
-    return { valid: false, reason: EDGE_RULE_MESSAGES.NO_NESTED_SWITCHER };
-
-  // Application → Switcher (valid)
-  if (sourceNodeType === 'application' && isSwitcherMiddleware(targetNodeType, targetMiddlewareType))
+  // Application → Switcher/Poller (valid)
+  if (sourceNodeType === 'application' && (targetNodeType === 'switcher' || targetNodeType === 'poller'))
     return { valid: true };
 
   // Application → Provider (valid)
   if (sourceNodeType === 'application' && targetNodeType === 'provider')
     return { valid: true };
 
-  // Switcher → Provider: check handle type matching
-  if (isSwitcherMiddleware(sourceNodeType, sourceMiddlewareType) && targetNodeType === 'provider') {
-    const srcType = getSourceHandleType('switcher', sourceHandle ?? null, sourceEntries ?? []);
+  // Switcher/Poller → Provider: check handle type matching
+  if ((sourceNodeType === 'switcher' || sourceNodeType === 'poller') && targetNodeType === 'provider') {
+    const srcType = getSourceHandleType(sourceNodeType, sourceHandle ?? null, sourceEntries ?? []);
     const tgtType = getTargetHandleType('provider', targetHandle ?? null);
 
     // model → model: ✅
@@ -126,9 +118,13 @@ export function isValidConnection(
     return { valid: true };
   }
 
-  // Switcher → Application (wrong direction)
-  if (isSwitcherMiddleware(sourceNodeType, sourceMiddlewareType) && targetNodeType === 'application')
-    return { valid: false, reason: EDGE_RULE_MESSAGES.SWITCHER_CANNOT_TARGET_APPLICATION };
+  // Switcher/Poller → Switcher/Poller (valid chaining)
+  if (
+    (sourceNodeType === 'switcher' || sourceNodeType === 'poller') &&
+    (targetNodeType === 'switcher' || targetNodeType === 'poller')
+  ) {
+    return { valid: true };
+  }
 
   return { valid: false, reason: EDGE_RULE_MESSAGES.UNSUPPORTED_CONNECTION };
 }

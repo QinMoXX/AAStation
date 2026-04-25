@@ -4,10 +4,12 @@ import { useAppStore } from '../../store/app-store';
 import type {
   ProviderNodeData,
   SwitcherNodeData,
+  PollerNodeData,
   ApplicationNodeData,
   AAStationNodeData,
   ProviderModel,
   SwitcherEntry,
+  PollerTarget,
 } from '../../types';
 import { NodeTag } from '../../types';
 import { getProviderIcon } from '../icons/ProviderIcons';
@@ -167,7 +169,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
             <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
               {Icon && <Icon style={{ width: 16, height: 16 }} />}
             </span>
-            <strong>{preset.name}</strong> Preset — URLs are fixed
+            <strong>{preset.name}</strong> 预设供应商，地址不可修改
           </div>
         );
       })()}
@@ -182,7 +184,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
       </div>
 
       <div style={fieldGap}>
-        <label style={labelStyle}>OpenAI Base URL</label>
+        <label style={labelStyle}>OpenAI 基础地址</label>
         <input
           style={isPreset ? readonlyInputStyle : inputStyle}
           value={data.baseUrl}
@@ -191,12 +193,12 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           disabled={isPreset}
         />
         <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          Include version path (e.g. /v1). Used for OpenAI-style requests.
+          需要包含版本路径，例如 `/v1`。用于 OpenAI 兼容请求。
         </div>
       </div>
 
       <div style={fieldGap}>
-        <label style={labelStyle}>Anthropic Base URL <span style={{ color: '#6b7280', fontWeight: 400 }}>(optional)</span></label>
+        <label style={labelStyle}>Anthropic 基础地址 <span style={{ color: '#6b7280', fontWeight: 400 }}>(可选)</span></label>
         <input
           style={isPreset ? readonlyInputStyle : inputStyle}
           value={data.anthropicBaseUrl || ''}
@@ -205,12 +207,12 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           disabled={isPreset}
         />
         <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          Without version path. When set, Anthropic-style requests use this URL directly.
+          不需要版本路径。设置后，Anthropic 兼容请求会直接使用这个地址。
         </div>
       </div>
 
       <div style={fieldGap}>
-        <label style={labelStyle}>API Key</label>
+        <label style={labelStyle}>API 密钥</label>
         <input
           style={inputStyle}
           type="password"
@@ -220,9 +222,25 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
         />
       </div>
 
+      <div style={fieldGap}>
+        <label style={labelStyle}>Token 预算 <span style={{ color: '#6b7280', fontWeight: 400 }}>(单位：百万)</span></label>
+        <input
+          style={inputStyle}
+          type="number"
+          min={1}
+          step={1}
+          value={data.tokenLimit ?? 1}
+          placeholder="1 = 100万"
+          onChange={(e) => onUpdate({ tokenLimit: Math.max(1, Number(e.target.value) || 1) })}
+        />
+        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+          token_remaining 按百万为单位配置，默认 1 表示 100 万 tokens。
+        </div>
+      </div>
+
       {/* Models section */}
       <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ ...sectionTitle, marginBottom: 0 }}>Models</span>
+        <span style={{ ...sectionTitle, marginBottom: 0 }}>模型列表</span>
         <div style={{ display: 'flex', gap: 4 }}>
           {isPreset && availablePresetModels.length > 0 && (
             <select
@@ -240,7 +258,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
                 if (e.target.value) addPresetModel(e.target.value);
               }}
             >
-              <option value="">+ Quick Add</option>
+              <option value="">+ 快速添加</option>
               {availablePresetModels.map((m) => (
                 <option key={m.name} value={m.name}>
                   {m.label || m.name}
@@ -260,14 +278,14 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
               cursor: 'pointer',
             }}
           >
-            + Custom
+            + 自定义
           </button>
         </div>
       </div>
 
       {data.models.length === 0 && (
         <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-          No models yet. {isPreset ? 'Use Quick Add or ' : ''}Click "+ Custom" to create one.
+          暂无模型。{isPreset ? '可使用“快速添加”或' : ''}点击“+ 自定义”创建。
         </div>
       )}
 
@@ -284,7 +302,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: '#93c5fd' }}>
-              Model #{index + 1}
+              模型 #{index + 1}
             </span>
             <button
               onClick={() => removeModel(model.id)}
@@ -303,7 +321,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           </div>
 
           <div style={{ marginBottom: 6 }}>
-            <label style={labelStyle}>Name</label>
+            <label style={labelStyle}>模型名称</label>
             <input
               style={inputStyle}
               value={model.name}
@@ -318,7 +336,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
               checked={model.enabled}
               onChange={(e) => updateModel(model.id, { enabled: e.target.checked })}
             />
-            <span style={{ fontSize: 11, color: '#9ca3af' }}>Enabled</span>
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>启用</span>
           </div>
         </div>
       ))}
@@ -445,7 +463,7 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
           </div>
 
           <div style={{ marginBottom: 6 }}>
-            <label style={labelStyle}>Match Type</label>
+            <label style={labelStyle}>匹配类型</label>
             <select
               style={inputStyle}
               value={entry.matchType}
@@ -455,14 +473,14 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
                 })
               }
             >
-              <option value="model">Model</option>
-              <option value="path_prefix">Path Prefix</option>
-              <option value="header">Header</option>
+              <option value="model">模型</option>
+              <option value="path_prefix">路径前缀</option>
+              <option value="header">请求头</option>
             </select>
           </div>
 
           <div>
-            <label style={labelStyle}>Pattern</label>
+            <label style={labelStyle}>匹配模式</label>
             <input
               style={inputStyle}
               value={entry.pattern}
@@ -475,6 +493,194 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
               }
               onChange={(e) => updateEntry(entry.id, { pattern: e.target.value })}
             />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Application form
+// ---------------------------------------------------------------------------
+
+function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch: Partial<PollerNodeData>) => void }) {
+  const addTarget = useCallback(() => {
+    const newTarget: PollerTarget = {
+      id: crypto.randomUUID(),
+      label: '',
+      enabled: true,
+      weight: 1,
+    };
+    onUpdate({ targets: [...data.targets, newTarget] });
+  }, [data.targets, onUpdate]);
+
+  const removeTarget = useCallback(
+    (targetId: string) => {
+      onUpdate({ targets: data.targets.filter((target) => target.id !== targetId) });
+    },
+    [data.targets, onUpdate],
+  );
+
+  const updateTarget = useCallback(
+    (targetId: string, patch: Partial<PollerTarget>) => {
+      onUpdate({
+        targets: data.targets.map((target) => (target.id === targetId ? { ...target, ...patch } : target)),
+      });
+    },
+    [data.targets, onUpdate],
+  );
+
+  return (
+    <>
+      <div style={fieldGap}>
+        <label style={labelStyle}>名称</label>
+        <input
+          style={inputStyle}
+          value={data.label}
+          onChange={(e) => onUpdate({ label: e.target.value })}
+        />
+      </div>
+
+      <div style={fieldGap}>
+        <label style={labelStyle}>策略</label>
+        <select
+          style={inputStyle}
+          value={data.strategy}
+          onChange={(e) => onUpdate({ strategy: e.target.value as PollerNodeData['strategy'] })}
+        >
+          <option value="weighted">加权轮询</option>
+          <option value="network_status">网络状态优先</option>
+          <option value="weighted_network_status">加权 + 网络状态</option>
+          <option value="token_remaining">剩余额度优先</option>
+        </select>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 12 }}>
+        <div>
+          <label style={labelStyle}>失败阈值</label>
+          <input
+            style={inputStyle}
+            type="number"
+            min={1}
+            value={data.failureThreshold}
+            onChange={(e) => onUpdate({ failureThreshold: Math.max(1, Number(e.target.value) || 1) })}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>冷却时间(秒)</label>
+          <input
+            style={inputStyle}
+            type="number"
+            min={1}
+            value={data.cooldownSeconds}
+            onChange={(e) => onUpdate({ cooldownSeconds: Math.max(1, Number(e.target.value) || 1) })}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>探测间隔(秒)</label>
+          <input
+            style={inputStyle}
+            type="number"
+            min={5}
+            value={data.probeIntervalSeconds}
+            onChange={(e) => onUpdate({ probeIntervalSeconds: Math.max(5, Number(e.target.value) || 5) })}
+          />
+        </div>
+      </div>
+
+      <div style={{ ...fieldGap, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="checkbox"
+          checked={data.hasDefault}
+          onChange={(e) => onUpdate({ hasDefault: e.target.checked })}
+        />
+        <span style={{ fontSize: 12, color: '#9ca3af' }}>启用默认回退</span>
+      </div>
+
+      <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ ...sectionTitle, marginBottom: 0 }}>轮询目标</span>
+        <button
+          onClick={addTarget}
+          style={{
+            fontSize: 12,
+            padding: '2px 10px',
+            border: '1px solid #a855f7',
+            borderRadius: 4,
+            background: '#581c87',
+            color: '#e9d5ff',
+            cursor: 'pointer',
+          }}
+        >
+          + 添加
+        </button>
+      </div>
+
+      {data.targets.length === 0 && (
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+          还没有轮询目标。点击“+ 添加”创建一个。
+        </div>
+      )}
+
+      {data.targets.map((target, index) => (
+        <div
+          key={target.id}
+          style={{
+            marginBottom: 10,
+            padding: 8,
+            borderRadius: 6,
+            border: '1px solid #7e22ce',
+            background: '#581c87',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#e9d5ff' }}>
+              目标 #{index + 1}
+            </span>
+            <button
+              onClick={() => removeTarget(target.id)}
+              style={{
+                fontSize: 11,
+                padding: '1px 6px',
+                border: '1px solid #7f1d1d',
+                borderRadius: 3,
+                background: '#7f1d1d',
+                color: '#fca5a5',
+                cursor: 'pointer',
+              }}
+            >
+              删除
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>名称</label>
+            <input
+              style={inputStyle}
+              value={target.label}
+              placeholder="供应商 A"
+              onChange={(e) => updateTarget(target.id, { label: e.target.value })}
+            />
+          </div>
+
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>权重</label>
+            <input
+              style={inputStyle}
+              type="number"
+              min={1}
+              value={target.weight}
+              onChange={(e) => updateTarget(target.id, { weight: Math.max(1, Number(e.target.value) || 1) })}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={target.enabled}
+              onChange={(e) => updateTarget(target.id, { enabled: e.target.checked })}
+            />
+            <span style={{ fontSize: 11, color: '#d8b4fe' }}>启用</span>
           </div>
         </div>
       ))}
@@ -553,18 +759,19 @@ export default function NodePanel() {
   const headerColors: Record<string, { bg: string; text: string }> = {
     provider: { bg: '#3b82f6', text: '#fff' },
     switcher: { bg: '#f59e0b', text: '#fff' },
+    poller: { bg: '#a855f7', text: '#fff' },
     application: { bg: '#16a34a', text: '#fff' },
   };
   const theme = headerColors[data.nodeType] ?? headerColors.provider;
   const nodeDisplayName =
-    data.nodeType === 'switcher'
-      ? MIDDLEWARE_CONFIG[data.middlewareType]?.name || data.middlewareType || 'Middleware'
+    data.nodeType === 'switcher' || data.nodeType === 'poller'
+      ? MIDDLEWARE_CONFIG[data.nodeType]?.name || data.nodeType || 'Middleware'
       : data.nodeType;
   const appIconKey = data.nodeType === 'application'
     ? APPLICATION_DEFAULTS[data.appType]?.icon
     : '';
-  const middlewareIconKey = data.nodeType === 'switcher'
-    ? MIDDLEWARE_CONFIG[data.middlewareType]?.icon
+  const middlewareIconKey = data.nodeType === 'switcher' || data.nodeType === 'poller'
+    ? MIDDLEWARE_CONFIG[data.nodeType]?.icon
     : '';
   const headerIconKey = appIconKey || middlewareIconKey;
   const HeaderIcon = headerIconKey ? getProviderIcon(headerIconKey) : null;
@@ -573,7 +780,10 @@ export default function NodePanel() {
       return APPLICATION_DEFAULTS[data.appType]?.tag ?? NodeTag.Any;
     }
     if (data.nodeType === 'switcher') {
-      return MIDDLEWARE_CONFIG[data.middlewareType]?.tag ?? NodeTag.Any;
+      return MIDDLEWARE_CONFIG.switcher?.tag ?? NodeTag.Any;
+    }
+    if (data.nodeType === 'poller') {
+      return MIDDLEWARE_CONFIG.poller?.tag ?? NodeTag.Any;
     }
     if (data.nodeType === 'provider') {
       const presetTag = data.presetId
@@ -632,9 +842,10 @@ export default function NodePanel() {
         <ProviderForm data={data} onUpdate={handleUpdate} />
       )}
       {data.nodeType === 'switcher' && (
-        data.middlewareType === 'switcher'
-          ? <SwitcherForm data={data} onUpdate={handleUpdate} />
-          : <div style={{ fontSize: 12, color: '#9ca3af' }}>暂不支持的中间件类型：{data.middlewareType}</div>
+        <SwitcherForm data={data} onUpdate={handleUpdate} />
+      )}
+      {data.nodeType === 'poller' && (
+        <PollerForm data={data} onUpdate={handleUpdate} />
       )}
       {data.nodeType === 'application' && (
         <ApplicationForm data={data} onUpdate={handleUpdate} />

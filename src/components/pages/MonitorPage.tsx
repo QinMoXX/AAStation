@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getProxyMetrics } from '../../lib/tauri-api';
 import { useAppStore } from '../../store/app-store';
 import type {
+  PollerRuntimeState,
+  ProviderRuntimeState,
   ProxyMetricsEntitySummary,
   ProxyMetricsSnapshot,
   ProxyMetricsSummary,
@@ -52,6 +54,12 @@ function formatNumber(value: number): string {
 function formatCompact(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return formatNumber(value);
+}
+
+function formatMillions(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)} K`;
   return formatNumber(value);
 }
 
@@ -578,6 +586,162 @@ function TrendChart({
   );
 }
 
+function RuntimeStatusCard({
+  providers,
+  pollers,
+}: {
+  providers: ProviderRuntimeState[];
+  pollers: PollerRuntimeState[];
+}) {
+  const statusColor = (status: ProviderRuntimeState['status']) => {
+    switch (status) {
+      case 'healthy': return '#22c55e';
+      case 'degraded': return '#f59e0b';
+      case 'circuit_open': return '#ef4444';
+      default: return '#64748b';
+    }
+  };
+
+  const statusLabel = (status: ProviderRuntimeState['status']) => {
+    switch (status) {
+      case 'healthy': return '健康';
+      case 'half_open': return '半开恢复';
+      case 'degraded': return '降级';
+      case 'circuit_open': return '熔断中';
+      default: return '未知';
+    }
+  };
+
+  const pollerStrategyLabel = (strategy: PollerRuntimeState['strategy']) => {
+    switch (strategy) {
+      case 'weighted': return '加权轮询';
+      case 'network_status': return '网络状态优先';
+      case 'weighted_network_status': return '加权 + 网络状态';
+      case 'token_remaining': return '剩余额度优先';
+      default: return strategy;
+    }
+  };
+
+  return (
+    <div className="ui-card" style={{ ...cardStyle, padding: 20 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, color: '#f8fafc', marginBottom: 18 }}>
+        运行时状态
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>供应商健康 / 熔断</div>
+          {providers.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>暂无供应商运行态数据</div>}
+          {providers.slice(0, 8).map((provider) => (
+            <div
+              key={provider.provider_id}
+              style={{
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                background: 'rgba(15, 23, 42, 0.55)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                <div style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{provider.provider_label}</div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: statusColor(provider.status),
+                    background: `${statusColor(provider.status)}22`,
+                    border: `1px solid ${statusColor(provider.status)}55`,
+                    borderRadius: 999,
+                    padding: '2px 8px',
+                  }}
+                >
+                  {statusLabel(provider.status)}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
+                <div>连续失败: {formatNumber(provider.consecutive_failures)}</div>
+                <div>剩余额度: {formatMillions(provider.remaining_tokens)}</div>
+                <div>阈值 / 冷却: {provider.failure_threshold} / {provider.cooldown_seconds}s</div>
+                <div>探测间隔: {provider.probe_interval_seconds}s</div>
+                <div>半开开始: {formatDateTime(provider.half_open_since)}</div>
+                <div>恢复试探: {formatNumber(provider.recovery_attempts)}</div>
+                <div>探测时间: {formatDateTime(provider.last_probe_at)}</div>
+                <div>熔断至: {formatDateTime(provider.circuit_open_until)}</div>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>熔断时间线</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {provider.timeline.length === 0 && (
+                    <div style={{ fontSize: 11, color: '#64748b' }}>暂无熔断事件</div>
+                  )}
+                  {provider.timeline.slice(-4).reverse().map((event) => (
+                    <div key={`${provider.provider_id}-${event.at}-${event.kind}`} style={{ fontSize: 11, color: '#cbd5e1', lineHeight: 1.5 }}>
+                      <span style={{ color: '#94a3b8' }}>{formatDateTime(event.at)}</span>
+                      {' · '}
+                      <span>{event.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {provider.last_error && (
+                <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
+                  最近错误: {provider.last_error}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>轮询节点最近选路</div>
+          {pollers.length === 0 && <div style={{ color: '#64748b', fontSize: 13 }}>暂无轮询节点运行态数据</div>}
+          {pollers.slice(0, 8).map((poller) => (
+            <div
+              key={poller.poller_id}
+              style={{
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                background: 'rgba(15, 23, 42, 0.55)',
+              }}
+            >
+              <div style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{poller.poller_label}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
+                <div>策略: {pollerStrategyLabel(poller.strategy)}</div>
+                <div>游标: {poller.cursor}</div>
+                <div>阈值 / 冷却: {poller.failure_threshold} / {poller.cooldown_seconds}s</div>
+                <div>探测间隔: {poller.probe_interval_seconds}s</div>
+                <div>总选路: {formatNumber(poller.total_selections)}</div>
+                <div>最近目标: {poller.last_selected_target || '-'}</div>
+              </div>
+              <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
+                最近供应商: {poller.last_selected_provider_label || '-'}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                最近时间: {formatDateTime(poller.last_selected_at)}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>权重命中统计</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {poller.target_stats.length === 0 && (
+                    <div style={{ fontSize: 11, color: '#64748b' }}>暂无目标命中数据</div>
+                  )}
+                  {poller.target_stats.slice(0, 4).map((stat) => (
+                    <div key={`${poller.poller_id}-${stat.target_id}`} style={{ fontSize: 11, color: '#cbd5e1', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8 }}>
+                      <span>{stat.target_label || stat.target_id}</span>
+                      <span style={{ color: '#a78bfa' }}>权重 {stat.configured_weight}</span>
+                      <span style={{ color: '#94a3b8' }}>命中 {formatNumber(stat.hits)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MonitorPage() {
   const proxyStatus = useAppStore((s) => s.proxyStatus);
   const [snapshot, setSnapshot] = useState<ProxyMetricsSnapshot | null>(null);
@@ -924,6 +1088,11 @@ export default function MonitorPage() {
             accent="var(--ui-monitor-summary-4)"
           />
         </div>
+
+        <RuntimeStatusCard
+          providers={snapshot?.provider_runtime ?? []}
+          pollers={snapshot?.poller_runtime ?? []}
+        />
 
         <div
           style={{

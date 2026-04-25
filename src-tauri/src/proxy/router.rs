@@ -81,6 +81,7 @@ mod tests {
             extra_headers: HashMap::new(),
             is_default: false,
             target_model: String::new(),
+            token_limit: None,
             fuzzy_match: false,
         }
     }
@@ -98,6 +99,7 @@ mod tests {
             extra_headers: HashMap::new(),
             is_default: true,
             target_model: String::new(),
+            token_limit: None,
             fuzzy_match: false,
         }
     }

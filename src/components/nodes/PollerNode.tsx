@@ -1,37 +1,27 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import type { SwitcherNodeData } from '../../types';
+import type { PollerNodeData } from '../../types';
 import { MIDDLEWARE_CONFIG } from '../../store/flow-store';
 import { getProviderIcon } from '../icons/ProviderIcons';
 
-/** Match-type display labels. */
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  path_prefix: 'Path',
-  header: 'Header',
-  model: 'Model',
+const STRATEGY_LABELS: Record<PollerNodeData['strategy'], string> = {
+  round_robin: '加权轮询',
+  weighted: '加权轮询',
+  network_status: '网络状态优先',
+  weighted_network_status: '加权 + 网络状态',
+  token_remaining: '剩余额度优先',
 };
 
-/** Handle type colors: model=blue, any=orange */
-const HANDLE_COLORS: Record<string, string> = {
-  model: '#3b82f6', // blue for model-type handles
-  any: '#f97316',   // orange for generic handles
-};
-
-function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
-  const middlewareConfig = MIDDLEWARE_CONFIG.switcher;
-  const middlewareName =
-    middlewareConfig?.name
-    || 'switcher'
-    || 'Middleware';
+function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
+  const middlewareConfig = MIDDLEWARE_CONFIG.poller;
   const MiddlewareIcon = middlewareConfig?.icon ? getProviderIcon(middlewareConfig.icon) : null;
-  const entryCount = data.entries.length;
 
   return (
     <div
       style={{
         padding: '12px 16px',
         borderRadius: 8,
-        border: selected ? '2px solid #f97316' : '2px solid #e5e7eb',
+        border: selected ? '2px solid #a855f7' : '2px solid #e5e7eb',
         background: '#fff',
         minWidth: 220,
         fontSize: 13,
@@ -40,13 +30,12 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       }}
     >
-      {/* Main input handle on the LEFT side - connects from Application output */}
       <Handle
         type="target"
         position={Position.Left}
         id="input"
         style={{
-          background: '#f97316',
+          background: '#a855f7',
           width: 12,
           height: 12,
           top: '50%',
@@ -54,26 +43,24 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
           transform: 'translateY(-50%)',
           border: '3px solid #fff',
         }}
-        title="Input [any] — from Application"
+        title="Input"
       />
 
-      {/* Header */}
       <div style={{ fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, color: '#374151' }}>
         {MiddlewareIcon && <MiddlewareIcon style={{ width: 16, height: 16 }} />}
-        <span>{data.label || middlewareName}</span>
+        <span>{data.label || middlewareConfig?.name || 'Poller'}</span>
       </div>
 
-      {/* Entry count */}
       <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 8 }}>
-        {entryCount === 0
-          ? '无匹配器'
-          : `${entryCount} 个匹配器`}
+        {STRATEGY_LABELS[data.strategy]}
+      </div>
+      <div style={{ color: '#9ca3af', fontSize: 11, marginBottom: 8 }}>
+        阈值 {data.failureThreshold} / 冷却 {data.cooldownSeconds}s / 探测 {data.probeIntervalSeconds}s
       </div>
 
-      {/* Matcher entries with RIGHT-side output handles (to Provider model handles) */}
-      {data.entries.map((entry, index, arr) => (
+      {data.targets.map((target, index, arr) => (
         <div
-          key={entry.id}
+          key={target.id}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -91,19 +78,15 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
           }}
         >
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>
-              {entry.label || `Matcher #${index + 1}`}
-            </div>
-            <div style={{ color: '#6b7280', fontSize: 11 }}>
-              {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || '—'}
-            </div>
+            <div style={{ fontWeight: 500 }}>{target.label || `目标 #${index + 1}`}</div>
+            <div style={{ color: '#6b7280', fontSize: 11 }}>运行时动态选择 · 权重 {target.weight}</div>
           </div>
           <Handle
             type="source"
             position={Position.Right}
-            id={`entry-${entry.id}`}
+            id={`target-${target.id}`}
             style={{
-              background: HANDLE_COLORS[entry.matchType] || HANDLE_COLORS.any,
+              background: '#a855f7',
               width: 12,
               height: 12,
               right: -10,
@@ -111,20 +94,18 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
               transform: 'translateY(-50%)',
               border: '3px solid #fff',
             }}
-            title={`[${entry.matchType}] Connect to Provider${entry.matchType === 'model' ? ' model' : ''} (matches: ${entry.pattern || '—'})`}
+            title="Poller target"
           />
         </div>
       ))}
 
-      {/* Default route with RIGHT-side output handle */}
       {data.hasDefault && (
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            paddingTop: data.entries.length > 0 ? 6 : 8,
+            paddingTop: data.targets.length > 0 ? 6 : 8,
             paddingBottom: 6,
-            borderTop: data.entries.length > 0 ? 'none' : '1px solid #d1d5db',
             marginBottom: -12,
             fontSize: 12,
             color: '#374151',
@@ -136,17 +117,15 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
           }}
         >
           <div>
-            <div style={{ fontWeight: 500 }}>Default</div>
-            <div style={{ color: '#6b7280', fontSize: 11 }}>
-              Fallback when no matchers match
-            </div>
+            <div style={{ fontWeight: 500 }}>默认回退</div>
+            <div style={{ color: '#6b7280', fontSize: 11 }}>未命中目标时回退</div>
           </div>
           <Handle
             type="source"
             position={Position.Right}
             id="default"
             style={{
-              background: '#f97316',
+              background: '#a855f7',
               width: 12,
               height: 12,
               right: -10,
@@ -154,13 +133,12 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
               transform: 'translateY(-50%)',
               border: '3px solid #fff',
             }}
-            title="Default [any] — fallback to Provider"
+            title="默认目标"
           />
         </div>
       )}
 
-      {/* Hint when no entries */}
-      {entryCount === 0 && !data.hasDefault && (
+      {data.targets.length === 0 && !data.hasDefault && (
         <div
           style={{
             marginTop: 8,
@@ -172,11 +150,11 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
             textAlign: 'center',
           }}
         >
-          Add matchers or enable default route
+          添加轮询目标后即可连线
         </div>
       )}
     </div>
   );
 }
 
-export default memo(SwitcherNode);
+export default memo(PollerNode);

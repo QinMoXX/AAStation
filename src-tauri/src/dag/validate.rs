@@ -27,6 +27,8 @@ pub enum ValidationErrorKind {
     ProviderNoApiKey,
     /// A switcher node has no matcher entries.
     SwitcherNoEntries,
+    /// A poller node has no targets.
+    PollerNoTargets,
     /// Invalid edge: source or target node does not exist.
     EdgeToMissingNode,
     /// Invalid edge: connection type not allowed.
@@ -41,6 +43,7 @@ impl std::fmt::Display for ValidationErrorKind {
             ValidationErrorKind::ProviderNoBaseUrl => write!(f, "provider_no_base_url"),
             ValidationErrorKind::ProviderNoApiKey => write!(f, "provider_no_api_key"),
             ValidationErrorKind::SwitcherNoEntries => write!(f, "switcher_no_entries"),
+            ValidationErrorKind::PollerNoTargets => write!(f, "poller_no_targets"),
             ValidationErrorKind::EdgeToMissingNode => write!(f, "edge_to_missing_node"),
             ValidationErrorKind::InvalidEdgeType => write!(f, "invalid_edge_type"),
             ValidationErrorKind::NodeDataInvalid => write!(f, "node_data_invalid"),
@@ -151,19 +154,45 @@ pub fn validate(doc: &DAGDocument) -> Vec<ValidationError> {
             NodeType::Application => {
                 // Application nodes without outgoing edges are allowed — they simply won't produce routes
             }
+            NodeType::Poller => {
+                if let Ok(data) = serde_json::from_value::<PollerNodeData>(node.data.clone()) {
+                    if data.targets.is_empty() && !data.has_default {
+                        errors.push(ValidationError {
+                            kind: ValidationErrorKind::PollerNoTargets,
+                            message: format!(
+                                "Poller node '{}' must have at least one target or a default route",
+                                node.id
+                            ),
+                        });
+                    }
+                } else {
+                    errors.push(ValidationError {
+                        kind: ValidationErrorKind::NodeDataInvalid,
+                        message: format!("Poller node '{}' has invalid data", node.id),
+                    });
+                }
+            }
         }
     }
 
     errors
 }
 
-/// Allowed: Application→Switcher, Application→Provider, Switcher→Provider
+/// Allowed:
+/// - Application → Switcher/Poller/Provider
+/// - Switcher/Poller → Switcher/Poller/Provider
 fn is_valid_edge(source: NodeType, target: NodeType) -> bool {
     matches!(
         (source, target),
         (NodeType::Application, NodeType::Switcher)
+            | (NodeType::Application, NodeType::Poller)
             | (NodeType::Application, NodeType::Provider)
+            | (NodeType::Switcher, NodeType::Switcher)
+            | (NodeType::Switcher, NodeType::Poller)
             | (NodeType::Switcher, NodeType::Provider)
+            | (NodeType::Poller, NodeType::Switcher)
+            | (NodeType::Poller, NodeType::Poller)
+            | (NodeType::Poller, NodeType::Provider)
     )
 }
 
@@ -182,6 +211,7 @@ mod tests {
                 base_url: base_url.to_string(),
                 anthropic_base_url: None,
                 api_key: api_key.to_string(),
+                token_limit: None,
                 models,
             })
             .unwrap(),

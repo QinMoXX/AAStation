@@ -15,6 +15,7 @@ import { toast } from '../../store/toast-store';
 import type { SwitcherNodeData } from '../../types';
 import ProviderNode from '../nodes/ProviderNode';
 import SwitcherNode from '../nodes/SwitcherNode';
+import PollerNode from '../nodes/PollerNode';
 import ApplicationNode from '../nodes/ApplicationNode';
 import CustomEdge from '../edges/CustomEdge';
 
@@ -22,6 +23,7 @@ import CustomEdge from '../edges/CustomEdge';
 const nodeTypes: NodeTypes = {
   provider: ProviderNode,
   switcher: SwitcherNode,
+  poller: PollerNode,
   application: ApplicationNode,
 };
 
@@ -72,15 +74,13 @@ export default function FlowCanvas() {
       if (!sourceNode || !targetNode) return false;
 
       // Get entries from source node if it's a switcher
-      const sourceEntries = sourceNode.data.nodeType === 'switcher' && sourceNode.data.middlewareType === 'switcher'
+      const sourceEntries = sourceNode.data.nodeType === 'switcher'
         ? (sourceNode.data as SwitcherNodeData).entries
         : undefined;
 
       const result = isValidConnection(
         sourceNode.data.nodeType,
         targetNode.data.nodeType,
-        sourceNode.data.nodeType === 'switcher' ? sourceNode.data.middlewareType : undefined,
-        targetNode.data.nodeType === 'switcher' ? targetNode.data.middlewareType : undefined,
         edge.sourceHandle,
         edge.targetHandle,
         sourceEntries,
@@ -140,6 +140,7 @@ export default function FlowCanvas() {
             switch (node.data?.nodeType) {
               case 'provider': return '#3b82f6';
               case 'switcher': return '#f97316';
+              case 'poller': return '#a855f7';
               case 'application': return '#22c55e';
               default: return '#6b7280';
             }

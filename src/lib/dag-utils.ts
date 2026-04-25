@@ -18,6 +18,7 @@ import type {
   AAStationNodeData,
   ProviderNodeData,
   SwitcherNodeData,
+  PollerNodeData,
   ApplicationNodeData,
 } from '../types';
 
@@ -175,6 +176,7 @@ function nodeDataToFrontend(
         baseUrl: (camelData.baseUrl as string) || '',
         anthropicBaseUrl: camelData.anthropicBaseUrl as string | undefined,
         apiKey: (camelData.apiKey as string) || '',
+        tokenLimit: (camelData.tokenLimit as number | undefined) ?? 1,
         models: (camelData.models as ProviderNodeData['models']) || [],
         description: camelData.description as string | undefined,
       } as ProviderNodeData;
@@ -189,12 +191,30 @@ function nodeDataToFrontend(
       });
       return {
         nodeType: 'switcher',
-        middlewareType: (camelData.middlewareType as string) || 'switcher',
         label: (camelData.label as string) || 'Switcher',
         entries,
         hasDefault: (camelData.hasDefault as boolean) ?? false,
         description: camelData.description as string | undefined,
       } as SwitcherNodeData;
+    }
+    case 'poller':
+    {
+      const strategy = (camelData.strategy as PollerNodeData['strategy']) || 'weighted';
+      const normalizedStrategy = strategy === 'round_robin' ? 'weighted' : strategy;
+      return {
+        nodeType: 'poller',
+        label: (camelData.label as string) || 'Poller',
+        strategy: normalizedStrategy,
+        targets: ((camelData.targets as PollerNodeData['targets']) || []).map((target) => ({
+          ...target,
+          weight: target.weight ?? 1,
+        })),
+        hasDefault: (camelData.hasDefault as boolean) ?? false,
+        failureThreshold: (camelData.failureThreshold as number | undefined) ?? 3,
+        cooldownSeconds: (camelData.cooldownSeconds as number | undefined) ?? 30,
+        probeIntervalSeconds: (camelData.probeIntervalSeconds as number | undefined) ?? 20,
+        description: camelData.description as string | undefined,
+      } as PollerNodeData;
     }
     case 'application':
     case 'terminal': // backward compatibility with older data files

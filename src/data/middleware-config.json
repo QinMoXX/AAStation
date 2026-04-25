@@ -3,5 +3,10 @@
     "name": "Switcher",
     "icon": "switcher",
     "tag": "any"
+  },
+  "poller": {
+    "name": "Poller",
+    "icon": "poller",
+    "tag": "any"
   }
 }
