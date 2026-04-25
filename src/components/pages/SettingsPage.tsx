@@ -532,6 +532,7 @@ export default function SettingsPage() {
         >
           <input
             type="checkbox"
+            className="ui-checkbox"
             checked={launchAtStartup}
             onChange={(e) => setLaunchAtStartup(e.target.checked)}
           />

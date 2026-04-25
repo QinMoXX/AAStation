@@ -185,6 +185,9 @@ html, body {
   border: 1px solid var(--ui-border-soft);
   background: rgba(0, 0, 0, 0.24);
   color: var(--ui-text);
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.2;
   transition:
     box-shadow var(--ui-trans),
     border-color var(--ui-trans),
@@ -192,10 +195,86 @@ html, body {
   outline: none;
 }
 
+.ui-select {
+  min-height: 40px;
+  padding: 10px 40px 10px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ui-muted) 50%),
+    linear-gradient(135deg, var(--ui-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.ui-select:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: var(--ui-border);
+}
+
+.ui-select option {
+  background: #0f1115;
+  color: var(--ui-text);
+}
+
 .ui-input:focus,
 .ui-select:focus {
   border-color: var(--ui-focus-border);
   box-shadow: 0 0 0 3px var(--ui-focus-ring);
+}
+
+.ui-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  transition:
+    box-shadow var(--ui-trans),
+    border-color var(--ui-trans),
+    background-color var(--ui-trans);
+}
+
+.ui-checkbox::after {
+  content: '';
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #f8fafc;
+  border-bottom: 2px solid #f8fafc;
+  transform: rotate(-45deg) scale(0);
+  transform-origin: center;
+  margin-top: -1px;
+  transition: transform 140ms ease;
+}
+
+.ui-checkbox:hover {
+  border-color: var(--ui-border);
+}
+
+.ui-checkbox:focus-visible {
+  border-color: var(--ui-focus-border);
+  box-shadow: 0 0 0 3px var(--ui-focus-ring);
+}
+
+.ui-checkbox:checked {
+  border-color: var(--ui-btn-primary-border);
+  background: var(--ui-btn-primary-bg);
+}
+
+.ui-checkbox:checked::after {
+  transform: rotate(-45deg) scale(1);
 }
 
 .ui-table-row {

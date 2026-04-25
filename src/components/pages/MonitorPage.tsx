@@ -1032,8 +1032,6 @@ export default function MonitorPage() {
               className="ui-select"
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                borderRadius: 12,
               }}
             >
               <option value="all">全部应用</option>
@@ -1053,8 +1051,6 @@ export default function MonitorPage() {
               className="ui-select"
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                borderRadius: 12,
               }}
             >
               <option value="all">全部供应商</option>
