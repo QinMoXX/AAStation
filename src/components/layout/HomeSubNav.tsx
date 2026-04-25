@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
 import { getProviderIcon } from '../icons/ProviderIcons';
-import type { AppType, MiddlewareType } from '../../types';
+import { NodeTag, type AppType, type MiddlewareType } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -25,6 +25,30 @@ const panelTitleStyle: React.CSSProperties = {
   fontWeight: 600,
   color: 'var(--ui-text)',
 };
+
+const tagFilterWrapStyle: React.CSSProperties = {
+  marginTop: 10,
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+};
+
+const tagChipBaseStyle: React.CSSProperties = {
+  height: 22,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(255, 255, 255, 0.16)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 11,
+  fontWeight: 500,
+  cursor: 'pointer',
+  userSelect: 'none',
+  transition: 'all 0.15s',
+};
+
+const tagChipBorderColor = 'rgba(255, 255, 255, 0.16)';
 
 const sectionStyle: React.CSSProperties = {
   padding: '0 8px 8px',
@@ -84,6 +108,12 @@ const categoryIconStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
+const emptyTextStyle: React.CSSProperties = {
+  padding: '6px 8px 6px 28px',
+  fontSize: 12,
+  color: 'var(--ui-dim)',
+};
+
 // ---------------------------------------------------------------------------
 // Category Data
 // ---------------------------------------------------------------------------
@@ -128,6 +158,20 @@ const CATEGORIES: CategoryDef[] = [
   },
 ];
 
+const TAG_OPTIONS: NodeTag[] = [
+  NodeTag.Any,
+  NodeTag.ClaudeCode,
+  NodeTag.OpenCode,
+  NodeTag.CodexCli,
+];
+
+const TAG_LABEL_MAP: Record<NodeTag, string> = {
+  [NodeTag.Any]: '全部',
+  [NodeTag.ClaudeCode]: 'Claude Code',
+  [NodeTag.OpenCode]: 'OpenCode',
+  [NodeTag.CodexCli]: 'Codex CLI',
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -145,6 +189,7 @@ export default function HomeSubNav() {
     () => Object.entries(MIDDLEWARE_CONFIG) as [MiddlewareType, (typeof MIDDLEWARE_CONFIG)[MiddlewareType]][],
     []
   );
+  const [selectedTag, setSelectedTag] = useState<NodeTag>(NodeTag.Any);
 
   const switcherCount = nodes.filter((n) => n.data.nodeType === 'switcher').length;
   const appCount = nodes.filter((n) => n.data.nodeType === 'application').length;
@@ -160,6 +205,26 @@ export default function HomeSubNav() {
   const toggleCategory = useCallback((id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
+
+  const matchByTag = useCallback(
+    (itemTag: NodeTag) => selectedTag === NodeTag.Any || itemTag === selectedTag,
+    [selectedTag],
+  );
+
+  const filteredApplicationItems = useMemo(
+    () => applicationItems.filter(([, appDefault]) => matchByTag(appDefault.tag)),
+    [applicationItems, matchByTag],
+  );
+
+  const filteredMiddlewareItems = useMemo(
+    () => middlewareItems.filter(([, middleware]) => matchByTag(middleware.tag)),
+    [middlewareItems, matchByTag],
+  );
+
+  const filteredProviderPresets = useMemo(
+    () => PRESET_PROVIDERS.filter((preset) => matchByTag(preset.tag)),
+    [matchByTag],
+  );
 
   const handleAddPreset = useCallback(
     (presetId: string) => {
@@ -188,6 +253,25 @@ export default function HomeSubNav() {
     <div style={panelStyle} className="ui-subsidebar">
       <div style={panelHeaderStyle} data-tauri-drag-region>
         <div style={panelTitleStyle}>节点组件</div>
+        <div style={tagFilterWrapStyle}>
+          {TAG_OPTIONS.map((tag) => {
+            const active = selectedTag === tag;
+            return (
+              <div
+                key={tag}
+                style={{
+                  ...tagChipBaseStyle,
+                  borderColor: active ? 'rgba(99, 102, 241, 0.65)' : tagChipBorderColor,
+                  background: active ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                  color: active ? '#c7d2fe' : 'var(--ui-muted)',
+                }}
+                onClick={() => setSelectedTag(tag)}
+              >
+                {TAG_LABEL_MAP[tag]}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div style={sectionStyle}>
@@ -216,7 +300,7 @@ export default function HomeSubNav() {
                   {/* Application items */}
                   {cat.id === 'application' && (
                     <>
-                      {applicationItems.map(([appType, appDefault]) => {
+                      {filteredApplicationItems.map(([appType, appDefault]) => {
                         const Icon = getProviderIcon(appDefault.icon);
                         return (
                           <div
@@ -235,13 +319,16 @@ export default function HomeSubNav() {
                           </div>
                         );
                       })}
+                      {filteredApplicationItems.length === 0 && (
+                        <div style={emptyTextStyle}>当前筛选下无可用应用节点</div>
+                      )}
                     </>
                   )}
 
                   {/* Middleware items */}
                   {cat.id === 'middleware' && (
                     <>
-                      {middlewareItems.map(([middlewareType, middleware]) => {
+                      {filteredMiddlewareItems.map(([middlewareType, middleware]) => {
                         const Icon = getProviderIcon(middleware.icon);
                         return (
                           <div
@@ -258,13 +345,16 @@ export default function HomeSubNav() {
                           </div>
                         );
                       })}
+                      {filteredMiddlewareItems.length === 0 && (
+                        <div style={emptyTextStyle}>当前筛选下无可用中间件节点</div>
+                      )}
                     </>
                   )}
 
                   {/* Provider items */}
                   {cat.id === 'provider' && (
                     <>
-                      {PRESET_PROVIDERS.map((preset) => {
+                      {filteredProviderPresets.map((preset) => {
                         const Icon = getProviderIcon(preset.icon);
                         const isCustomProvider = preset.createMode === 'custom';
                         return (
@@ -282,6 +372,9 @@ export default function HomeSubNav() {
                           </div>
                         );
                       })}
+                      {filteredProviderPresets.length === 0 && (
+                        <div style={emptyTextStyle}>当前筛选下无可用供应商节点</div>
+                      )}
                     </>
                   )}
                 </div>
