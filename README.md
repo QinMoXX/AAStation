@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/QinMoXX/AAStation/releases">
-    <img src="https://img.shields.io/badge/version-0.7.0-blue" alt="Version" />
+    <img src="https://img.shields.io/badge/version-0.7.1-blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
   <img src="https://img.shields.io/badge/Tauri-2.0-orange" alt="Tauri" />
