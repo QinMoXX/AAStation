@@ -9,7 +9,7 @@ export type MiddlewareType = 'switcher' | 'poller';
 export interface MiddlewareDefinition {
   name: string;
   icon: string;
-  tag: NodeTag;
+  tag: NodeTag[];
 }
 
 /** Middleware config keyed by middleware type, used by UI and defaults. */

@@ -785,24 +785,25 @@ export default function NodePanel() {
     : '';
   const headerIconKey = appIconKey || middlewareIconKey;
   const HeaderIcon = headerIconKey ? getProviderIcon(headerIconKey) : null;
-  const nodeTag: NodeTag = (() => {
+  const nodeTags: NodeTag[] = (() => {
     if (data.nodeType === 'application') {
-      return APPLICATION_DEFAULTS[data.appType]?.tag ?? NodeTag.Any;
+      return APPLICATION_DEFAULTS[data.appType]?.tag ?? [NodeTag.Any];
     }
     if (data.nodeType === 'switcher') {
-      return MIDDLEWARE_CONFIG.switcher?.tag ?? NodeTag.Any;
+      return MIDDLEWARE_CONFIG.switcher?.tag ?? [NodeTag.Any];
     }
     if (data.nodeType === 'poller') {
-      return MIDDLEWARE_CONFIG.poller?.tag ?? NodeTag.Any;
+      return MIDDLEWARE_CONFIG.poller?.tag ?? [NodeTag.Any];
     }
     if (data.nodeType === 'provider') {
       const presetTag = data.presetId
         ? PRESET_PROVIDERS.find((p) => p.id === data.presetId)?.tag
         : undefined;
-      return presetTag ?? NodeTag.Any;
+      return presetTag ?? [NodeTag.Any];
     }
-    return NodeTag.Any;
+    return [NodeTag.Any];
   })();
+  const nodeTagLabel = nodeTags.map((tag) => tagLabelMap[tag] ?? tag).join(' | ');
 
   return (
     <div style={panelStyle}>
@@ -843,7 +844,7 @@ export default function NodePanel() {
       <div style={fieldGap}>
         <label style={labelStyle}>Tag</label>
         <div style={tagPillStyle} title="只读标签，不可修改">
-          {tagLabelMap[nodeTag] ?? nodeTag}
+          {nodeTagLabel}
         </div>
       </div>
 

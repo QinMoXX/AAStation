@@ -20,8 +20,8 @@ export interface ProviderPreset {
   anthropicBaseUrl?: string;
   /** Default label for new nodes (user can modify). */
   defaultLabel: string;
-  /** Capability tag for compatibility filtering. */
-  tag: NodeTag;
+  /** Capability tags for compatibility filtering. */
+  tag: NodeTag[];
   /** Available models for quick selection. */
   models: PresetModel[];
 }

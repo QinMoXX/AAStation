@@ -2,11 +2,11 @@
   "switcher": {
     "name": "Switcher",
     "icon": "switcher",
-    "tag": "any"
+    "tag": ["any"]
   },
   "poller": {
     "name": "Poller",
     "icon": "poller",
-    "tag": "any"
+    "tag": ["any"]
   }
 }

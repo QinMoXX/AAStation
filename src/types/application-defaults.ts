@@ -11,8 +11,8 @@ export interface ApplicationDefault {
   icon: string;
   /** Optional helper text shown in node panel. */
   helpText?: string;
-  /** Capability tag for compatibility filtering. */
-  tag: NodeTag;
+  /** Capability tags for compatibility filtering. */
+  tag: NodeTag[];
 }
 
 /** Map of application node defaults by app type. */

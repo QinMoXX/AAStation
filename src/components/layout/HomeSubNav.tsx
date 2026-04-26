@@ -207,7 +207,10 @@ export default function HomeSubNav() {
   }, []);
 
   const matchByTag = useCallback(
-    (itemTag: NodeTag) => selectedTag === NodeTag.Any || itemTag === selectedTag,
+    (itemTags: NodeTag[]) =>
+      selectedTag === NodeTag.Any ||
+      itemTags.includes(NodeTag.Any) ||
+      itemTags.includes(selectedTag),
     [selectedTag],
   );
 
