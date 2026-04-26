@@ -566,6 +566,7 @@ input[type="number"] {
 }
 
 .ui-chip {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -577,6 +578,7 @@ input[type="number"] {
   color: var(--ui-muted);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   transition: all var(--ui-trans);
 }
@@ -602,42 +604,103 @@ input[type="number"] {
 }
 
 .ui-subnav-category-header {
+  appearance: none;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 10px;
+  border: 1px solid transparent;
   border-radius: 12px;
+  background: transparent;
   color: var(--ui-text);
   cursor: pointer;
+  text-align: left;
   transition: all var(--ui-trans);
 }
 
 .ui-subnav-category-header:hover {
   background: rgba(30, 41, 59, 0.58);
+  border-color: rgba(96, 165, 250, 0.14);
 }
 
 .ui-subnav-category-count {
   margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.72);
   color: var(--ui-dim);
   font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ui-subnav-item {
+  appearance: none;
+  width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin-top: 4px;
-  padding: 9px 10px 9px 30px;
-  border-radius: 12px;
+  padding: 10px 10px 10px 30px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
   color: var(--ui-muted);
   cursor: pointer;
+  text-align: left;
   transition: all var(--ui-trans);
 }
 
 .ui-subnav-item:hover {
   background: rgba(30, 41, 59, 0.62);
+  border-color: rgba(96, 165, 250, 0.16);
   color: var(--ui-text);
   transform: translateX(2px);
+}
+
+.ui-subnav-item-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ui-subnav-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-text);
+}
+
+.ui-subnav-item-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--ui-dim);
+}
+
+.ui-subnav-item-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--ui-dim);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .ui-subnav-empty {

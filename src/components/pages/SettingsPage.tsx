@@ -45,10 +45,26 @@ const subSidebarStyle: React.CSSProperties = {
 const contentAreaStyle: React.CSSProperties = {
   flex: 1,
   overflow: 'auto',
+  minWidth: 0,
   padding: '36px 24px 24px',
 };
 
 const cardStyle: React.CSSProperties = {};
+
+const contentWrapStyle: React.CSSProperties = {
+  width: '100%',
+  margin: '0 auto',
+};
+
+const generalPanelWrapStyle: React.CSSProperties = {
+  ...contentWrapStyle,
+  maxWidth: 860,
+};
+
+const applicationPanelWrapStyle: React.CSSProperties = {
+  ...contentWrapStyle,
+  maxWidth: 980,
+};
 
 const fieldStyle: React.CSSProperties = {
   marginBottom: 18,
@@ -499,83 +515,58 @@ export default function SettingsPage() {
   };
 
   const renderGeneralPanel = () => (
-    <div className="ui-card" style={{ ...cardStyle, maxWidth: 860, padding: 24 }}>
-      <h2 style={{ fontSize: 22, color: '#f8fafc', margin: '0 0 16px' }}>常规设置</h2>
-      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 22 }}>
-        用于配置代理监听地址、端口范围和代理认证令牌展示。
-      </div>
-
-      <div style={fieldStyle}>
-        <label style={labelStyle}>监听端口范围</label>
-        <input
-          type="text"
-          value={portRange}
-          placeholder="9527-9537"
-          onChange={(e) => setPortRange(e.target.value)}
-          className="ui-input"
-          style={inputStyle}
-        />
-        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-          单端口示例: 9527；范围示例: 9527-9537。发布时会从该范围内分配应用端口。
+    <div style={generalPanelWrapStyle}>
+      <div className="ui-card" style={{ ...cardStyle, padding: 24 }}>
+        <h2 style={{ fontSize: 22, color: '#f8fafc', margin: '0 0 16px' }}>常规设置</h2>
+        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 22 }}>
+          用于配置代理监听地址、端口范围和代理认证令牌展示。
         </div>
-      </div>
-
-      <div style={fieldStyle}>
-        <label style={labelStyle}>绑定地址</label>
-        <input
-          type="text"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="ui-input"
-          style={inputStyle}
-        />
-      </div>
-
-      <div style={fieldStyle}>
-        <label style={labelStyle}>
-          日志目录大小上限（MB）
-        </label>
-        <input
-          type="number"
-          min={1}
-          value={logDirMaxMb}
-          onChange={(e) => setLogDirMaxMb(e.target.value)}
-          className="ui-input"
-          style={{ ...inputStyle, width: 180 }}
-        />
-        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-          软件启动时若日志目录总大小超过此值，将自动从最旧的文件开始删除。默认 500 MB。
-        </div>
-      </div>
-
-      <div style={fieldStyle}>
-        <label style={labelStyle}>系统启动</label>
-        <label
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 14,
-            color: '#e2e8f0',
-            cursor: 'pointer',
-          }}
-        >
+        
+        <div style={fieldStyle}>
+          <label style={labelStyle}>监听端口范围</label>
           <input
-            type="checkbox"
-            className="ui-checkbox"
-            checked={launchAtStartup}
-            onChange={(e) => setLaunchAtStartup(e.target.checked)}
+            type="text"
+            value={portRange}
+            placeholder="9527-9537"
+            onChange={(e) => setPortRange(e.target.value)}
+            className="ui-input"
+            style={inputStyle}
           />
-          开机自启动
-        </label>
-        <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-          勾选后会在系统启动时自动启动 AAStation。
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+            单端口示例: 9527；范围示例: 9527-9537。发布时会从该范围内分配应用端口。
+          </div>
         </div>
-      </div>
 
-      <div style={fieldStyle}>
-        <label style={labelStyle}>自动更新</label>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>绑定地址</label>
+          <input
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            className="ui-input"
+            style={inputStyle}
+          />
+        </div>
+
+        <div style={fieldStyle}>
+          <label style={labelStyle}>
+            日志目录大小上限（MB）
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={logDirMaxMb}
+            onChange={(e) => setLogDirMaxMb(e.target.value)}
+            className="ui-input"
+            style={{ ...inputStyle, width: 'min(180px, 100%)' }}
+          />
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+            软件启动时若日志目录总大小超过此值，将自动从最旧的文件开始删除。默认 500 MB。
+          </div>
+        </div>
+
+        <div style={fieldStyle}>
+          <label style={labelStyle}>系统启动</label>
           <label
             style={{
               display: 'inline-flex',
@@ -589,101 +580,129 @@ export default function SettingsPage() {
             <input
               type="checkbox"
               className="ui-checkbox"
-              checked={autoCheckUpdate}
-              onChange={(e) => setAutoCheckUpdate(e.target.checked)}
+              checked={launchAtStartup}
+              onChange={(e) => setLaunchAtStartup(e.target.checked)}
             />
-            启动时自动检查更新
+            开机自启动
           </label>
-          <label
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: 14,
-              color: '#e2e8f0',
-              cursor: autoCheckUpdate ? 'pointer' : 'not-allowed',
-              opacity: autoCheckUpdate ? 1 : 0.66,
-            }}
-          >
-            <input
-              type="checkbox"
-              className="ui-checkbox"
-              checked={autoInstallUpdate}
-              disabled={!autoCheckUpdate}
-              onChange={(e) => setAutoInstallUpdate(e.target.checked)}
-            />
-            发现更新后自动下载并安装
-          </label>
-          <div style={{ fontSize: 12, color: '#64748b' }}>
-            版本来源为 GitHub Releases，安装前会做签名校验。Windows 下安装时可能触发系统安装器窗口。
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+            勾选后会在系统启动时自动启动 AAStation。
           </div>
-          <div>
-            <button
-              onClick={handleManualUpdateCheck}
-              disabled={checkingUpdate}
-              className="ui-btn"
-              style={{ ...buttonBaseStyle, padding: '7px 12px', fontSize: 12 }}
+        </div>
+
+        <div style={fieldStyle}>
+          <label style={labelStyle}>自动更新</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 14,
+                color: '#e2e8f0',
+                cursor: 'pointer',
+              }}
             >
-              {checkingUpdate ? '检查中...' : '立即检查更新'}
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                checked={autoCheckUpdate}
+                onChange={(e) => setAutoCheckUpdate(e.target.checked)}
+              />
+              启动时自动检查更新
+            </label>
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 14,
+                color: '#e2e8f0',
+                cursor: autoCheckUpdate ? 'pointer' : 'not-allowed',
+                opacity: autoCheckUpdate ? 1 : 0.66,
+              }}
+            >
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                checked={autoInstallUpdate}
+                disabled={!autoCheckUpdate}
+                onChange={(e) => setAutoInstallUpdate(e.target.checked)}
+              />
+              发现更新后自动下载并安装
+            </label>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              版本来源为 GitHub Releases，安装前会做签名校验。Windows 下安装时可能触发系统安装器窗口。
+            </div>
+            <div>
+              <button
+                onClick={handleManualUpdateCheck}
+                disabled={checkingUpdate}
+                className="ui-btn"
+                style={{ ...buttonBaseStyle, padding: '7px 12px', fontSize: 12 }}
+              >
+                {checkingUpdate ? '检查中...' : '立即检查更新'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style={fieldStyle}>
+          <label style={labelStyle}>
+            代理认证令牌
+            <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>
+              只读 · 客户端通过此令牌向代理认证
+            </span>
+          </label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type={tokenVisible ? 'text' : 'password'}
+              value={tokenVisible ? authToken : maskedToken}
+              readOnly
+              className="ui-input"
+              style={{
+                ...inputStyle,
+                flex: '1 1 320px',
+                minWidth: 0,
+                color: tokenVisible ? '#f9fafb' : '#6b7280',
+                cursor: 'default',
+                userSelect: 'all',
+              }}
+            />
+            <button
+              onClick={() => setTokenVisible(!tokenVisible)}
+              className="ui-btn"
+              style={buttonBaseStyle}
+            >
+              {tokenVisible ? '隐藏' : '显示'}
+            </button>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(authToken);
+                toast.success('令牌已复制');
+              }}
+              className="ui-btn"
+              style={buttonBaseStyle}
+            >
+              复制
             </button>
           </div>
         </div>
-      </div>
 
-      <div style={fieldStyle}>
-        <label style={labelStyle}>
-          代理认证令牌
-          <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>
-            只读 · 客户端通过此令牌向代理认证
-          </span>
-        </label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            type={tokenVisible ? 'text' : 'password'}
-            value={tokenVisible ? authToken : maskedToken}
-            readOnly
-            className="ui-input"
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+          <button
+            onClick={handleSaveGeneral}
+            disabled={saving}
+            className="ui-btn ui-btn-primary"
             style={{
-              ...inputStyle,
-              flex: 1,
-              color: tokenVisible ? '#f9fafb' : '#6b7280',
-              cursor: 'default',
-              userSelect: 'all',
+              ...buttonBaseStyle,
+              minWidth: 120,
+              cursor: saving ? 'not-allowed' : 'pointer',
             }}
-          />
-          <button
-            onClick={() => setTokenVisible(!tokenVisible)}
-            className="ui-btn"
-            style={buttonBaseStyle}
           >
-            {tokenVisible ? '隐藏' : '显示'}
-          </button>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(authToken);
-              toast.success('令牌已复制');
-            }}
-            className="ui-btn"
-            style={buttonBaseStyle}
-          >
-            复制
+            {saving ? '保存中...' : '保存设置'}
           </button>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
-        <button
-          onClick={handleSaveGeneral}
-          disabled={saving}
-          className="ui-btn ui-btn-primary"
-          style={{
-            ...buttonBaseStyle,
-            minWidth: 120,
-            cursor: saving ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {saving ? '保存中...' : '保存设置'}
-        </button>
       </div>
     </div>
   );
@@ -727,7 +746,7 @@ export default function SettingsPage() {
     });
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 980 }}>
+      <div style={{ ...applicationPanelWrapStyle, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
             <h2 style={{ fontSize: 22, color: '#f8fafc', margin: 0 }}>应用设置</h2>
@@ -1217,9 +1236,6 @@ export default function SettingsPage() {
       <aside style={subSidebarStyle} className="ui-subsidebar">
         <div style={{ padding: '4px 8px 12px' }}>
           <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>设置</div>
-          <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
-            二级菜单
-          </div>
         </div>
         {subTabs.map((item) => {
           const active = subTab === item.key;

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
 import { getProviderIcon } from '../icons/ProviderIcons';
 import { NodeTag, type AppType, type MiddlewareType } from '../../types';
@@ -85,15 +86,53 @@ const TAG_LABEL_MAP: Record<NodeTag, string> = {
   [NodeTag.CodexCli]: 'Codex CLI',
 };
 
+function getApplicationDesc(appType: AppType, helpText?: string): string {
+  if (helpText) {
+    return helpText.split(/[。.!?]/)[0]?.trim() || '应用入口节点';
+  }
+  switch (appType) {
+    case 'claude_code':
+      return 'Claude Code 代理入口';
+    case 'open_code':
+      return 'OpenCode 代理入口';
+    case 'codex_cli':
+      return 'Codex CLI 代理入口';
+    default:
+      return '通用应用监听入口';
+  }
+}
+
+function getMiddlewareDesc(type: MiddlewareType): string {
+  switch (type) {
+    case 'switcher':
+      return '按模型、路径或请求头分流';
+    case 'poller':
+      return '按策略动态选择下游目标';
+    default:
+      return '中间件节点';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function HomeSubNav() {
-  const addNode = useFlowStore((s) => s.addNode);
-  const addMiddlewareNode = useFlowStore((s) => s.addMiddlewareNode);
-  const addPresetProviderNode = useFlowStore((s) => s.addPresetProviderNode);
-  const nodes = useFlowStore((s) => s.nodes);
+  const {
+    addNode,
+    addMiddlewareNode,
+    addPresetProviderNode,
+    appCount,
+    middlewareCount,
+    providerCount,
+  } = useFlowStore(useShallow(useCallback((s) => ({
+      addNode: s.addNode,
+      addMiddlewareNode: s.addMiddlewareNode,
+      addPresetProviderNode: s.addPresetProviderNode,
+      appCount: s.nodes.filter((n) => n.data.nodeType === 'application').length,
+      middlewareCount: s.nodes.filter((n) => n.data.nodeType === 'switcher' || n.data.nodeType === 'poller').length,
+      providerCount: s.nodes.filter((n) => n.data.nodeType === 'provider').length,
+    }), [])));
   const applicationItems = useMemo(
     () => Object.entries(APPLICATION_DEFAULTS) as [AppType, (typeof APPLICATION_DEFAULTS)[AppType]][],
     []
@@ -103,10 +142,6 @@ export default function HomeSubNav() {
     []
   );
   const [selectedTag, setSelectedTag] = useState<NodeTag>(NodeTag.Any);
-
-  const middlewareCount = nodes.filter((n) => n.data.nodeType === 'switcher' || n.data.nodeType === 'poller').length;
-  const appCount = nodes.filter((n) => n.data.nodeType === 'application').length;
-  const providerCount = nodes.filter((n) => n.data.nodeType === 'provider').length;
 
   // Track which categories are expanded (all open by default)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -169,7 +204,6 @@ export default function HomeSubNav() {
     <div className="ui-subnav ui-subsidebar">
       <div className="ui-subnav-header" data-tauri-drag-region>
         <div className="ui-subnav-title">节点组件</div>
-        <div className="ui-subnav-subtitle">保持现有编排布局，仅统一视觉层级与交互观感。</div>
         <div className="ui-chip-group">
           {TAG_OPTIONS.map((tag) => {
             const active = selectedTag === tag;
@@ -221,9 +255,13 @@ export default function HomeSubNav() {
                             <span style={categoryIconStyle}>
                               {Icon && <Icon style={{ width: 14, height: 14 }} />}
                             </span>
-                            <span style={{ fontWeight: 500 }}>
-                              {appDefault.displayLabel}
+                            <span className="ui-subnav-item-main">
+                              <span className="ui-subnav-item-title">{appDefault.displayLabel}</span>
+                              <span className="ui-subnav-item-desc">
+                                {getApplicationDesc(appType, appDefault.helpText)}
+                              </span>
                             </span>
+                            <span className="ui-subnav-item-badge">应用</span>
                           </button>
                         );
                       })}
@@ -247,7 +285,11 @@ export default function HomeSubNav() {
                             <span style={categoryIconStyle}>
                               {Icon && <Icon style={{ width: 14, height: 14 }} />}
                             </span>
-                            <span style={{ fontWeight: 500 }}>{middleware.name}</span>
+                            <span className="ui-subnav-item-main">
+                              <span className="ui-subnav-item-title">{middleware.name}</span>
+                              <span className="ui-subnav-item-desc">{getMiddlewareDesc(middlewareType)}</span>
+                            </span>
+                            <span className="ui-subnav-item-badge">中间件</span>
                           </button>
                         );
                       })}
@@ -262,6 +304,11 @@ export default function HomeSubNav() {
                       {filteredProviderPresets.map((preset) => {
                         const Icon = getProviderIcon(preset.icon);
                         const isCustomProvider = preset.createMode === 'custom';
+                        const providerDesc = isCustomProvider
+                          ? '创建自定义供应商节点'
+                          : preset.models.length > 0
+                            ? `${preset.models.length} 个模型预设`
+                            : '快速添加供应商节点';
                         return (
                           <button
                             key={preset.id}
@@ -272,7 +319,13 @@ export default function HomeSubNav() {
                             <span style={categoryIconStyle}>
                               {Icon && <Icon style={{ width: 14, height: 14 }} />}
                             </span>
-                            <span style={{ fontWeight: 500 }}>{preset.name}</span>
+                            <span className="ui-subnav-item-main">
+                              <span className="ui-subnav-item-title">{preset.name}</span>
+                              <span className="ui-subnav-item-desc">{providerDesc}</span>
+                            </span>
+                            <span className="ui-subnav-item-badge">
+                              {isCustomProvider ? '自定义' : '预设'}
+                            </span>
                           </button>
                         );
                       })}

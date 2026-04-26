@@ -726,11 +726,14 @@ function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpda
 
 export default function NodePanel() {
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
-  const nodes = useFlowStore((s) => s.nodes);
   const updateNodeData = useFlowStore((s) => s.updateNodeData);
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
-
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const selectedNode = useFlowStore(
+    useCallback(
+      (s) => (selectedNodeId ? s.nodes.find((n) => n.id === selectedNodeId) ?? null : null),
+      [selectedNodeId],
+    ),
+  );
 
   const handleUpdate = useCallback(
     (patch: Partial<AAStationNodeData>) => {

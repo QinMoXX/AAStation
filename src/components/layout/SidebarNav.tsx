@@ -66,22 +66,6 @@ const navItems: { id: NavTab; icon: React.FC<{ size?: number }>; label: string }
   { id: 'settings', icon: SettingsIcon, label: '设置' },
 ];
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatUptime(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  return `${h}h`;
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function SidebarNav() {
   const { activeTab, setTab } = useNavStore();
   const proxyStatus = useAppStore((s) => s.proxyStatus);
@@ -200,22 +184,6 @@ export default function SidebarNav() {
       >
         <PowerIcon size={20} />
       </button>
-
-      <div className="ui-sidebar-status">
-        <div
-          className={`ui-sidebar-status-dot${proxyStatus.running ? ' running' : ''}`}
-          title={proxyStatus.running ? `Port ${proxyStatus.port}` : 'Proxy offline'}
-        />
-        {proxyStatus.running ? (
-          <div>
-            :{proxyStatus.port}
-            <br />
-            {proxyStatus.total_requests}req · {formatUptime(proxyStatus.uptime_seconds)}
-          </div>
-        ) : (
-          <div>offline</div>
-        )}
-      </div>
     </nav>
   );
 }

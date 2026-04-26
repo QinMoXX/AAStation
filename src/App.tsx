@@ -9,9 +9,12 @@ import { checkAndMaybeInstallUpdate } from './lib/tauri-api';
 import { useSettingsStore } from './store/settings-store';
 import { toast } from './store/toast-store';
 
-function AppInner() {
+function DagSyncBridge() {
   useDagSync();
+  return null;
+}
 
+function AppInner() {
   // Load settings on mount
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loaded = useSettingsStore((s) => s.loaded);
@@ -41,11 +44,14 @@ function AppInner() {
   }, [loaded, settings.autoCheckUpdate, settings.autoInstallUpdate]);
 
   return (
-    <AppLayout>
-      <FlowCanvas />
-      <CanvasToolbar />
-      <NodePanel />
-    </AppLayout>
+    <>
+      <DagSyncBridge />
+      <AppLayout>
+        <FlowCanvas />
+        <CanvasToolbar />
+        <NodePanel />
+      </AppLayout>
+    </>
   );
 }
 
