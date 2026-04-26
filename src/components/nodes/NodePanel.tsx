@@ -43,10 +43,10 @@ const panelCardClass =
   'rounded-2xl border-[rgba(120,146,190,0.18)] bg-[rgba(12,22,42,0.96)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]';
 
 const panelPillButtonClass =
-  'h-7 rounded-full px-2.5 text-[10px] font-medium gap-1.5 [&_svg]:size-3';
+  'h-5 rounded-full px-2 text-[9px] font-medium gap-1 [&_svg]:size-3';
 
 const panelDangerPillButtonClass =
-  'h-7 rounded-full px-2.5 text-[10px] font-medium gap-1.5 bg-destructive/16 border-destructive/24 text-rose-200 hover:bg-destructive/24 [&_svg]:size-3';
+  'h-5 rounded-full px-2 text-[9px] font-medium gap-1 bg-destructive/16 border-destructive/24 text-rose-200 hover:bg-destructive/24 [&_svg]:size-3';
 
 // ---------------------------------------------------------------------------
 // Provider form
@@ -194,7 +194,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
         <div className="flex gap-1">
           {isPreset && availablePresetModels.length > 0 && (
             <Select onValueChange={(val) => { if (val) addPresetModel(val); }}>
-              <SelectTrigger className={cn('h-[30px] w-auto text-xs', panelFieldClass)}>
+            <SelectTrigger className={cn('h-7 w-auto text-[9px]', panelFieldClass)}>
                 <SelectValue placeholder="+ 快速添加" />
               </SelectTrigger>
               <SelectContent>
@@ -659,10 +659,10 @@ export default function NodePanel() {
         <Button
           variant="ghost"
           size="icon"
-          className="w-8 h-8 rounded-xl border border-border bg-surface/70"
+          className="h-7 w-7 rounded-lg border border-border bg-surface/70"
           onClick={() => setSelectedNodeId(null)}
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </Button>
       </div>
 

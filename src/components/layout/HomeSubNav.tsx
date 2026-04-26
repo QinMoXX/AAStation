@@ -139,36 +139,38 @@ export default function HomeSubNav() {
   );
 
   return (
-    <div className="w-[272px] h-full flex flex-col shrink-0 border-r border-border-soft bg-sidebar-surface backdrop-blur-xl">
+    <div className="w-[304px] max-w-full min-w-0 h-full flex flex-col shrink-0 border-r border-border-soft bg-sidebar-surface backdrop-blur-xl">
       <div className="px-[18px] pt-[22px] pb-[14px] border-b border-border-soft" data-tauri-drag-region>
         <div className="text-sm font-bold text-foreground">节点组件</div>
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-1 mt-2.5">
           {TAG_OPTIONS.map((tag) => (
             <button
               key={tag}
               type="button"
               className={cn(
-                "inline-flex items-center justify-center min-h-[28px] px-3 rounded-full border text-[11px] font-semibold leading-none cursor-pointer transition-all duration-200",
+                "inline-flex items-center justify-center h-5 px-1.5 rounded-full border font-medium leading-none cursor-pointer transition-all duration-200",
                 selectedTag === tag
                   ? "border-border bg-card text-foreground shadow-[var(--color-shadow-soft)]"
                   : "border-border bg-surface/60 text-muted hover:border-border-strong hover:text-foreground"
               )}
               onClick={() => setSelectedTag(tag)}
             >
-              {TAG_LABEL_MAP[tag]}
+              <span className="block text-[12px] leading-none tracking-tight">
+                {TAG_LABEL_MAP[tag]}
+              </span>
             </button>
           ))}
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-2.5 pb-3.5">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+        <div className="w-full min-w-0 box-border p-2.5 pr-2 pb-3.5">
           {CATEGORIES.map((cat, catIdx) => {
             const isOpen = expanded[cat.id];
             const count = getCategoryCount(cat.id);
 
             return (
-              <div key={cat.id} className="mb-2.5">
+              <div key={cat.id} className="mb-2.5 min-w-0">
                 <button
                   type="button"
                   className="w-full flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-transparent bg-transparent text-foreground cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70"
@@ -176,7 +178,7 @@ export default function HomeSubNav() {
                 >
                   {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-dim" /> : <ChevronRight className="w-3.5 h-3.5 text-dim" />}
                   <span className="w-4 h-4 flex items-center justify-center shrink-0">{cat.icon}</span>
-                  <span>{cat.label}</span>
+                  <span className="min-w-0 flex-1 truncate">{cat.label}</span>
                   {count > 0 && (
                     <span className="ml-auto min-w-[22px] h-[22px] px-[7px] rounded-full border border-border bg-card/80 text-dim text-[11px] inline-flex items-center justify-center">
                       {count}
@@ -185,7 +187,7 @@ export default function HomeSubNav() {
                 </button>
 
                 {isOpen && (
-                  <div>
+                  <div className="min-w-0">
                     {cat.id === 'application' && (
                       <>
                         {filteredApplicationItems.map(([appType, appDefault]) => {
@@ -194,19 +196,21 @@ export default function HomeSubNav() {
                             <button
                               key={appType}
                               type="button"
-                              className="w-full flex items-start gap-2.5 mt-1 px-2.5 py-2.5 pl-[30px] rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
+                              className="w-full min-w-0 max-w-full box-border overflow-hidden flex flex-wrap items-start gap-x-2.5 gap-y-1 mt-1 px-3 py-2.5 pl-6 rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
                               onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
                             >
                               <span className="w-4 h-4 flex items-center justify-center shrink-0">
                                 {Icon && <Icon className="w-3.5 h-3.5" />}
                               </span>
-                              <span className="min-w-0 flex-1 flex flex-col gap-0.5">
-                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-foreground">{appDefault.displayLabel}</span>
-                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-dim">
+                              <span className="min-w-0 flex-1 basis-[150px] flex flex-col gap-1">
+                                <span className="min-w-0 text-[13px] font-semibold leading-[1.3] text-foreground break-words">
+                                  {appDefault.displayLabel}
+                                </span>
+                                <span className="min-w-0 text-[11px] leading-[1.35] text-dim break-words">
                                   {getApplicationDesc(appType, appDefault.helpText)}
                                 </span>
                               </span>
-                              <Badge variant="outline" className="shrink-0 h-[22px] text-[10px] px-2 border-border bg-card/80 text-dim">应用</Badge>
+                              <Badge variant="outline" className="ml-auto max-w-full shrink-0 self-start h-5 text-[9px] px-1.5 border-border bg-card/80 text-dim">应用</Badge>
                             </button>
                           );
                         })}
@@ -224,17 +228,17 @@ export default function HomeSubNav() {
                             <button
                               key={middlewareType}
                               type="button"
-                              className="w-full flex items-start gap-2.5 mt-1 px-2.5 py-2.5 pl-[30px] rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
+                              className="w-full min-w-0 max-w-full box-border overflow-hidden flex flex-wrap items-start gap-x-2.5 gap-y-1 mt-1 px-3 py-2.5 pl-6 rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
                               onClick={() => addMiddlewareNode(middlewareType)}
                             >
                               <span className="w-4 h-4 flex items-center justify-center shrink-0">
                                 {Icon && <Icon className="w-3.5 h-3.5" />}
                               </span>
-                              <span className="min-w-0 flex-1 flex flex-col gap-0.5">
-                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-foreground">{middleware.name}</span>
-                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-dim">{getMiddlewareDesc(middlewareType)}</span>
+                              <span className="min-w-0 flex-1 basis-[150px] flex flex-col gap-1">
+                                <span className="min-w-0 text-[13px] font-semibold leading-[1.3] text-foreground break-words">{middleware.name}</span>
+                                <span className="min-w-0 text-[11px] leading-[1.35] text-dim break-words">{getMiddlewareDesc(middlewareType)}</span>
                               </span>
-                              <Badge variant="outline" className="shrink-0 h-[22px] text-[10px] px-2 border-border bg-card/80 text-dim">中间件</Badge>
+                              <Badge variant="outline" className="ml-auto max-w-full shrink-0 self-start h-5 text-[9px] px-1.5 border-border bg-card/80 text-dim">中间件</Badge>
                             </button>
                           );
                         })}
@@ -258,17 +262,17 @@ export default function HomeSubNav() {
                             <button
                               key={preset.id}
                               type="button"
-                              className="w-full flex items-start gap-2.5 mt-1 px-2.5 py-2.5 pl-[30px] rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
+                              className="w-full min-w-0 max-w-full box-border overflow-hidden flex flex-wrap items-start gap-x-2.5 gap-y-1 mt-1 px-3 py-2.5 pl-6 rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
                               onClick={() => (isCustomProvider ? handleAddCustom() : handleAddPreset(preset.id))}
                             >
                               <span className="w-4 h-4 flex items-center justify-center shrink-0">
                                 {Icon && <Icon className="w-3.5 h-3.5" />}
                               </span>
-                              <span className="min-w-0 flex-1 flex flex-col gap-0.5">
-                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-foreground">{preset.name}</span>
-                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-dim">{providerDesc}</span>
+                              <span className="min-w-0 flex-1 basis-[150px] flex flex-col gap-1">
+                                <span className="min-w-0 text-[13px] font-semibold leading-[1.3] text-foreground break-words">{preset.name}</span>
+                                <span className="min-w-0 text-[11px] leading-[1.35] text-dim break-words">{providerDesc}</span>
                               </span>
-                              <Badge variant="outline" className="shrink-0 h-[22px] text-[10px] px-2 border-border bg-card/80 text-dim">
+                              <Badge variant="outline" className="ml-auto max-w-full shrink-0 self-start h-5 text-[9px] px-1.5 border-border bg-card/80 text-dim">
                                 {isCustomProvider ? '自定义' : '预设'}
                               </Badge>
                             </button>
