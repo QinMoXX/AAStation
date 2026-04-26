@@ -1,89 +1,22 @@
 import { useEffect } from 'react';
 import { useToastStore, TOAST_DURATION, type ToastType } from '../../store/toast-store';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { CheckCircle2, XCircle, Info, AlertTriangle, X } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const containerStyle: React.CSSProperties = {
-  position: 'fixed',
-  bottom: 44, // above status bar
-  right: 16,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 8,
-  zIndex: 9999,
-  maxWidth: 360,
+const typeStyles: Record<ToastType, string> = {
+  success: 'border-emerald-500/24 bg-emerald-500/10 text-emerald-50',
+  error: 'border-red-500/24 bg-red-500/10 text-red-50',
+  info: 'border-sky-500/24 bg-sky-500/10 text-sky-50',
+  warning: 'border-amber-500/24 bg-amber-500/10 text-amber-50',
 };
 
-const toastBase: React.CSSProperties = {
-  padding: '10px 14px',
-  borderRadius: 8,
-  fontSize: 13,
-  fontWeight: 500,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: 8,
-  animation: 'slideIn 0.2s ease-out',
+const typeIcons: Record<ToastType, React.ReactNode> = {
+  success: <CheckCircle2 className="w-4 h-4 shrink-0" />,
+  error: <XCircle className="w-4 h-4 shrink-0" />,
+  info: <Info className="w-4 h-4 shrink-0" />,
+  warning: <AlertTriangle className="w-4 h-4 shrink-0" />,
 };
-
-const typeStyles: Record<ToastType, React.CSSProperties> = {
-  success: {
-    background: '#166534',
-    color: '#fff',
-    borderLeft: '4px solid #22c55e',
-  },
-  error: {
-    background: '#7f1d1d',
-    color: '#fff',
-    borderLeft: '4px solid #ef4444',
-  },
-  info: {
-    background: '#1e3a5f',
-    color: '#fff',
-    borderLeft: '4px solid #3b82f6',
-  },
-  warning: {
-    background: '#78350f',
-    color: '#fff',
-    borderLeft: '4px solid #f59e0b',
-  },
-};
-
-const iconStyle: React.CSSProperties = {
-  fontSize: 14,
-  lineHeight: 1.4,
-  flexShrink: 0,
-};
-
-const closeBtnStyle: React.CSSProperties = {
-  background: 'transparent',
-  border: 'none',
-  color: 'inherit',
-  opacity: 0.7,
-  cursor: 'pointer',
-  padding: 0,
-  fontSize: 16,
-  lineHeight: 1,
-  marginLeft: 'auto',
-  flexShrink: 0,
-};
-
-// ---------------------------------------------------------------------------
-// Icons
-// ---------------------------------------------------------------------------
-
-const icons: Record<ToastType, string> = {
-  success: '✓',
-  error: '✕',
-  info: 'ℹ',
-  warning: '⚠',
-};
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 function ToastItem({ id, type, message, duration = TOAST_DURATION.DEFAULT }: {
   id: string;
@@ -99,10 +32,20 @@ function ToastItem({ id, type, message, duration = TOAST_DURATION.DEFAULT }: {
   }, [id, duration, remove]);
 
   return (
-    <div style={{ ...toastBase, ...typeStyles[type] }}>
-      <span style={iconStyle}>{icons[type]}</span>
-      <span style={{ flex: 1, lineHeight: 1.4 }}>{message}</span>
-      <button style={closeBtnStyle} onClick={() => remove(id)}>×</button>
+    <div className={cn(
+      "flex items-start gap-3 rounded-xl border px-3.5 py-3 text-sm font-medium shadow-[var(--color-shadow-soft)] backdrop-blur-xl animate-slideIn",
+      typeStyles[type]
+    )}>
+      {typeIcons[type]}
+      <span className="flex-1 leading-snug">{message}</span>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-5 w-5 p-0 text-current/70 hover:text-current hover:bg-transparent"
+        onClick={() => remove(id)}
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }
@@ -111,22 +54,10 @@ export default function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);
 
   return (
-    <div style={containerStyle}>
+    <div className="fixed bottom-6 right-4 flex flex-col gap-2.5 z-[9999] max-w-[380px]">
       {toasts.map((t) => (
         <ToastItem key={t.id} {...t} />
       ))}
-      <style>{`
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
     </div>
   );
 }

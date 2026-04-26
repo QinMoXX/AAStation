@@ -20,10 +20,10 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
   const MiddlewareIcon = middlewareConfig?.icon ? getProviderIcon(middlewareConfig.icon) : null;
   const showTargetWeight = usesTargetWeight(data.strategy);
   const handleBase: React.CSSProperties = {
-    width: 12,
-    height: 12,
-    border: '2px solid #e2e8f0',
-    boxShadow: '0 0 0 4px rgba(15, 23, 42, 0.42)',
+    width: 11,
+    height: 11,
+    border: '2px solid rgba(226, 232, 240, 0.9)',
+    boxShadow: '0 0 0 3px rgba(15, 23, 42, 0.28)',
   };
 
   return (
@@ -43,10 +43,10 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
           ...handleBase,
           background: '#a855f7',
           top: '50%',
-          left: -10,
+          left: -9,
           transform: 'translateY(-50%)',
         }}
-        title="Input"
+        title="输入"
       />
 
       <div className="flow-node-header">
@@ -57,7 +57,7 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
           </div>
           <div className="flow-node-subtitle">{STRATEGY_LABELS[data.strategy]}</div>
         </div>
-        <div className="flow-node-badge accent">Poller</div>
+        <div className="flow-node-badge accent">轮询</div>
       </div>
 
       <div className="flow-node-meta">
@@ -93,11 +93,11 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
                 style={{
                   ...handleBase,
                   background: '#a855f7',
-                  right: -10,
+                  right: -9,
                   top: '50%',
                   transform: 'translateY(-50%)',
                 }}
-                title="Poller target"
+                title="轮询目标"
               />
             </div>
           ))}
@@ -108,7 +108,7 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
                 <div className="flow-node-entry-label">默认回退</div>
                 <div className="flow-node-entry-desc">未命中目标时回退</div>
               </div>
-              <span className="flow-node-badge accent">Default</span>
+              <span className="flow-node-badge accent">默认</span>
               <Handle
                 type="source"
                 position={Position.Right}
@@ -116,11 +116,11 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
                 style={{
                   ...handleBase,
                   background: '#a855f7',
-                  right: -10,
+                  right: -9,
                   top: '50%',
                   transform: 'translateY(-50%)',
                 }}
-                title="默认目标"
+                title="默认回退"
               />
             </div>
           )}

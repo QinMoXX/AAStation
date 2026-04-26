@@ -24,83 +24,33 @@ import {
   unconfigureOpenCode,
 } from '../../lib/tauri-api';
 import type { ApplicationNodeData } from '../../types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import { ChevronRight, Eye, EyeOff, Copy, RefreshCw, Download, FolderOpen, Pause, Play, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type SettingsSubTab = 'general' | 'applications' | 'logs';
 
 const LOG_POLL_INTERVAL_MS = 1200;
 const LOG_MAX_LINES = 1200;
-
-const pageStyle: React.CSSProperties = {
-  flex: 1,
-  display: 'flex',
-  overflow: 'hidden',
-};
-
-const subSidebarStyle: React.CSSProperties = {
-  width: 228,
-  padding: '34px 14px 22px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 8,
-};
-
-const contentAreaStyle: React.CSSProperties = {
-  flex: 1,
-  overflow: 'auto',
-  minWidth: 0,
-  padding: '36px 24px 24px',
-};
-
-const cardStyle: React.CSSProperties = {};
-
-const contentWrapStyle: React.CSSProperties = {
-  width: '100%',
-  margin: '0 auto',
-};
-
-const generalPanelWrapStyle: React.CSSProperties = {
-  ...contentWrapStyle,
-  maxWidth: 860,
-};
-
-const applicationPanelWrapStyle: React.CSSProperties = {
-  ...contentWrapStyle,
-  maxWidth: 980,
-};
-
-const fieldStyle: React.CSSProperties = {
-  marginBottom: 18,
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 13,
-  fontWeight: 500,
-  color: 'var(--ui-muted)',
-  marginBottom: 6,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 12px',
-  borderRadius: 8,
-  fontSize: 14,
-  boxSizing: 'border-box',
-};
-
-const buttonBaseStyle: React.CSSProperties = {
-  padding: '9px 14px',
-  borderRadius: 8,
-  fontSize: 13,
-  fontWeight: 500,
-  cursor: 'pointer',
-};
-
-const subTabs: { key: SettingsSubTab; title: string; desc: string }[] = [
-  { key: 'general', title: '常规', desc: '代理监听与鉴权配置' },
-  { key: 'applications', title: '应用设置', desc: '用户配置入口与备份恢复' },
-  { key: 'logs', title: '日志', desc: '运行时日志实时查看' },
-];
 
 export default function SettingsPage() {
   const { settings, saveSettings } = useSettingsStore();
@@ -202,7 +152,7 @@ export default function SettingsPage() {
         latestVersion: result.latestVersion,
         notes: result.notes,
       });
-      toast.info(`检测到新版本 ${result.latestVersion}，请再次点击“立即更新”开始下载并安装。`);
+      toast.info(`检测到新版本 ${result.latestVersion}，请再次点击"立即更新"开始下载并安装。`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`检查更新失败：${msg}`);
@@ -339,10 +289,6 @@ export default function SettingsPage() {
     }
   };
 
-  // -----------------------------------------------------------------------
-  // OpenCode config actions
-  // -----------------------------------------------------------------------
-
   const handleConfigureOpenCode = async () => {
     if (openCodeActioning) return;
     if (!openCodeProxyUrl) {
@@ -391,10 +337,6 @@ export default function SettingsPage() {
       setOpenCodeActioning(false);
     }
   };
-
-  // -----------------------------------------------------------------------
-  // Codex CLI config actions
-  // -----------------------------------------------------------------------
 
   const handleConfigureCodexCli = async () => {
     if (codexCliActioning) return;
@@ -543,742 +485,525 @@ export default function SettingsPage() {
     pollLogs();
   };
 
-  const renderGeneralPanel = () => (
-    <div style={generalPanelWrapStyle}>
-      <div className="ui-card" style={{ ...cardStyle, padding: 24 }}>
-        <h2 style={{ fontSize: 22, color: '#f8fafc', margin: '0 0 16px' }}>常规设置</h2>
-        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 22 }}>
-          用于配置代理监听地址、端口范围和代理认证令牌展示。
-        </div>
-        
-        <div style={fieldStyle}>
-          <label style={labelStyle}>监听端口范围</label>
-          <input
-            type="text"
-            value={portRange}
-            placeholder="9527-9537"
-            onChange={(e) => setPortRange(e.target.value)}
-            className="ui-input"
-            style={inputStyle}
-          />
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-            单端口示例: 9527；范围示例: 9527-9537。发布时会从该范围内分配应用端口。
-          </div>
-        </div>
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>绑定地址</label>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="ui-input"
-            style={inputStyle}
-          />
-        </div>
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>
-            日志目录大小上限（MB）
-          </label>
-          <input
-            type="number"
-            min={1}
-            value={logDirMaxMb}
-            onChange={(e) => setLogDirMaxMb(e.target.value)}
-            className="ui-input"
-            style={{ ...inputStyle, width: 'min(180px, 100%)' }}
-          />
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-            软件启动时若日志目录总大小超过此值，将自动从最旧的文件开始删除。默认 500 MB。
-          </div>
-        </div>
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>系统启动</label>
-          <label
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: 14,
-              color: '#e2e8f0',
-              cursor: 'pointer',
-            }}
-          >
-            <input
-              type="checkbox"
-              className="ui-checkbox"
-              checked={launchAtStartup}
-              onChange={(e) => setLaunchAtStartup(e.target.checked)}
-            />
-            开机自启动
-          </label>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-            勾选后会在系统启动时自动启动 AAStation。
-          </div>
-        </div>
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>自动更新</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 14,
-                color: '#e2e8f0',
-                cursor: 'pointer',
-              }}
+  // -----------------------------------------------------------------------
+  // App config panel component
+  // -----------------------------------------------------------------------
+  function AppConfigPanel({
+    title,
+    configured,
+    expanded,
+    onToggle,
+    onConfigure,
+    onRestore,
+    onUnconfigure,
+    actioning,
+    configurable,
+    nodes: appNodes,
+    proxyUrl,
+    tokenVisible: appTokenVisible,
+    onToggleToken,
+    description,
+    envDescription,
+  }: {
+    title: string;
+    configured: boolean;
+    expanded: boolean;
+    onToggle: () => void;
+    onConfigure: () => void;
+    onRestore: () => void;
+    onUnconfigure: () => void;
+    actioning: boolean;
+    configurable: boolean;
+    nodes: typeof claudeNodes;
+    proxyUrl: string | null;
+    tokenVisible: boolean;
+    onToggleToken: () => void;
+    description: string;
+    envDescription: string;
+  }) {
+    return (
+      <Card className="relative border-border bg-card/92 shadow-[var(--color-shadow-soft)]">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-start">
+            <button
+              type="button"
+              onClick={onToggle}
+              className="bg-transparent border-none text-foreground p-0 m-0 cursor-pointer text-left w-full pr-32"
             >
-              <input
-                type="checkbox"
-                className="ui-checkbox"
-                checked={autoCheckUpdate}
-                onChange={(e) => setAutoCheckUpdate(e.target.checked)}
+              <div className="text-base font-bold text-foreground min-h-[24px]">{title}</div>
+            </button>
+            <Badge variant={configured ? 'success' : 'outline'} className="absolute top-3.5 right-12">
+              {configured ? '已配置' : '未配置'}
+            </Badge>
+            <ChevronRight
+              className={cn(
+                "absolute top-3.5 right-3.5 w-5 h-5 text-muted transition-transform duration-200",
+                expanded && "rotate-90"
+              )}
+            />
+          </div>
+
+          {expanded && (
+            <div className="mt-3 space-y-3">
+              <p className="text-xs text-muted leading-relaxed">{description}</p>
+
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-2.5">
+                <div className="rounded-xl border border-border bg-surface/60 p-3">
+                  <div className="text-[11px] text-dim">检测到节点</div>
+                  <div className="text-xl text-foreground font-bold mt-1">{appNodes.length}</div>
+                </div>
+                <div className="rounded-xl border border-border bg-surface/60 p-3">
+                  <div className="text-[11px] text-dim">配置代理地址</div>
+                  <div className="text-[13px] text-foreground mt-1">
+                    {proxyUrl ?? '暂无可用端口'}
+                  </div>
+                </div>
+              </div>
+
+              {appNodes.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {appNodes.map((node) => {
+                    const data = node.data as ApplicationNodeData;
+                    return (
+                      <div
+                        key={node.id}
+                        className="rounded-lg border border-border bg-surface/55 px-2.5 py-2 text-xs text-foreground"
+                      >
+                        {data.label} · {node.id} · 端口 :{data.listenPort || 0}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="text-xs text-muted leading-relaxed">{envDescription}</p>
+
+              <Button variant="ghost" size="xs" onClick={onToggleToken} className="mt-1">
+                {appTokenVisible ? <EyeOff className="w-3 h-3 mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
+                {appTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
+              </Button>
+
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="accent"
+                  size="sm"
+                  onClick={onConfigure}
+                  disabled={actioning || !configurable}
+                >
+                  {actioning ? '处理中...' : '一键写入配置'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onRestore}
+                  disabled={actioning}
+                >
+                  从备份恢复
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onUnconfigure}
+                  disabled={actioning}
+                >
+                  移除托管配置
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Render panels
+  // -----------------------------------------------------------------------
+  const renderGeneralPanel = () => (
+    <div className="max-w-[860px] w-full mx-auto">
+      <Card className="border-border bg-card/92 shadow-[var(--color-shadow-soft)]">
+        <CardHeader>
+          <CardTitle className="text-xl">常规设置</CardTitle>
+          <CardDescription>
+            用于配置代理监听地址、端口范围和代理认证令牌展示。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-muted text-xs">监听端口范围</Label>
+            <Input
+              type="text"
+              value={portRange}
+              placeholder="9527-9537"
+              onChange={(e) => setPortRange(e.target.value)}
+            />
+            <p className="text-xs text-dim">单端口示例: 9527；范围示例: 9527-9537。发布时会从该范围内分配应用端口。</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-muted text-xs">绑定地址</Label>
+            <Input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-muted text-xs">日志目录大小上限（MB）</Label>
+            <Input
+              type="number"
+              min={1}
+              value={logDirMaxMb}
+              onChange={(e) => setLogDirMaxMb(e.target.value)}
+              className="max-w-[180px]"
+            />
+            <p className="text-xs text-dim">软件启动时若日志目录总大小超过此值，将自动从最旧的文件开始删除。默认 500 MB。</p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-muted text-xs">系统启动</Label>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={launchAtStartup}
+                onCheckedChange={setLaunchAtStartup}
               />
-              启动时自动检查更新
-            </label>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
+              <span className="text-sm text-foreground">开机自启动</span>
+            </div>
+            <p className="text-xs text-dim">勾选后会在系统启动时自动启动 AAStation。</p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-muted text-xs">自动更新</Label>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={autoCheckUpdate}
+                onCheckedChange={setAutoCheckUpdate}
+              />
+              <span className="text-sm text-foreground">启动时自动检查更新</span>
+            </div>
+            <p className="text-xs text-dim">
               版本来源为 GitHub Releases，安装前会做签名校验。Windows 下安装时可能触发系统安装器窗口。
               启动自动检查仅负责提示，不会直接安装更新。
-            </div>
+            </p>
             {availableUpdate && (
-              <div style={{ fontSize: 12, color: '#93c5fd', lineHeight: 1.7 }}>
+              <p className="text-xs text-blue-300 leading-relaxed">
                 已发现新版本 {availableUpdate.latestVersion}（当前 {availableUpdate.currentVersion}），
-                点击下方“立即更新”后将自动下载并安装。
-              </div>
+                点击下方"立即更新"后将自动下载并安装。
+              </p>
             )}
-            <div>
-              <button
-                onClick={handleManualUpdateAction}
-                disabled={checkingUpdate || installingUpdate}
-                className="ui-btn"
-                style={{ ...buttonBaseStyle, padding: '7px 12px', fontSize: 12 }}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleManualUpdateAction}
+              disabled={checkingUpdate || installingUpdate}
+              className="gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {installingUpdate ? '安装中...' : checkingUpdate ? '检查中...' : availableUpdate ? '立即更新' : '立即检查更新'}
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-muted text-xs">
+              代理认证令牌
+              <span className="text-dim text-[11px] ml-2">只读 · 客户端通过此令牌向代理认证</span>
+            </Label>
+            <div className="flex gap-2 items-center flex-wrap">
+              <Input
+                type={tokenVisible ? 'text' : 'password'}
+                value={tokenVisible ? authToken : maskedToken}
+                readOnly
+                className={cn(
+                  "flex-1 min-w-[320px]",
+                  !tokenVisible && "text-muted"
+                )}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTokenVisible(!tokenVisible)}
+                className="gap-1.5"
               >
-                {installingUpdate ? '安装中...' : checkingUpdate ? '检查中...' : availableUpdate ? '立即更新' : '立即检查更新'}
-              </button>
+                {tokenVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {tokenVisible ? '隐藏' : '显示'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(authToken);
+                  toast.success('令牌已复制');
+                }}
+                className="gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                复制
+              </Button>
             </div>
           </div>
-        </div>
 
-        <div style={fieldStyle}>
-          <label style={labelStyle}>
-            代理认证令牌
-            <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>
-              只读 · 客户端通过此令牌向代理认证
-            </span>
-          </label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              type={tokenVisible ? 'text' : 'password'}
-              value={tokenVisible ? authToken : maskedToken}
-              readOnly
-              className="ui-input"
-              style={{
-                ...inputStyle,
-                flex: '1 1 320px',
-                minWidth: 0,
-                color: tokenVisible ? '#f9fafb' : '#6b7280',
-                cursor: 'default',
-                userSelect: 'all',
-              }}
-            />
-            <button
-              onClick={() => setTokenVisible(!tokenVisible)}
-              className="ui-btn"
-              style={buttonBaseStyle}
+          <div className="flex justify-end mt-6">
+            <Button
+              variant="accent"
+              onClick={handleSaveGeneral}
+              disabled={saving}
+              className="min-w-[120px]"
             >
-              {tokenVisible ? '隐藏' : '显示'}
-            </button>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(authToken);
-                toast.success('令牌已复制');
-              }}
-              className="ui-btn"
-              style={buttonBaseStyle}
-            >
-              复制
-            </button>
+              {saving ? '保存中...' : '保存设置'}
+            </Button>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
-          <button
-            onClick={handleSaveGeneral}
-            disabled={saving}
-            className="ui-btn ui-btn-primary"
-            style={{
-              ...buttonBaseStyle,
-              minWidth: 120,
-              cursor: saving ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {saving ? '保存中...' : '保存设置'}
-          </button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 
   const renderApplicationsPanel = () => {
-    const claudeExpandable = expandedAppPanel === 'claude';
-    const openCodeExpandable = expandedAppPanel === 'opencode';
-    const codexExpandable = expandedAppPanel === 'codex';
     const claudeConfigurable = claudeNodes.length > 0 && !!claudeProxyUrl;
     const openCodeConfigurable = openCodeNodes.length > 0 && !!openCodeProxyUrl;
     const codexConfigurable = codexCliNodes.length > 0 && !!codexCliProxyUrl;
 
-    const statusBadgeStyle = (configured: boolean): React.CSSProperties => ({
-      position: 'absolute',
-      top: 14,
-      right: 48,
-      fontSize: 12,
-      borderRadius: 999,
-      padding: '3px 10px',
-      border: configured ? '1px solid rgba(34, 197, 94, 0.36)' : '1px solid rgba(255, 255, 255, 0.14)',
-      background: configured ? 'rgba(34, 197, 94, 0.14)' : 'rgba(255, 255, 255, 0.08)',
-      color: configured ? '#22c55e' : '#cbd5e1',
-    });
-
-    const briefBoxStyle: React.CSSProperties = {
-      borderRadius: 10,
-      padding: 12,
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      background: 'rgba(2, 6, 23, 0.38)',
-    };
-
-    const expandIconStyle = (expanded: boolean): React.CSSProperties => ({
-      position: 'absolute',
-      top: 14,
-      right: 14,
-      fontSize: 20,
-      color: '#94a3b8',
-      transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-      transition: 'transform 0.2s ease',
-      lineHeight: 1,
-    });
-
     return (
-      <div style={{ ...applicationPanelWrapStyle, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+      <div className="max-w-[980px] w-full mx-auto flex flex-col gap-3.5">
+        <div className="flex justify-between gap-3 flex-wrap items-start">
           <div>
-            <h2 style={{ fontSize: 22, color: '#f8fafc', margin: 0 }}>应用设置</h2>
-            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8 }}>
+            <h2 className="text-xl font-bold text-foreground m-0">应用设置</h2>
+            <p className="text-[13px] text-muted mt-2">
               集中管理需要修改用户本地配置文件的应用能力，并提供备份恢复入口。
-            </div>
+            </p>
           </div>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={refreshClaudeConfigStatus}
             disabled={claudeLoading || claudeActioning}
-            className="ui-btn"
-            style={buttonBaseStyle}
+            className="gap-1.5"
           >
+            <RefreshCw className={cn("w-3.5 h-3.5", claudeLoading && "animate-spin")} />
             {claudeLoading ? '状态刷新中...' : '刷新配置状态'}
-          </button>
+          </Button>
         </div>
 
-        <div className="ui-card" style={{ ...cardStyle, padding: 16, position: 'relative' }}>
-          <div style={statusBadgeStyle(claudeConfigured)}>
-            {claudeConfigured ? '已配置' : '未配置'}
-          </div>
-          <button
-            onClick={() => setExpandedAppPanel((v) => (v === 'claude' ? null : 'claude'))}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'inherit',
-              padding: 0,
-              margin: 0,
-              cursor: 'pointer',
-              textAlign: 'left',
-              width: '100%',
-              paddingRight: 140,
-            }}
-          >
-            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700, minHeight: 24 }}>Claude Code 配置管理</div>
-            <span style={expandIconStyle(claudeExpandable)} aria-hidden="true">›</span>
-          </button>
+        <AppConfigPanel
+          title="Claude Code 配置管理"
+          configured={claudeConfigured}
+          expanded={expandedAppPanel === 'claude'}
+          onToggle={() => setExpandedAppPanel((v) => (v === 'claude' ? null : 'claude'))}
+          onConfigure={handleConfigureClaude}
+          onRestore={handleRestoreClaudeBackup}
+          onUnconfigure={handleUnconfigureClaude}
+          actioning={claudeActioning}
+          configurable={claudeConfigurable}
+          nodes={claudeNodes}
+          proxyUrl={claudeProxyUrl}
+          tokenVisible={claudeTokenVisible}
+          onToggleToken={() => setClaudeTokenVisible((v) => !v)}
+          description="用于写入或恢复 `~/.claude/settings.json` 和 `~/.claude.json`。后端会在覆盖前自动创建 `.aastation-backup` 备份文件。"
+          envDescription={`将写入变量：\`ANTHROPIC_BASE_URL=${claudeProxyUrl ?? '<待分配端口>'}\`，\`ANTHROPIC_AUTH_TOKEN=${claudeTokenVisible ? authToken : maskedToken}\`。`}
+        />
 
-          {claudeExpandable && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
-                用于写入或恢复 `~/.claude/settings.json` 和 `~/.claude.json`。
-                后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
-              </div>
+        <AppConfigPanel
+          title="OpenCode 配置管理"
+          configured={openCodeConfigured}
+          expanded={expandedAppPanel === 'opencode'}
+          onToggle={() => setExpandedAppPanel((v) => (v === 'opencode' ? null : 'opencode'))}
+          onConfigure={handleConfigureOpenCode}
+          onRestore={handleRestoreOpenCodeBackup}
+          onUnconfigure={handleUnconfigureOpenCode}
+          actioning={openCodeActioning}
+          configurable={openCodeConfigurable}
+          nodes={openCodeNodes}
+          proxyUrl={openCodeProxyUrl}
+          tokenVisible={openCodeTokenVisible}
+          onToggleToken={() => setOpenCodeTokenVisible((v) => !v)}
+          description="用于写入或恢复 `~/.config/opencode/opencode.json`。后端会在覆盖前自动创建 `.aastation-backup` 备份文件。"
+          envDescription={`将写入：\`provider.aastation.options.baseURL=${openCodeProxyUrl ?? '<待分配端口>'}\`，\`provider.aastation.options.apiKey=${openCodeTokenVisible ? authToken : maskedToken}\`。`}
+        />
 
-              <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-                <div style={briefBoxStyle}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Claude Code 节点</div>
-                  <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{claudeNodes.length}</div>
-                </div>
-                <div style={briefBoxStyle}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
-                  <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
-                    {claudeProxyUrl ?? '暂无可用端口'}
-                  </div>
-                </div>
-              </div>
-
-              {claudeNodes.length > 0 && (
-                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {claudeNodes.map((node) => {
-                    const data = node.data as ApplicationNodeData;
-                    return (
-                      <div
-                        key={node.id}
-                        style={{
-                          fontSize: 12,
-                          color: 'var(--ui-text)',
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          background: 'rgba(0, 0, 0, 0.28)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                        }}
-                      >
-                        {data.label} · {node.id} · 端口 :{data.listenPort || 0}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
-                将写入变量：`ANTHROPIC_BASE_URL={claudeProxyUrl ?? '<待分配端口>'}`，
-                `ANTHROPIC_AUTH_TOKEN={claudeTokenVisible ? authToken : maskedToken}`。
-              </div>
-              <button
-                onClick={() => setClaudeTokenVisible((v) => !v)}
-                className="ui-btn"
-                style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
-              >
-                {claudeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
-              </button>
-
-              <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  onClick={handleConfigureClaude}
-                  disabled={claudeActioning || !claudeConfigurable}
-                  className="ui-btn ui-btn-primary"
-                  style={{
-                    ...buttonBaseStyle,
-                    cursor: claudeActioning ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {claudeActioning ? '处理中...' : '一键写入配置'}
-                </button>
-                <button
-                  onClick={handleRestoreClaudeBackup}
-                  disabled={claudeActioning}
-                  className="ui-btn"
-                  style={buttonBaseStyle}
-                >
-                  从备份恢复
-                </button>
-                <button
-                  onClick={handleUnconfigureClaude}
-                  disabled={claudeActioning}
-                  className="ui-btn"
-                  style={buttonBaseStyle}
-                >
-                  移除托管配置
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="ui-card" style={{ ...cardStyle, padding: 16, position: 'relative' }}>
-          <div style={statusBadgeStyle(openCodeConfigured)}>
-            {openCodeConfigured ? '已配置' : '未配置'}
-          </div>
-          <button
-            onClick={() => setExpandedAppPanel((v) => (v === 'opencode' ? null : 'opencode'))}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'inherit',
-              padding: 0,
-              margin: 0,
-              cursor: 'pointer',
-              textAlign: 'left',
-              width: '100%',
-              paddingRight: 140,
-            }}
-          >
-            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700, minHeight: 24 }}>OpenCode 配置管理</div>
-            <span style={expandIconStyle(openCodeExpandable)} aria-hidden="true">›</span>
-          </button>
-
-          {openCodeExpandable && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
-                用于写入或恢复 `~/.config/opencode/opencode.json`。
-                后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
-              </div>
-
-              <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-                <div style={briefBoxStyle}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>检测到 OpenCode 节点</div>
-                  <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{openCodeNodes.length}</div>
-                </div>
-                <div style={briefBoxStyle}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
-                  <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
-                    {openCodeProxyUrl ?? '暂无可用端口'}
-                  </div>
-                </div>
-              </div>
-
-              {openCodeNodes.length > 0 && (
-                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {openCodeNodes.map((node) => {
-                    const data = node.data as ApplicationNodeData;
-                    return (
-                      <div
-                        key={node.id}
-                        style={{
-                          fontSize: 12,
-                          color: 'var(--ui-text)',
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          background: 'rgba(0, 0, 0, 0.28)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                        }}
-                      >
-                        {data.label} · {node.id} · 端口 :{data.listenPort || 0}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
-                将写入：`provider.aastation.options.baseURL={openCodeProxyUrl ?? '<待分配端口>'}`，
-                `provider.aastation.options.apiKey={openCodeTokenVisible ? authToken : maskedToken}`。
-              </div>
-              <button
-                onClick={() => setOpenCodeTokenVisible((v) => !v)}
-                className="ui-btn"
-                style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
-              >
-                {openCodeTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
-              </button>
-
-              <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  onClick={handleConfigureOpenCode}
-                  disabled={openCodeActioning || !openCodeConfigurable}
-                  className="ui-btn ui-btn-primary"
-                  style={{
-                    ...buttonBaseStyle,
-                    cursor: openCodeActioning ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {openCodeActioning ? '处理中...' : '一键写入配置'}
-                </button>
-                <button
-                  onClick={handleRestoreOpenCodeBackup}
-                  disabled={openCodeActioning}
-                  className="ui-btn"
-                  style={buttonBaseStyle}
-                >
-                  从备份恢复
-                </button>
-                <button
-                  onClick={handleUnconfigureOpenCode}
-                  disabled={openCodeActioning}
-                  className="ui-btn"
-                  style={buttonBaseStyle}
-                >
-                  移除托管配置
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="ui-card" style={{ ...cardStyle, padding: 16, position: 'relative' }}>
-          <div style={statusBadgeStyle(codexCliConfigured)}>
-            {codexCliConfigured ? '已配置' : '未配置'}
-          </div>
-          <button
-            onClick={() => setExpandedAppPanel((v) => (v === 'codex' ? null : 'codex'))}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'inherit',
-              padding: 0,
-              margin: 0,
-              cursor: 'pointer',
-              textAlign: 'left',
-              width: '100%',
-              paddingRight: 140,
-            }}
-          >
-            <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700, minHeight: 24 }}>Codex CLI 配置管理</div>
-            <span style={expandIconStyle(codexExpandable)} aria-hidden="true">›</span>
-          </button>
-
-          {codexExpandable && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.6 }}>
-                用于写入或恢复 `~/.codex/config.toml`。
-                将在配置文件中添加 `[model_providers.aastation]` 和 `[profiles.aastation]` 条目。
-                后端会在覆盖前自动创建 `.aastation-backup` 备份文件。
-              </div>
-
-              <div style={{ marginTop: 12, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-                <div style={briefBoxStyle}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>检测到 Codex CLI 节点</div>
-                  <div style={{ fontSize: 20, color: '#e2e8f0', fontWeight: 700, marginTop: 4 }}>{codexCliNodes.length}</div>
-                </div>
-                <div style={briefBoxStyle}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>配置代理地址</div>
-                  <div style={{ fontSize: 13, color: 'var(--ui-text)', marginTop: 4 }}>
-                    {codexCliProxyUrl ?? '暂无可用端口'}
-                  </div>
-                </div>
-              </div>
-
-              {codexCliNodes.length > 0 && (
-                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {codexCliNodes.map((node) => {
-                    const data = node.data as ApplicationNodeData;
-                    return (
-                      <div
-                        key={node.id}
-                        style={{
-                          fontSize: 12,
-                          color: 'var(--ui-text)',
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          background: 'rgba(0, 0, 0, 0.28)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                        }}
-                      >
-                        {data.label} · {node.id} · 端口 :{data.listenPort || 0}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>
-                将写入：`model_providers.aastation.base_url={codexCliProxyUrl ?? '<待分配端口>'}`，
-                API Key 环境变量 `AASTATION_API_KEY={codexCliTokenVisible ? authToken : maskedToken}`（存储至 `~/.codex/aastation_env.txt`）。
-                <br />
-                写入后请运行：<code style={{ color: '#a78bfa' }}>codex --profile aastation</code> 以使用 AAStation 代理。
-              </div>
-              <button
-                onClick={() => setCodexCliTokenVisible((v) => !v)}
-                className="ui-btn"
-                style={{ ...buttonBaseStyle, marginTop: 8, padding: '6px 10px', fontSize: 12 }}
-              >
-                {codexCliTokenVisible ? '隐藏令牌展示' : '显示令牌展示'}
-              </button>
-
-              <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  onClick={handleConfigureCodexCli}
-                  disabled={codexCliActioning || !codexConfigurable}
-                  className="ui-btn ui-btn-primary"
-                  style={{
-                    ...buttonBaseStyle,
-                    cursor: codexCliActioning ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {codexCliActioning ? '处理中...' : '一键写入配置'}
-                </button>
-                <button
-                  onClick={handleRestoreCodexCliBackup}
-                  disabled={codexCliActioning}
-                  className="ui-btn"
-                  style={buttonBaseStyle}
-                >
-                  从备份恢复
-                </button>
-                <button
-                  onClick={handleUnconfigureCodexCli}
-                  disabled={codexCliActioning}
-                  className="ui-btn"
-                  style={buttonBaseStyle}
-                >
-                  移除托管配置
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <AppConfigPanel
+          title="Codex CLI 配置管理"
+          configured={codexCliConfigured}
+          expanded={expandedAppPanel === 'codex'}
+          onToggle={() => setExpandedAppPanel((v) => (v === 'codex' ? null : 'codex'))}
+          onConfigure={handleConfigureCodexCli}
+          onRestore={handleRestoreCodexCliBackup}
+          onUnconfigure={handleUnconfigureCodexCli}
+          actioning={codexCliActioning}
+          configurable={codexConfigurable}
+          nodes={codexCliNodes}
+          proxyUrl={codexCliProxyUrl}
+          tokenVisible={codexCliTokenVisible}
+          onToggleToken={() => setCodexCliTokenVisible((v) => !v)}
+          description="用于写入或恢复 `~/.codex/config.toml`。将在配置文件中添加 `[model_providers.aastation]` 和 `[profiles.aastation]` 条目。后端会在覆盖前自动创建 `.aastation-backup` 备份文件。"
+          envDescription={`将写入：\`model_providers.aastation.base_url=${codexCliProxyUrl ?? '<待分配端口>'}\`，API Key 环境变量 \`AASTATION_API_KEY=${codexCliTokenVisible ? authToken : maskedToken}\`（存储至 \`~/.codex/aastation_env.txt\`）。写入后请运行：\`codex --profile aastation\` 以使用 AAStation 代理。`}
+        />
       </div>
     );
   };
 
   const renderLogsPanel = () => (
-    <div className="ui-card" style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h2 style={{ fontSize: 22, color: '#f8fafc', margin: 0 }}>日志</h2>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setLogPaused((p) => !p)}
-            className={logPaused ? 'ui-btn ui-btn-active' : 'ui-btn'}
-            style={{ ...buttonBaseStyle }}
-          >
-            {logPaused ? '继续' : '暂停'}
-          </button>
-          <button onClick={handleReloadLogs} className="ui-btn" style={buttonBaseStyle}>重新读取</button>
-          <button onClick={() => setLogLines([])} className="ui-btn" style={buttonBaseStyle}>清空视图</button>
-          <button
-            onClick={async () => {
-              try {
-                await openLogDir();
-              } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                toast.error(`打开日志目录失败：${msg}`);
-              }
-            }}
-            className="ui-btn"
-            style={buttonBaseStyle}
-            title={runtimeStatus?.log_dir ?? '日志目录'}
-          >
-            📂 打开目录
-          </button>
-        </div>
-      </div>
-
-      {/* Privacy notice banner */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 10,
-          padding: '10px 14px',
-          borderRadius: 10,
-          background: 'rgba(251, 191, 36, 0.08)',
-          border: '1px solid rgba(251, 191, 36, 0.28)',
-          fontSize: 12,
-          color: '#fcd34d',
-          lineHeight: 1.65,
-        }}
-      >
-        <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>⚠️</span>
-        <span>
-          <strong>隐私提示：</strong>日志文件中包含完整的 AI 请求与响应内容（包括对话记录和 API 地址）。
-          日志仅保存于本机，AAStation 不会自动上传。
-          <strong>请勿将日志文件分享至互联网或提交给第三方</strong>，以免泄露您的隐私信息。
-        </span>
-      </div>
-
-      {/* Status cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 10,
-          fontSize: 12,
-        }}
-      >
-        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
-          <div style={{ color: '#64748b', marginBottom: 4 }}>后端日志模式</div>
-          <div style={{ color: '#e2e8f0' }}>
-            {runtimeStatus?.mode || '加载中...'}
-            {runtimeStatus?.backend_local_read_write ? ' (local rw)' : ''}
+    <Card className="border-border bg-card/92 shadow-[var(--color-shadow-soft)]">
+      <CardContent className="p-5 flex flex-col gap-3.5">
+        {/* Header row */}
+        <div className="flex justify-between gap-3 flex-wrap">
+          <h2 className="text-xl font-bold text-foreground m-0">日志</h2>
+          <div className="flex gap-2 items-center flex-wrap">
+            <Button
+              variant={logPaused ? 'accent' : 'secondary'}
+              size="sm"
+              onClick={() => setLogPaused((p) => !p)}
+              className="gap-1.5"
+            >
+              {logPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+              {logPaused ? '继续' : '暂停'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleReloadLogs} className="gap-1.5">
+              <RotateCcw className="w-3.5 h-3.5" /> 重新读取
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setLogLines([])} className="gap-1.5">
+              <Trash2 className="w-3.5 h-3.5" /> 清空视图
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await openLogDir();
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : String(err);
+                  toast.error(`打开日志目录失败：${msg}`);
+                }
+              }}
+              title={runtimeStatus?.log_dir ?? '日志目录'}
+              className="gap-1.5"
+            >
+              <FolderOpen className="w-3.5 h-3.5" /> 打开目录
+            </Button>
           </div>
         </div>
-        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
-          <div style={{ color: '#64748b', marginBottom: 4 }}>当前日志文件</div>
-          <div style={{ color: '#e2e8f0' }}>{logFileName || runtimeStatus?.active_file || '暂无'}</div>
-        </div>
-        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
-          <div style={{ color: '#64748b', marginBottom: 4 }}>采集状态</div>
-          <div style={{ color: logError ? '#fca5a5' : '#86efac' }}>
-            {logError ? `异常: ${logError}` : logPaused ? '已暂停' : logPolling ? '拉取中...' : '运行中'}
-          </div>
-        </div>
-        <div className="ui-card" style={{ ...cardStyle, padding: 12, borderRadius: 10 }}>
-          <div style={{ color: '#64748b', marginBottom: 4 }}>目录占用 / 上限</div>
-          <div style={{ color: runtimeStatus && runtimeStatus.dir_size_bytes > runtimeStatus.dir_max_bytes * 0.9 ? '#fca5a5' : '#e2e8f0' }}>
-            {runtimeStatus
-              ? `${(runtimeStatus.dir_size_bytes / 1024 / 1024).toFixed(1)} MB / ${(runtimeStatus.dir_max_bytes / 1024 / 1024).toFixed(0)} MB`
-              : '加载中...'}
-          </div>
-        </div>
-      </div>
 
-      {/* Log output */}
-      <div
-        ref={logScrollerRef}
-        onScroll={handleLogScroll}
-        style={{
-          marginTop: 4,
-          height: 'calc(100vh - 360px)',
-          minHeight: 300,
-          overflow: 'auto',
-          borderRadius: 12,
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          background: 'rgba(0, 0, 0, 0.28)',
-          fontFamily: 'Consolas, Menlo, Monaco, "Courier New", monospace',
-          fontSize: 12,
-          lineHeight: 1.65,
-          color: '#cbd5e1',
-          padding: '10px 12px',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}
-      >
-        {logLines.length === 0 ? (
-          <div style={{ color: '#64748b' }}>暂无日志输出...</div>
-        ) : (
-          logLines.map((line, idx) => (
-            <div key={`${idx}-${line.slice(0, 24)}`}>{line}</div>
-          ))
-        )}
-      </div>
-      <div style={{ fontSize: 11, color: '#64748b' }}>
-        已缓存最近 {logLines.length} 行（上限 {LOG_MAX_LINES} 行），轮询间隔 {LOG_POLL_INTERVAL_MS}ms。
-        {autoFollow ? ' 当前自动跟随滚动。' : ' 已关闭自动跟随，滚动到底部会自动恢复。'}
-        {runtimeStatus?.log_dir ? ` 日志目录：${runtimeStatus.log_dir}` : ''}
-      </div>
-    </div>
+        {/* Privacy notice */}
+        <div className="flex items-start gap-2.5 rounded-xl border border-warning-border bg-warning/8 px-3.5 py-2.5 text-xs leading-relaxed text-warning-foreground">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            <strong>隐私提示：</strong>日志文件中包含完整的 AI 请求与响应内容（包括对话记录和 API 地址）。
+            日志仅保存于本机，AAStation 不会自动上传。
+            <strong>请勿将日志文件分享至互联网或提交给第三方</strong>，以免泄露您的隐私信息。
+          </span>
+        </div>
+
+        {/* Status cards */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5 text-xs">
+          <Card className="rounded-xl border-border bg-surface/65 p-3 shadow-none">
+            <div className="text-dim mb-1">后端日志模式</div>
+            <div className="text-foreground">
+              {runtimeStatus?.mode || '加载中...'}
+              {runtimeStatus?.backend_local_read_write ? ' (local rw)' : ''}
+            </div>
+          </Card>
+          <Card className="rounded-xl border-border bg-surface/65 p-3 shadow-none">
+            <div className="text-dim mb-1">当前日志文件</div>
+            <div className="text-foreground">{logFileName || runtimeStatus?.active_file || '暂无'}</div>
+          </Card>
+          <Card className="rounded-xl border-border bg-surface/65 p-3 shadow-none">
+            <div className="text-dim mb-1">采集状态</div>
+            <div className={cn(logError ? "text-destructive" : "text-green-300")}>
+              {logError ? `异常: ${logError}` : logPaused ? '已暂停' : logPolling ? '拉取中...' : '运行中'}
+            </div>
+          </Card>
+          <Card className="rounded-xl border-border bg-surface/65 p-3 shadow-none">
+            <div className="text-dim mb-1">目录占用 / 上限</div>
+            <div className={cn(
+              runtimeStatus && runtimeStatus.dir_size_bytes > runtimeStatus.dir_max_bytes * 0.9
+                ? "text-destructive"
+                : "text-foreground"
+            )}>
+              {runtimeStatus
+                ? `${(runtimeStatus.dir_size_bytes / 1024 / 1024).toFixed(1)} MB / ${(runtimeStatus.dir_max_bytes / 1024 / 1024).toFixed(0)} MB`
+                : '加载中...'}
+            </div>
+          </Card>
+        </div>
+
+        {/* Log output */}
+        <div
+          ref={logScrollerRef}
+          onScroll={handleLogScroll}
+          className="mt-1 h-[calc(100vh-360px)] min-h-[300px] overflow-auto rounded-xl border border-border bg-surface/35 p-2.5 font-mono text-xs leading-relaxed text-muted whitespace-pre-wrap break-words"
+        >
+          {logLines.length === 0 ? (
+            <div className="text-dim">暂无日志输出...</div>
+          ) : (
+            logLines.map((line, idx) => (
+              <div key={`${idx}-${line.slice(0, 24)}`}>{line}</div>
+            ))
+          )}
+        </div>
+        <p className="text-[11px] text-dim">
+          已缓存最近 {logLines.length} 行（上限 {LOG_MAX_LINES} 行），轮询间隔 {LOG_POLL_INTERVAL_MS}ms。
+          {autoFollow ? ' 当前自动跟随滚动。' : ' 已关闭自动跟随，滚动到底部会自动恢复。'}
+          {runtimeStatus?.log_dir ? ` 日志目录：${runtimeStatus.log_dir}` : ''}
+        </p>
+      </CardContent>
+    </Card>
   );
 
   return (
-    <div style={pageStyle} className="ui-page ui-accent-settings">
-      <aside style={subSidebarStyle} className="ui-subsidebar">
-        <div style={{ padding: '4px 8px 12px' }}>
-          <div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 700 }}>设置</div>
-        </div>
-        {subTabs.map((item) => {
-          const active = subTab === item.key;
-          return (
-            <button
-              key={item.key}
-              onClick={() => setSubTab(item.key)}
-              className={active ? 'ui-subtab ui-subtab-active' : 'ui-subtab'}
-              style={{
-                textAlign: 'left',
-                borderRadius: 10,
-                padding: '10px 12px',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{item.title}</div>
-              <div style={{ fontSize: 11, marginTop: 4, opacity: 0.85 }}>{item.desc}</div>
-            </button>
-          );
-        })}
-      </aside>
+    <div className="ui-page ui-accent-settings flex flex-1 overflow-hidden">
+      <Tabs
+        value={subTab}
+        onValueChange={(val) => setSubTab(val as SettingsSubTab)}
+        orientation="vertical"
+        className="flex flex-1"
+      >
+        <aside className="w-[228px] border-r border-border-soft bg-sidebar-surface/72 p-[28px_14px_22px] flex flex-col gap-2">
+          <div className="px-2 pb-3">
+            <div className="text-foreground text-base font-bold">设置</div>
+          </div>
+          <TabsList className="flex flex-col h-auto bg-transparent gap-1 p-0">
+            {[
+              { key: 'general' as const, title: '常规', desc: '代理监听与鉴权配置' },
+              { key: 'applications' as const, title: '应用设置', desc: '用户配置入口与备份恢复' },
+              { key: 'logs' as const, title: '日志', desc: '运行时日志实时查看' },
+            ].map((item) => (
+              <TabsTrigger
+                key={item.key}
+                value={item.key}
+                className="w-full justify-start rounded-xl border border-transparent px-3 py-2.5 text-left data-[state=active]:border-border data-[state=active]:bg-card"
+              >
+                <div>
+                  <div className="text-[13px] font-semibold">{item.title}</div>
+                  <div className="text-[11px] mt-0.5 opacity-85">{item.desc}</div>
+                </div>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </aside>
 
-      <main style={contentAreaStyle}>
-        {subTab === 'general' && renderGeneralPanel()}
-        {subTab === 'applications' && renderApplicationsPanel()}
-        {subTab === 'logs' && renderLogsPanel()}
-      </main>
+        <main
+          className="min-w-0 flex-1 overflow-auto px-6 pb-6"
+          style={{
+            paddingTop: 'calc(var(--window-controls-safe-top) + 4px)',
+            paddingRight: 'calc(var(--window-controls-safe-right) + 12px)',
+          }}
+        >
+          <TabsContent value="general" className="mt-0">
+            {renderGeneralPanel()}
+          </TabsContent>
+          <TabsContent value="applications" className="mt-0">
+            {renderApplicationsPanel()}
+          </TabsContent>
+          <TabsContent value="logs" className="mt-0">
+            {renderLogsPanel()}
+          </TabsContent>
+        </main>
+      </Tabs>
     </div>
   );
 }

@@ -109,7 +109,7 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
 
   const displayUrl = hasBaseUrl
     ? data.baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-    : 'No URL set';
+    : '未设置地址';
 
   // Get preset info if this is a preset node
   const preset = useMemo(
@@ -132,10 +132,10 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
   const budget = budgetMeta(runtimeState, fallbackBudgetTokens);
   const signalHeights = [5, 8, 11, 14];
   const baseHandleStyle: React.CSSProperties = {
-    width: 12,
-    height: 12,
-    border: '2px solid #e2e8f0',
-    boxShadow: '0 0 0 4px rgba(15, 23, 42, 0.42)',
+    width: 11,
+    height: 11,
+    border: '2px solid rgba(226, 232, 240, 0.9)',
+    boxShadow: '0 0 0 3px rgba(15, 23, 42, 0.28)',
   };
 
   return (
@@ -155,10 +155,10 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
           ...baseHandleStyle,
           background: '#f59e0b',
           top: '50%',
-          left: -10,
+          left: -9,
           transform: 'translateY(-50%)',
         }}
-        title="Unified [any] — accepts any connection"
+        title="输入"
       />
 
       <div className="flow-node-header">
@@ -269,14 +269,14 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
                 style={{
                   ...baseHandleStyle,
                   background: '#60a5fa',
-                  left: -10,
+                  left: -9,
                   top: '50%',
                   transform: 'translateY(-50%)',
                 }}
-                title={`Model [model]: ${model.name || 'Unnamed'}`}
+                title={model.name || '未命名模型'}
               />
               <div>
-                <div className="flow-node-entry-label">{model.name || 'Unnamed'}</div>
+                <div className="flow-node-entry-label">{model.name || '未命名模型'}</div>
                 <div className="flow-node-entry-desc">{model.enabled ? '已启用' : '未启用'}</div>
               </div>
               <span className="flow-node-badge">{index + 1}</span>

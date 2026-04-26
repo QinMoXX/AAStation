@@ -6,9 +6,9 @@ import { getProviderIcon } from '../icons/ProviderIcons';
 
 /** Match-type display labels. */
 const MATCH_TYPE_LABELS: Record<string, string> = {
-  path_prefix: 'Path',
-  header: 'Header',
-  model: 'Model',
+  path_prefix: '路径',
+  header: '请求头',
+  model: '模型',
 };
 
 /** Handle type colors: model=blue, any=orange */
@@ -26,10 +26,10 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
   const MiddlewareIcon = middlewareConfig?.icon ? getProviderIcon(middlewareConfig.icon) : null;
   const entryCount = data.entries.length;
   const handleBase: React.CSSProperties = {
-    width: 12,
-    height: 12,
-    border: '2px solid #e2e8f0',
-    boxShadow: '0 0 0 4px rgba(15, 23, 42, 0.42)',
+    width: 11,
+    height: 11,
+    border: '2px solid rgba(226, 232, 240, 0.9)',
+    boxShadow: '0 0 0 3px rgba(15, 23, 42, 0.28)',
   };
 
   return (
@@ -49,10 +49,10 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
           ...handleBase,
           background: '#f59e0b',
           top: '50%',
-          left: -10,
+          left: -9,
           transform: 'translateY(-50%)',
         }}
-        title="Input [any] — from Application"
+        title="输入"
       />
 
       <div className="flow-node-header">
@@ -65,7 +65,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
             {entryCount === 0 ? '无匹配器' : `${entryCount} 个匹配器`}
           </div>
         </div>
-        <div className="flow-node-badge accent">Router</div>
+        <div className="flow-node-badge accent">分流</div>
       </div>
 
       {data.entries.length > 0 && (
@@ -73,7 +73,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
           {data.entries.map((entry, index) => (
             <div key={entry.id} className="flow-node-entry">
               <div style={{ flex: 1 }}>
-                <div className="flow-node-entry-label">{entry.label || `Matcher #${index + 1}`}</div>
+                <div className="flow-node-entry-label">{entry.label || `匹配器 #${index + 1}`}</div>
                 <div className="flow-node-entry-desc">
                   {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || '—'}
                 </div>
@@ -86,21 +86,21 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
                 style={{
                   ...handleBase,
                   background: HANDLE_COLORS[entry.matchType] || HANDLE_COLORS.any,
-                  right: -10,
+                  right: -9,
                   top: '50%',
                   transform: 'translateY(-50%)',
                 }}
-                title={`[${entry.matchType}] Connect to Provider${entry.matchType === 'model' ? ' model' : ''} (matches: ${entry.pattern || '—'})`}
+                title={entry.label || `匹配器 ${index + 1}`}
               />
             </div>
           ))}
           {data.hasDefault && (
             <div className="flow-node-entry">
               <div>
-                <div className="flow-node-entry-label">Default</div>
-                <div className="flow-node-entry-desc">Fallback when no matchers match</div>
+                <div className="flow-node-entry-label">默认路由</div>
+                <div className="flow-node-entry-desc">未命中匹配器时回退</div>
               </div>
-              <span className="flow-node-badge accent">Fallback</span>
+              <span className="flow-node-badge accent">回退</span>
               <Handle
                 type="source"
                 position={Position.Right}
@@ -108,11 +108,11 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
                 style={{
                   ...handleBase,
                   background: '#f59e0b',
-                  right: -10,
+                  right: -9,
                   top: '50%',
                   transform: 'translateY(-50%)',
                 }}
-                title="Default [any] — fallback to Provider"
+                title="默认路由"
               />
             </div>
           )}
@@ -124,7 +124,7 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
       )}
 
       {entryCount === 0 && !data.hasDefault && (
-        <div className="flow-node-empty">Add matchers or enable default route</div>
+        <div className="flow-node-empty">添加匹配器或启用默认路由后即可连线</div>
       )}
     </div>
   );

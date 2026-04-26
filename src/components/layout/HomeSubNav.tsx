@@ -3,34 +3,11 @@ import { useShallow } from 'zustand/react/shallow';
 import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
 import { getProviderIcon } from '../icons/ProviderIcons';
 import { NodeTag, type AppType, type MiddlewareType } from '../../types';
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const chevronStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  fontSize: 13,
-  fontWeight: 400,
-  color: 'var(--ui-dim)',
-  width: 14,
-  textAlign: 'center',
-  fontFamily: 'monospace',
-  lineHeight: 1,
-};
-
-const categoryIconStyle: React.CSSProperties = {
-  width: 16,
-  height: 16,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-};
-
-// ---------------------------------------------------------------------------
-// Category Data
-// ---------------------------------------------------------------------------
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { ChevronDown, ChevronRight, Monitor, Waypoints, Layers } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CategoryDef {
   id: string;
@@ -44,31 +21,19 @@ const CATEGORIES: CategoryDef[] = [
     id: 'application',
     label: '应用',
     color: '#22c55e',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
-      </svg>
-    ),
+    icon: <Monitor className="w-3.5 h-3.5" style={{ color: '#22c55e' }} />,
   },
   {
     id: 'middleware',
     label: '中间件',
     color: '#f97316',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" />
-      </svg>
-    ),
+    icon: <Waypoints className="w-3.5 h-3.5" style={{ color: '#f97316' }} />,
   },
   {
     id: 'provider',
     label: '供应商',
     color: '#3b82f6',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-      </svg>
-    ),
+    icon: <Layers className="w-3.5 h-3.5" style={{ color: '#3b82f6' }} />,
   },
 ];
 
@@ -87,35 +52,22 @@ const TAG_LABEL_MAP: Record<NodeTag, string> = {
 };
 
 function getApplicationDesc(appType: AppType, helpText?: string): string {
-  if (helpText) {
-    return helpText.split(/[。.!?]/)[0]?.trim() || '应用入口节点';
-  }
+  if (helpText) return helpText.split(/[。.!?]/)[0]?.trim() || '应用入口节点';
   switch (appType) {
-    case 'claude_code':
-      return 'Claude Code 代理入口';
-    case 'open_code':
-      return 'OpenCode 代理入口';
-    case 'codex_cli':
-      return 'Codex CLI 代理入口';
-    default:
-      return '通用应用监听入口';
+    case 'claude_code': return 'Claude Code 代理入口';
+    case 'open_code': return 'OpenCode 代理入口';
+    case 'codex_cli': return 'Codex CLI 代理入口';
+    default: return '通用应用监听入口';
   }
 }
 
 function getMiddlewareDesc(type: MiddlewareType): string {
   switch (type) {
-    case 'switcher':
-      return '按模型、路径或请求头分流';
-    case 'poller':
-      return '按策略动态选择下游目标';
-    default:
-      return '中间件节点';
+    case 'switcher': return '按模型、路径或请求头分流';
+    case 'poller': return '按策略动态选择下游目标';
+    default: return '中间件节点';
   }
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export default function HomeSubNav() {
   const {
@@ -126,13 +78,14 @@ export default function HomeSubNav() {
     middlewareCount,
     providerCount,
   } = useFlowStore(useShallow(useCallback((s) => ({
-      addNode: s.addNode,
-      addMiddlewareNode: s.addMiddlewareNode,
-      addPresetProviderNode: s.addPresetProviderNode,
-      appCount: s.nodes.filter((n) => n.data.nodeType === 'application').length,
-      middlewareCount: s.nodes.filter((n) => n.data.nodeType === 'switcher' || n.data.nodeType === 'poller').length,
-      providerCount: s.nodes.filter((n) => n.data.nodeType === 'provider').length,
-    }), [])));
+    addNode: s.addNode,
+    addMiddlewareNode: s.addMiddlewareNode,
+    addPresetProviderNode: s.addPresetProviderNode,
+    appCount: s.nodes.filter((n) => n.data.nodeType === 'application').length,
+    middlewareCount: s.nodes.filter((n) => n.data.nodeType === 'switcher' || n.data.nodeType === 'poller').length,
+    providerCount: s.nodes.filter((n) => n.data.nodeType === 'provider').length,
+  }), [])));
+
   const applicationItems = useMemo(
     () => Object.entries(APPLICATION_DEFAULTS) as [AppType, (typeof APPLICATION_DEFAULTS)[AppType]][],
     []
@@ -143,7 +96,6 @@ export default function HomeSubNav() {
   );
   const [selectedTag, setSelectedTag] = useState<NodeTag>(NodeTag.Any);
 
-  // Track which categories are expanded (all open by default)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     application: true,
     middleware: true,
@@ -156,9 +108,7 @@ export default function HomeSubNav() {
 
   const matchByTag = useCallback(
     (itemTags: NodeTag[]) =>
-      selectedTag === NodeTag.Any ||
-      itemTags.includes(NodeTag.Any) ||
-      itemTags.includes(selectedTag),
+      selectedTag === NodeTag.Any || itemTags.includes(NodeTag.Any) || itemTags.includes(selectedTag),
     [selectedTag],
   );
 
@@ -166,183 +116,179 @@ export default function HomeSubNav() {
     () => applicationItems.filter(([, appDefault]) => matchByTag(appDefault.tag)),
     [applicationItems, matchByTag],
   );
-
   const filteredMiddlewareItems = useMemo(
     () => middlewareItems.filter(([, middleware]) => matchByTag(middleware.tag)),
     [middlewareItems, matchByTag],
   );
-
   const filteredProviderPresets = useMemo(
     () => PRESET_PROVIDERS.filter((preset) => matchByTag(preset.tag)),
     [matchByTag],
   );
 
   const handleAddPreset = useCallback(
-    (presetId: string) => {
-      addPresetProviderNode(presetId);
-    },
+    (presetId: string) => { addPresetProviderNode(presetId); },
     [addPresetProviderNode],
   );
-
-  const handleAddCustom = useCallback(() => {
-    addNode('provider');
-  }, [addNode]);
+  const handleAddCustom = useCallback(() => { addNode('provider'); }, [addNode]);
 
   const getCategoryCount = useCallback(
     (id: string) => {
-      switch (id) {
-        case 'application': return appCount;
-        case 'middleware': return middlewareCount;
-        case 'provider': return providerCount;
-        default: return 0;
-      }
+      switch (id) { case 'application': return appCount; case 'middleware': return middlewareCount; case 'provider': return providerCount; default: return 0; }
     },
     [appCount, middlewareCount, providerCount],
   );
 
   return (
-    <div className="ui-subnav ui-subsidebar">
-      <div className="ui-subnav-header" data-tauri-drag-region>
-        <div className="ui-subnav-title">节点组件</div>
-        <div className="ui-chip-group">
-          {TAG_OPTIONS.map((tag) => {
-            const active = selectedTag === tag;
-            return (
-              <button
-                key={tag}
-                type="button"
-                className={`ui-chip${active ? ' active' : ''}`}
-                onClick={() => setSelectedTag(tag)}
-              >
-                {TAG_LABEL_MAP[tag]}
-              </button>
-            );
-          })}
+    <div className="w-[272px] h-full flex flex-col shrink-0 border-r border-border-soft bg-sidebar-surface backdrop-blur-xl">
+      <div className="px-[18px] pt-[22px] pb-[14px] border-b border-border-soft" data-tauri-drag-region>
+        <div className="text-sm font-bold text-foreground">节点组件</div>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {TAG_OPTIONS.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={cn(
+                "inline-flex items-center justify-center min-h-[28px] px-3 rounded-full border text-[11px] font-semibold leading-none cursor-pointer transition-all duration-200",
+                selectedTag === tag
+                  ? "border-border bg-card text-foreground shadow-[var(--color-shadow-soft)]"
+                  : "border-border bg-surface/60 text-muted hover:border-border-strong hover:text-foreground"
+              )}
+              onClick={() => setSelectedTag(tag)}
+            >
+              {TAG_LABEL_MAP[tag]}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="ui-subnav-section">
-        {CATEGORIES.map((cat, catIdx) => {
-          const isOpen = expanded[cat.id];
-          const count = getCategoryCount(cat.id);
+      <ScrollArea className="flex-1">
+        <div className="p-2.5 pb-3.5">
+          {CATEGORIES.map((cat, catIdx) => {
+            const isOpen = expanded[cat.id];
+            const count = getCategoryCount(cat.id);
 
-          return (
-            <div key={cat.id} className="ui-subnav-category">
-              <button
-                type="button"
-                className="ui-subnav-category-header"
-                onClick={() => toggleCategory(cat.id)}
-              >
-                <span style={chevronStyle}>{isOpen ? '−' : '+'}</span>
-                <span style={categoryIconStyle}>{cat.icon}</span>
-                <span>{cat.label}</span>
-                {count > 0 && <span className="ui-subnav-category-count">{count}</span>}
-              </button>
+            return (
+              <div key={cat.id} className="mb-2.5">
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-transparent bg-transparent text-foreground cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70"
+                  onClick={() => toggleCategory(cat.id)}
+                >
+                  {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-dim" /> : <ChevronRight className="w-3.5 h-3.5 text-dim" />}
+                  <span className="w-4 h-4 flex items-center justify-center shrink-0">{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  {count > 0 && (
+                    <span className="ml-auto min-w-[22px] h-[22px] px-[7px] rounded-full border border-border bg-card/80 text-dim text-[11px] inline-flex items-center justify-center">
+                      {count}
+                    </span>
+                  )}
+                </button>
 
-              {isOpen && (
-                <div>
-                  {cat.id === 'application' && (
-                    <>
-                      {filteredApplicationItems.map(([appType, appDefault]) => {
-                        const Icon = getProviderIcon(appDefault.icon);
-                        return (
-                          <button
-                            key={appType}
-                            type="button"
-                            className="ui-subnav-item"
-                            onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
-                          >
-                            <span style={categoryIconStyle}>
-                              {Icon && <Icon style={{ width: 14, height: 14 }} />}
-                            </span>
-                            <span className="ui-subnav-item-main">
-                              <span className="ui-subnav-item-title">{appDefault.displayLabel}</span>
-                              <span className="ui-subnav-item-desc">
-                                {getApplicationDesc(appType, appDefault.helpText)}
+                {isOpen && (
+                  <div>
+                    {cat.id === 'application' && (
+                      <>
+                        {filteredApplicationItems.map(([appType, appDefault]) => {
+                          const Icon = getProviderIcon(appDefault.icon);
+                          return (
+                            <button
+                              key={appType}
+                              type="button"
+                              className="w-full flex items-start gap-2.5 mt-1 px-2.5 py-2.5 pl-[30px] rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
+                              onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
+                            >
+                              <span className="w-4 h-4 flex items-center justify-center shrink-0">
+                                {Icon && <Icon className="w-3.5 h-3.5" />}
                               </span>
-                            </span>
-                            <span className="ui-subnav-item-badge">应用</span>
-                          </button>
-                        );
-                      })}
-                      {filteredApplicationItems.length === 0 && (
-                        <div className="ui-subnav-empty">当前筛选下无可用应用节点</div>
-                      )}
-                    </>
-                  )}
+                              <span className="min-w-0 flex-1 flex flex-col gap-0.5">
+                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-foreground">{appDefault.displayLabel}</span>
+                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-dim">
+                                  {getApplicationDesc(appType, appDefault.helpText)}
+                                </span>
+                              </span>
+                              <Badge variant="outline" className="shrink-0 h-[22px] text-[10px] px-2 border-border bg-card/80 text-dim">应用</Badge>
+                            </button>
+                          );
+                        })}
+                        {filteredApplicationItems.length === 0 && (
+                          <div className="px-2.5 pl-[30px] py-2 text-dim text-xs">当前筛选下无可用应用节点</div>
+                        )}
+                      </>
+                    )}
 
-                  {cat.id === 'middleware' && (
-                    <>
-                      {filteredMiddlewareItems.map(([middlewareType, middleware]) => {
-                        const Icon = getProviderIcon(middleware.icon);
-                        return (
-                          <button
-                            key={middlewareType}
-                            type="button"
-                            className="ui-subnav-item"
-                            onClick={() => addMiddlewareNode(middlewareType)}
-                          >
-                            <span style={categoryIconStyle}>
-                              {Icon && <Icon style={{ width: 14, height: 14 }} />}
-                            </span>
-                            <span className="ui-subnav-item-main">
-                              <span className="ui-subnav-item-title">{middleware.name}</span>
-                              <span className="ui-subnav-item-desc">{getMiddlewareDesc(middlewareType)}</span>
-                            </span>
-                            <span className="ui-subnav-item-badge">中间件</span>
-                          </button>
-                        );
-                      })}
-                      {filteredMiddlewareItems.length === 0 && (
-                        <div className="ui-subnav-empty">当前筛选下无可用中间件节点</div>
-                      )}
-                    </>
-                  )}
+                    {cat.id === 'middleware' && (
+                      <>
+                        {filteredMiddlewareItems.map(([middlewareType, middleware]) => {
+                          const Icon = getProviderIcon(middleware.icon);
+                          return (
+                            <button
+                              key={middlewareType}
+                              type="button"
+                              className="w-full flex items-start gap-2.5 mt-1 px-2.5 py-2.5 pl-[30px] rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
+                              onClick={() => addMiddlewareNode(middlewareType)}
+                            >
+                              <span className="w-4 h-4 flex items-center justify-center shrink-0">
+                                {Icon && <Icon className="w-3.5 h-3.5" />}
+                              </span>
+                              <span className="min-w-0 flex-1 flex flex-col gap-0.5">
+                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-foreground">{middleware.name}</span>
+                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-dim">{getMiddlewareDesc(middlewareType)}</span>
+                              </span>
+                              <Badge variant="outline" className="shrink-0 h-[22px] text-[10px] px-2 border-border bg-card/80 text-dim">中间件</Badge>
+                            </button>
+                          );
+                        })}
+                        {filteredMiddlewareItems.length === 0 && (
+                          <div className="px-2.5 pl-[30px] py-2 text-dim text-xs">当前筛选下无可用中间件节点</div>
+                        )}
+                      </>
+                    )}
 
-                  {cat.id === 'provider' && (
-                    <>
-                      {filteredProviderPresets.map((preset) => {
-                        const Icon = getProviderIcon(preset.icon);
-                        const isCustomProvider = preset.createMode === 'custom';
-                        const providerDesc = isCustomProvider
-                          ? '创建自定义供应商节点'
-                          : preset.models.length > 0
-                            ? `${preset.models.length} 个模型预设`
-                            : '快速添加供应商节点';
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            className="ui-subnav-item"
-                            onClick={() => (isCustomProvider ? handleAddCustom() : handleAddPreset(preset.id))}
-                          >
-                            <span style={categoryIconStyle}>
-                              {Icon && <Icon style={{ width: 14, height: 14 }} />}
-                            </span>
-                            <span className="ui-subnav-item-main">
-                              <span className="ui-subnav-item-title">{preset.name}</span>
-                              <span className="ui-subnav-item-desc">{providerDesc}</span>
-                            </span>
-                            <span className="ui-subnav-item-badge">
-                              {isCustomProvider ? '自定义' : '预设'}
-                            </span>
-                          </button>
-                        );
-                      })}
-                      {filteredProviderPresets.length === 0 && (
-                        <div className="ui-subnav-empty">当前筛选下无可用供应商节点</div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-              {catIdx < CATEGORIES.length - 1 && (
-                <div className="ui-subnav-divider" />
-              )}
-            </div>
-          );
-        })}
-      </div>
+                    {cat.id === 'provider' && (
+                      <>
+                        {filteredProviderPresets.map((preset) => {
+                          const Icon = getProviderIcon(preset.icon);
+                          const isCustomProvider = preset.createMode === 'custom';
+                          const providerDesc = isCustomProvider
+                            ? '创建自定义供应商节点'
+                            : preset.models.length > 0
+                              ? `${preset.models.length} 个模型预设`
+                              : '快速添加供应商节点';
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              className="w-full flex items-start gap-2.5 mt-1 px-2.5 py-2.5 pl-[30px] rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
+                              onClick={() => (isCustomProvider ? handleAddCustom() : handleAddPreset(preset.id))}
+                            >
+                              <span className="w-4 h-4 flex items-center justify-center shrink-0">
+                                {Icon && <Icon className="w-3.5 h-3.5" />}
+                              </span>
+                              <span className="min-w-0 flex-1 flex flex-col gap-0.5">
+                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-foreground">{preset.name}</span>
+                                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-dim">{providerDesc}</span>
+                              </span>
+                              <Badge variant="outline" className="shrink-0 h-[22px] text-[10px] px-2 border-border bg-card/80 text-dim">
+                                {isCustomProvider ? '自定义' : '预设'}
+                              </Badge>
+                            </button>
+                          );
+                        })}
+                        {filteredProviderPresets.length === 0 && (
+                          <div className="px-2.5 pl-[30px] py-2 text-dim text-xs">当前筛选下无可用供应商节点</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                {catIdx < CATEGORIES.length - 1 && (
+                  <Separator className="my-2.5 mx-2 bg-border-soft" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

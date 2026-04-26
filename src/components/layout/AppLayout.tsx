@@ -10,24 +10,6 @@ import { useNavStore } from '../../store/nav-store';
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const MonitorPage = lazy(() => import('../pages/MonitorPage'));
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const dragRegionStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: 32,
-  zIndex: 100,
-  WebkitAppRegion: 'drag',
-} as React.CSSProperties;
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 interface AppLayoutProps {
   children: React.ReactNode;
 }
@@ -37,7 +19,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const setProxyStatus = useAppStore((s) => s.setProxyStatus);
   const activeTab = useNavStore((s) => s.activeTab);
 
-  // Sync polled status to app store
   useEffect(() => {
     setProxyStatus(status);
   }, [status, setProxyStatus]);
@@ -46,20 +27,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
     switch (activeTab) {
       case 'home':
         return (
-          <div className="ui-content-row">
+          <div className="flex flex-1 overflow-hidden">
             <HomeSubNav />
-            <div className="ui-canvas-area">{children}</div>
+            <div className="flex-1 relative overflow-hidden">{children}</div>
           </div>
         );
       case 'monitor':
         return (
-          <Suspense fallback={<div className="ui-loading-panel">页面加载中...</div>}>
+          <Suspense fallback={<div className="flex items-center justify-center w-full h-full text-muted bg-background/80">页面加载中...</div>}>
             <MonitorPage />
           </Suspense>
         );
       case 'settings':
         return (
-          <Suspense fallback={<div className="ui-loading-panel">页面加载中...</div>}>
+          <Suspense fallback={<div className="flex items-center justify-center w-full h-full text-muted bg-background/80">页面加载中...</div>}>
             <SettingsPage />
           </Suspense>
         );
@@ -69,10 +50,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
   };
 
   return (
-    <div className="ui-shell ui-page">
+    <div className="flex w-screen h-screen overflow-hidden relative ui-page">
       <SidebarNav />
-      <div className="ui-main">
-        <div style={dragRegionStyle} data-tauri-drag-region />
+      <div className="flex-1 flex flex-col overflow-hidden relative bg-background/24">
+        <div
+          className="absolute top-0 left-0 right-0 h-8 z-[100]"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          data-tauri-drag-region
+        />
         {renderContent()}
       </div>
       <TitleBar />

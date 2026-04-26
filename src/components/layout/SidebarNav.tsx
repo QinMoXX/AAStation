@@ -2,68 +2,18 @@ import { useState, useCallback } from 'react';
 import { useNavStore, type NavTab } from '../../store/nav-store';
 import { useAppStore } from '../../store/app-store';
 import { useFlowStore } from '../../store/flow-store';
-import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured } from '../../lib/tauri-api';
+import { publishDag, startProxy, stopProxy, getProxyStatus } from '../../lib/tauri-api';
+import { dismissAppConfigGuide, hasApplicationNodes, shouldShowAppConfigGuide } from '../../lib/app-config-guide';
 import { toast } from '../../store/toast-store';
+import AppConfigGuideDialog from '../common/AppConfigGuideDialog';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Home, Activity, Settings, Power, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-// ---------------------------------------------------------------------------
-// SVG Icon Components
-// ---------------------------------------------------------------------------
-
-function HomeIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <circle cx="12" cy="12" r="6" />
-      <circle cx="12" cy="12" r="2" />
-    </svg>
-  );
-}
-
-function MonitorIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-      <polyline points="16 7 22 7 22 13" />
-    </svg>
-  );
-}
-
-function SettingsIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function PowerIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2v10" />
-      <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
-    </svg>
-  );
-}
-
-function UploadIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const navItems: { id: NavTab; icon: React.FC<{ size?: number }>; label: string }[] = [
-  { id: 'home', icon: HomeIcon, label: '主页' },
-  { id: 'monitor', icon: MonitorIcon, label: '监控' },
-  { id: 'settings', icon: SettingsIcon, label: '设置' },
+const navItems: { id: NavTab; icon: typeof Home; label: string }[] = [
+  { id: 'home', icon: Home, label: '主页' },
+  { id: 'monitor', icon: Activity, label: '监控' },
+  { id: 'settings', icon: Settings, label: '设置' },
 ];
 
 export default function SidebarNav() {
@@ -76,10 +26,14 @@ export default function SidebarNav() {
 
   const [toggling, setToggling] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showAppConfigGuide, setShowAppConfigGuide] = useState(false);
 
-  // -----------------------------------------------------------------------
-  // Toggle proxy on/off
-  // -----------------------------------------------------------------------
+  const maybeShowAppConfigGuide = useCallback(() => {
+    const doc = getDocument();
+    if (hasApplicationNodes(doc) && shouldShowAppConfigGuide()) {
+      setShowAppConfigGuide(true);
+    }
+  }, [getDocument]);
 
   const handleToggleProxy = useCallback(async () => {
     if (toggling) return;
@@ -91,6 +45,7 @@ export default function SidebarNav() {
       } else {
         await startProxy();
         toast.success('代理服务已启动');
+        maybeShowAppConfigGuide();
       }
       const status = await getProxyStatus();
       setProxyStatus(status);
@@ -103,16 +58,11 @@ export default function SidebarNav() {
     }
   }, [proxyStatus.running, toggling, setProxyStatus]);
 
-  // -----------------------------------------------------------------------
-  // Publish DAG
-  // -----------------------------------------------------------------------
-
   const handlePublish = useCallback(async () => {
     if (publishing) return;
     setPublishing(true);
     try {
-      const doc = getDocument();
-      await publishDag(doc);
+      await publishDag(getDocument());
       if (!proxyStatus.running) {
         await startProxy();
       }
@@ -120,18 +70,7 @@ export default function SidebarNav() {
       const status = await getProxyStatus();
       setProxyStatus(status);
       toast.success('发布并保存成功');
-
-      // Check for Claude Code application nodes
-      const claudeCodeApps = doc.nodes
-        .filter((n) => n.data.nodeType === 'application' && (n.data as any).appType === 'claude_code')
-        .map((n) => n.id);
-
-      if (claudeCodeApps.length > 0) {
-        const configured = await isClaudeConfigured().catch(() => false);
-        if (!configured) {
-          toast.info('检测到 Claude Code 节点，请前往“设置 → 应用设置”进行配置文件写入或备份恢复。', 6000);
-        }
-      }
+      maybeShowAppConfigGuide();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`发布或保存失败：${msg}`);
@@ -142,48 +81,74 @@ export default function SidebarNav() {
   }, [publishing, proxyStatus.running, getDocument, markPublished, setProxyStatus]);
 
   return (
-    <nav className="ui-sidebar ui-sidebar-primary">
-      <div className="ui-sidebar-logo">
-        <img src="/logo.svg" alt="AAStation" />
-      </div>
+    <TooltipProvider delayDuration={300}>
+      <nav className="w-[78px] h-full flex flex-col items-center py-4 px-0 gap-2 shrink-0 border-r border-border-soft bg-sidebar-surface-strong backdrop-blur-xl">
+        <div className="w-12 h-12 flex items-center justify-center mb-3 rounded-2xl border border-border bg-card/70 shadow-[var(--color-shadow-soft)]">
+          <img src="/logo.svg" alt="AAStation" className="w-8 h-8" />
+        </div>
 
-      {navItems.map(({ id, icon: Icon, label }) => (
-        <button
-          key={id}
-          type="button"
-          className={`ui-sidebar-item${activeTab === id ? ' active' : ''}`}
-          onClick={() => setTab(id)}
-          title={label}
-        >
-          <Icon size={20} />
-        </button>
-      ))}
+        {navItems.map(({ id, icon: Icon, label }) => (
+          <Tooltip key={id}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "h-12 w-12 flex items-center justify-center rounded-[14px] border text-muted transition-all duration-200 cursor-pointer",
+                  "border-border/70 bg-card/35 hover:border-border hover:bg-surface hover:text-foreground",
+                  activeTab === id && "border-border bg-card text-foreground shadow-[var(--color-shadow-soft)]"
+                )}
+                onClick={() => setTab(id)}
+              >
+                <Icon size={20} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{label}</TooltipContent>
+          </Tooltip>
+        ))}
 
-      <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
-      <div className="ui-sidebar-divider" />
+        <div className="w-8 h-px bg-border-soft my-1.5 mx-0" />
 
-      <button
-        type="button"
-        className="ui-sidebar-action"
-        onClick={handlePublish}
-        disabled={!isDraft || publishing}
-        style={{ color: isDraft && !publishing ? 'var(--ui-muted)' : 'var(--ui-dim)' }}
-        title={publishing ? 'Saving...' : '保存'}
-      >
-        <UploadIcon size={20} />
-      </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="h-11 w-11 flex items-center justify-center rounded-[14px] border border-border/70 bg-card/35 text-muted transition-all duration-200 cursor-pointer hover:border-border hover:bg-surface hover:text-foreground disabled:opacity-36 disabled:cursor-not-allowed"
+              onClick={handlePublish}
+              disabled={!isDraft || publishing}
+              style={{ color: isDraft && !publishing ? 'var(--color-muted)' : 'var(--color-dim)' }}
+            >
+              <Upload size={20} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{publishing ? 'Saving...' : '保存'}</TooltipContent>
+        </Tooltip>
 
-      <button
-        type="button"
-        className="ui-sidebar-action"
-        onClick={handleToggleProxy}
-        disabled={toggling}
-        style={{ color: proxyStatus.running ? 'var(--ui-success)' : 'var(--ui-muted)' }}
-        title={toggling ? '处理中...' : proxyStatus.running ? '关闭代理' : '开启代理'}
-      >
-        <PowerIcon size={20} />
-      </button>
-    </nav>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="h-11 w-11 flex items-center justify-center rounded-[14px] border border-border/70 bg-card/35 text-muted transition-all duration-200 cursor-pointer hover:border-border hover:bg-surface hover:text-foreground disabled:opacity-36 disabled:cursor-not-allowed"
+              onClick={handleToggleProxy}
+              disabled={toggling}
+              style={{ color: proxyStatus.running ? 'var(--color-success)' : 'var(--color-muted)' }}
+            >
+              <Power size={20} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{toggling ? '处理中...' : proxyStatus.running ? '关闭代理' : '开启代理'}</TooltipContent>
+        </Tooltip>
+
+      </nav>
+
+      <AppConfigGuideDialog
+        open={showAppConfigGuide}
+        onConfirm={() => {
+          dismissAppConfigGuide();
+          setShowAppConfigGuide(false);
+        }}
+      />
+    </TooltipProvider>
   );
 }

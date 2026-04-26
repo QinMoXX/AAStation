@@ -13,73 +13,21 @@ import type {
 } from '../../types';
 import { NodeTag } from '../../types';
 import { getProviderIcon } from '../icons/ProviderIcons';
-
-// ---------------------------------------------------------------------------
-// Shared styles
-// ---------------------------------------------------------------------------
-
-const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 14,
-  right: 14,
-  width: 360,
-  height: 'calc(100% - 28px)',
-  overflowY: 'auto',
-  padding: 14,
-  zIndex: 10,
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  borderRadius: 22,
-  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 8, 23, 0.92))',
-  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.45)',
-  backdropFilter: 'blur(18px)',
-};
-
-const sectionTitle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: 'var(--ui-dim)',
-  marginBottom: 8,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--ui-muted)',
-  marginBottom: 6,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  minHeight: 40,
-  padding: '10px 12px',
-  fontSize: 13,
-  border: '1px solid rgba(148, 163, 184, 0.16)',
-  borderRadius: 12,
-  outline: 'none',
-  background: 'rgba(15, 23, 42, 0.88)',
-  color: 'var(--ui-text)',
-  boxSizing: 'border-box' as const,
-  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.03)',
-};
-
-const fieldGap: React.CSSProperties = { marginBottom: 12 };
-
-const tagPillStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  padding: '2px 10px',
-  borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: '0.04em',
-  background: 'rgba(30, 64, 175, 0.16)',
-  color: '#dbeafe',
-  border: '1px solid rgba(96, 165, 250, 0.24)',
-  userSelect: 'none',
-};
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { X, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const tagLabelMap: Record<NodeTag, string> = {
   [NodeTag.Any]: 'ANY',
@@ -88,70 +36,29 @@ const tagLabelMap: Record<NodeTag, string> = {
   [NodeTag.CodexCli]: 'CODEX_CLI',
 };
 
+const panelFieldClass =
+  'rounded-xl border-[rgba(120,146,190,0.20)] bg-[rgba(7,14,28,0.94)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
+
+const panelCardClass =
+  'rounded-2xl border-[rgba(120,146,190,0.18)] bg-[rgba(12,22,42,0.96)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]';
+
+const panelPillButtonClass =
+  'h-7 rounded-full px-2.5 text-[10px] font-medium gap-1.5 [&_svg]:size-3';
+
+const panelDangerPillButtonClass =
+  'h-7 rounded-full px-2.5 text-[10px] font-medium gap-1.5 bg-destructive/16 border-destructive/24 text-rose-200 hover:bg-destructive/24 [&_svg]:size-3';
+
 // ---------------------------------------------------------------------------
 // Provider form
 // ---------------------------------------------------------------------------
 
-const readonlyInputStyle: React.CSSProperties = {
-  ...inputStyle,
-  background: 'rgba(30, 41, 59, 0.82)',
-  color: 'var(--ui-dim)',
-  cursor: 'not-allowed',
-};
-
-const actionButtonStyle: React.CSSProperties = {
-  minHeight: 30,
-  padding: '0 12px',
-  fontSize: 12,
-  fontWeight: 600,
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  borderRadius: 10,
-  background: 'rgba(15, 23, 42, 0.82)',
-  color: 'var(--ui-text)',
-  cursor: 'pointer',
-};
-
-const accentButtonStyle: React.CSSProperties = {
-  ...actionButtonStyle,
-  border: '1px solid rgba(96, 165, 250, 0.28)',
-  background: 'linear-gradient(180deg, rgba(37, 99, 235, 0.3), rgba(15, 23, 42, 0.88))',
-  color: '#dbeafe',
-};
-
-const warnButtonStyle: React.CSSProperties = {
-  ...actionButtonStyle,
-  border: '1px solid rgba(251, 191, 36, 0.26)',
-  background: 'linear-gradient(180deg, rgba(146, 64, 14, 0.36), rgba(15, 23, 42, 0.88))',
-  color: '#fde68a',
-};
-
-const dangerButtonStyle: React.CSSProperties = {
-  ...actionButtonStyle,
-  minHeight: 26,
-  padding: '0 8px',
-  border: '1px solid rgba(248, 113, 113, 0.24)',
-  background: 'rgba(127, 29, 29, 0.26)',
-  color: '#fecaca',
-};
-
-const editorCardStyle: React.CSSProperties = {
-  marginBottom: 10,
-  padding: 10,
-  borderRadius: 16,
-  border: '1px solid rgba(148, 163, 184, 0.16)',
-  background: 'rgba(15, 23, 42, 0.72)',
-  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.03)',
-};
-
 function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (patch: Partial<ProviderNodeData>) => void }) {
-  // Check if this is a preset node
   const preset = useMemo(
     () => PRESET_PROVIDERS.find((p) => p.id === data.presetId),
     [data.presetId]
   );
   const isPreset = !!preset;
 
-  // Available models from preset (for quick add)
   const availablePresetModels = useMemo(() => {
     if (!preset) return [];
     const existingNames = new Set(data.models.map((m) => m.name));
@@ -196,85 +103,72 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
   );
 
   return (
-    <>
-      {/* Preset indicator */}
+    <div className="flex flex-col gap-3">
       {isPreset && (() => {
         const Icon = getProviderIcon(preset.icon);
         return (
-          <div
-            style={{
-              marginBottom: 12,
-              padding: '6px 10px',
-              background: 'rgba(146, 64, 14, 0.22)',
-              border: '1px solid rgba(251, 191, 36, 0.2)',
-              borderRadius: 12,
-              fontSize: 11,
-              color: '#fde68a',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center' }}>
-              {Icon && <Icon style={{ width: 16, height: 16 }} />}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-warning/10 border border-warning-border rounded-xl text-xs text-warning-foreground">
+            <span className="w-4 h-4 flex items-center justify-center">
+              {Icon && <Icon className="w-4 h-4" />}
             </span>
             <strong>{preset.name}</strong> 预设供应商，地址不可修改
           </div>
         );
       })()}
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>Label</label>
-        <input
-          style={inputStyle}
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">名称</Label>
+        <Input
           value={data.label}
           onChange={(e) => onUpdate({ label: e.target.value })}
+          className={panelFieldClass}
         />
       </div>
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>OpenAI 基础地址</label>
-        <input
-          style={isPreset ? readonlyInputStyle : inputStyle}
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">OpenAI 基础地址</Label>
+        <Input
           value={data.baseUrl}
           placeholder="https://api.openai.com/v1"
           onChange={(e) => onUpdate({ baseUrl: e.target.value })}
           disabled={isPreset}
+          className={cn(
+            panelFieldClass,
+            isPreset && "opacity-60 cursor-not-allowed"
+          )}
         />
-        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          需要包含版本路径，例如 `/v1`。用于 OpenAI 兼容请求。
-        </div>
+        <p className="text-[10px] text-dim">需要包含版本路径，例如 `/v1`。用于 OpenAI 兼容请求。</p>
       </div>
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>Anthropic 基础地址 <span style={{ color: '#6b7280', fontWeight: 400 }}>(可选)</span></label>
-        <input
-          style={isPreset ? readonlyInputStyle : inputStyle}
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">Anthropic 基础地址 <span className="text-dim font-normal">(可选)</span></Label>
+        <Input
           value={data.anthropicBaseUrl || ''}
           placeholder="https://open.bigmodel.cn/api/anthropic"
           onChange={(e) => onUpdate({ anthropicBaseUrl: e.target.value || undefined })}
           disabled={isPreset}
+          className={cn(
+            panelFieldClass,
+            isPreset && "opacity-60 cursor-not-allowed"
+          )}
         />
-        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          不需要版本路径。设置后，Anthropic 兼容请求会直接使用这个地址。
-        </div>
+        <p className="text-[10px] text-dim">不需要版本路径。设置后，Anthropic 兼容请求会直接使用这个地址。</p>
       </div>
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>API 密钥</label>
-        <input
-          style={inputStyle}
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">API 密钥</Label>
+        <Input
           type="password"
           value={data.apiKey}
           placeholder="sk-..."
           onChange={(e) => onUpdate({ apiKey: e.target.value })}
+          className={panelFieldClass}
         />
       </div>
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>Token 预算 <span style={{ color: '#6b7280', fontWeight: 400 }}>(单位：百万)</span></label>
-        <input
-          style={inputStyle}
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">Token 预算 <span className="text-dim font-normal">(单位：百万)</span></Label>
+        <Input
           type="number"
           min={0}
           step={1}
@@ -289,85 +183,70 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
             const parsed = Math.floor(Number(raw));
             onUpdate({ tokenLimit: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined });
           }}
+          className={panelFieldClass}
         />
-        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          按百万配置额度，留空表示无限制。
-        </div>
+        <p className="text-[10px] text-dim">按百万配置额度，留空表示无限制。</p>
       </div>
 
       {/* Models section */}
-      <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ ...sectionTitle, marginBottom: 0 }}>模型列表</span>
-        <div style={{ display: 'flex', gap: 4 }}>
+      <div className="flex justify-between items-center">
+        <span className="text-xs font-bold text-dim uppercase tracking-wider">模型列表</span>
+        <div className="flex gap-1">
           {isPreset && availablePresetModels.length > 0 && (
-            <select
-              style={{ ...inputStyle, minHeight: 30, width: 'auto', padding: '4px 10px', fontSize: 11 }}
-              value=""
-              onChange={(e) => {
-                if (e.target.value) addPresetModel(e.target.value);
-              }}
-            >
-              <option value="">+ 快速添加</option>
-              {availablePresetModels.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.label || m.name}
-                </option>
-              ))}
-            </select>
+            <Select onValueChange={(val) => { if (val) addPresetModel(val); }}>
+              <SelectTrigger className={cn('h-[30px] w-auto text-xs', panelFieldClass)}>
+                <SelectValue placeholder="+ 快速添加" />
+              </SelectTrigger>
+              <SelectContent>
+                {availablePresetModels.map((m) => (
+                  <SelectItem key={m.name} value={m.name}>
+                    {m.label || m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          <button
-            onClick={addModel}
-            style={accentButtonStyle}
-          >
-            + 自定义
-          </button>
+          <Button variant="accent" size="xs" onClick={addModel} className={panelPillButtonClass}>
+            <Plus className="w-3 h-3" /> 自定义
+          </Button>
         </div>
       </div>
 
       {data.models.length === 0 && (
-        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-          暂无模型。{isPreset ? '可使用“快速添加”或' : ''}点击“+ 自定义”创建。
-        </div>
+        <p className="text-xs text-dim">
+          暂无模型。{isPreset ? '可使用"快速添加"或' : ''}点击"+ 自定义"创建。
+        </p>
       )}
 
       {data.models.map((model, index) => (
-        <div
-          key={model.id}
-          style={editorCardStyle}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#dbeafe' }}>
-              模型 #{index + 1}
-            </span>
-            <button
-              onClick={() => removeModel(model.id)}
-              style={dangerButtonStyle}
-            >
-              Remove
-            </button>
-          </div>
-
-          <div style={{ marginBottom: 6 }}>
-            <label style={labelStyle}>模型名称</label>
-            <input
-              style={inputStyle}
-              value={model.name}
-              placeholder="gpt-4o"
-              onChange={(e) => updateModel(model.id, { name: e.target.value })}
-            />
-        </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={model.enabled}
-              onChange={(e) => updateModel(model.id, { enabled: e.target.checked })}
-            />
-            <span style={{ fontSize: 11, color: '#9ca3af' }}>启用</span>
-          </div>
-        </div>
+        <Card key={model.id} className={panelCardClass}>
+          <CardContent className="p-2.5 space-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-semibold text-accent-foreground">模型 #{index + 1}</span>
+              <Button variant="danger" size="xs" onClick={() => removeModel(model.id)} className={panelDangerPillButtonClass}>
+                <Trash2 className="w-3 h-3" /> 删除
+              </Button>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted text-xs">模型名称</Label>
+              <Input
+                value={model.name}
+                placeholder="gpt-4o"
+                onChange={(e) => updateModel(model.id, { name: e.target.value })}
+                className={cn('h-9 text-sm', panelFieldClass)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={model.enabled}
+                onCheckedChange={(checked) => updateModel(model.id, { enabled: !!checked })}
+              />
+              <span className="text-[11px] text-muted">启用</span>
+            </div>
+          </CardContent>
+        </Card>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -403,114 +282,101 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
   );
 
   return (
-    <>
-      <div style={fieldGap}>
-        <label style={labelStyle}>Label</label>
-        <input
-          style={inputStyle}
+    <div className="flex flex-col gap-3">
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">名称</Label>
+        <Input
           value={data.label}
           onChange={(e) => onUpdate({ label: e.target.value })}
+          className={panelFieldClass}
         />
       </div>
 
-      {/* Default route toggle */}
-      <div style={{ ...fieldGap, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <input
-          type="checkbox"
+      <div className="flex items-center gap-2">
+        <Checkbox
           checked={data.hasDefault}
-          onChange={(e) => onUpdate({ hasDefault: e.target.checked })}
+          onCheckedChange={(checked) => onUpdate({ hasDefault: !!checked })}
         />
-        <span style={{ fontSize: 12, color: '#9ca3af' }}>启用默认路由</span>
+        <span className="text-xs text-muted">启用默认路由</span>
       </div>
 
-      {/* Entries section */}
-      <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ ...sectionTitle, marginBottom: 0 }}>匹配器</span>
-        <button
-          onClick={addEntry}
-          style={warnButtonStyle}
-        >
-          + 添加
-        </button>
+      <div className="flex justify-between items-center">
+        <span className="text-xs font-bold text-dim uppercase tracking-wider">匹配器</span>
+        <Button variant="warning" size="xs" onClick={addEntry} className="gap-1">
+          <Plus className="w-3 h-3" /> 添加
+        </Button>
       </div>
 
       {data.entries.length === 0 && (
-        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-          还没有匹配器。点击"+ 添加"创建一个。
-        </div>
+        <p className="text-xs text-dim">还没有匹配器。点击"+ 添加"创建一个。</p>
       )}
 
       {data.entries.map((entry, index) => (
-        <div
-          key={entry.id}
-          style={editorCardStyle}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fde68a' }}>
-              匹配器 #{index + 1}
-            </span>
-            <button
-              onClick={() => removeEntry(entry.id)}
-              style={dangerButtonStyle}
-            >
-              Remove
-            </button>
-          </div>
+        <Card key={entry.id} className={panelCardClass}>
+          <CardContent className="p-2.5 space-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-semibold text-warning-foreground">匹配器 #{index + 1}</span>
+              <Button variant="danger" size="xs" onClick={() => removeEntry(entry.id)} className={panelDangerPillButtonClass}>
+                <Trash2 className="w-3 h-3" /> 删除
+              </Button>
+            </div>
 
-          <div style={{ marginBottom: 6 }}>
-            <label style={labelStyle}>Label</label>
-            <input
-              style={inputStyle}
-              value={entry.label}
-              placeholder="gpt-4o"
-              onChange={(e) => updateEntry(entry.id, { label: e.target.value })}
-            />
-          </div>
+            <div className="space-y-1">
+              <Label className="text-muted text-xs">名称</Label>
+              <Input
+                value={entry.label}
+                placeholder="gpt-4o"
+                onChange={(e) => updateEntry(entry.id, { label: e.target.value })}
+                className={cn('h-9 text-sm', panelFieldClass)}
+              />
+            </div>
 
-          <div style={{ marginBottom: 6 }}>
-            <label style={labelStyle}>匹配类型</label>
-            <select
-              style={inputStyle}
-              value={entry.matchType}
-              onChange={(e) =>
-                updateEntry(entry.id, {
-                  matchType: e.target.value as SwitcherEntry['matchType'],
-                })
-              }
-            >
-              <option value="model">模型</option>
-              <option value="path_prefix">路径前缀</option>
-              <option value="header">请求头</option>
-            </select>
-          </div>
+            <div className="space-y-1">
+              <Label className="text-muted text-xs">匹配类型</Label>
+              <Select
+                value={entry.matchType}
+                onValueChange={(val) => updateEntry(entry.id, { matchType: val as SwitcherEntry['matchType'] })}
+              >
+                <SelectTrigger className={cn('h-9 text-sm', panelFieldClass)}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="model">模型</SelectItem>
+                  <SelectItem value="path_prefix">路径前缀</SelectItem>
+                  <SelectItem value="header">请求头</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div>
-            <label style={labelStyle}>匹配模式</label>
-            <input
-              style={inputStyle}
-              value={entry.pattern}
-              placeholder={
-                entry.matchType === 'path_prefix'
-                  ? '/v1/messages'
-                  : entry.matchType === 'header'
-                    ? 'X-Custom:value'
-                    : 'claude-sonnet-4-20250514'
-              }
-              onChange={(e) => updateEntry(entry.id, { pattern: e.target.value })}
-            />
-          </div>
-        </div>
+            <div className="space-y-1">
+              <Label className="text-muted text-xs">匹配模式</Label>
+              <Input
+                value={entry.pattern}
+                placeholder={
+                  entry.matchType === 'path_prefix'
+                    ? '/v1/messages'
+                    : entry.matchType === 'header'
+                      ? 'X-Custom:value'
+                      : 'claude-sonnet-4-20250514'
+                }
+                onChange={(e) => updateEntry(entry.id, { pattern: e.target.value })}
+                className={cn('h-9 text-sm', panelFieldClass)}
+              />
+            </div>
+          </CardContent>
+        </Card>
       ))}
-    </>
+    </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Application form
+// Poller form
 // ---------------------------------------------------------------------------
 
 function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch: Partial<PollerNodeData>) => void }) {
   const showTargetWeight = data.strategy === 'weighted' || data.strategy === 'round_robin';
+
   const addTarget = useCallback(() => {
     const newTarget: PollerTarget = {
       id: crypto.randomUUID(),
@@ -538,143 +404,129 @@ function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch
   );
 
   return (
-    <>
-      <div style={fieldGap}>
-        <label style={labelStyle}>名称</label>
-        <input
-          style={inputStyle}
+    <div className="flex flex-col gap-3">
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">名称</Label>
+        <Input
           value={data.label}
           onChange={(e) => onUpdate({ label: e.target.value })}
+          className={panelFieldClass}
         />
       </div>
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>策略</label>
-        <select
-          style={inputStyle}
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">策略</Label>
+        <Select
           value={data.strategy}
-          onChange={(e) => onUpdate({ strategy: e.target.value as PollerNodeData['strategy'] })}
+          onValueChange={(val) => onUpdate({ strategy: val as PollerNodeData['strategy'] })}
         >
-          <option value="weighted">加权轮询</option>
-          <option value="network_status">网络状态优先</option>
-          <option value="token_remaining">剩余额度优先</option>
-        </select>
+          <SelectTrigger className={panelFieldClass}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="weighted">加权轮询</SelectItem>
+            <SelectItem value="network_status">网络状态优先</SelectItem>
+            <SelectItem value="token_remaining">剩余额度优先</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 12 }}>
-        <div>
-          <label style={labelStyle}>失败阈值</label>
-          <input
-            style={inputStyle}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-1">
+          <Label className="text-muted text-xs">失败阈值</Label>
+          <Input
             type="number"
             min={1}
             value={data.failureThreshold}
             onChange={(e) => onUpdate({ failureThreshold: Math.max(1, Number(e.target.value) || 1) })}
+            className={panelFieldClass}
           />
         </div>
-        <div>
-          <label style={labelStyle}>冷却时间(秒)</label>
-          <input
-            style={inputStyle}
+        <div className="space-y-1">
+          <Label className="text-muted text-xs">冷却时间(秒)</Label>
+          <Input
             type="number"
             min={1}
             value={data.cooldownSeconds}
             onChange={(e) => onUpdate({ cooldownSeconds: Math.max(1, Number(e.target.value) || 1) })}
+            className={panelFieldClass}
           />
         </div>
-        <div>
-          <label style={labelStyle}>探测间隔(秒)</label>
-          <input
-            style={inputStyle}
+        <div className="space-y-1">
+          <Label className="text-muted text-xs">探测间隔(秒)</Label>
+          <Input
             type="number"
             min={5}
             value={data.probeIntervalSeconds}
             onChange={(e) => onUpdate({ probeIntervalSeconds: Math.max(5, Number(e.target.value) || 5) })}
+            className={panelFieldClass}
           />
         </div>
       </div>
 
-      <div style={{ ...fieldGap, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <input
-          type="checkbox"
+      <div className="flex items-center gap-2">
+        <Checkbox
           checked={data.hasDefault}
-          onChange={(e) => onUpdate({ hasDefault: e.target.checked })}
+          onCheckedChange={(checked) => onUpdate({ hasDefault: !!checked })}
         />
-        <span style={{ fontSize: 12, color: '#9ca3af' }}>启用默认回退</span>
+        <span className="text-xs text-muted">启用默认回退</span>
       </div>
 
-      <div style={{ ...fieldGap, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ ...sectionTitle, marginBottom: 0 }}>轮询目标</span>
-        <button
-          onClick={addTarget}
-          style={{
-            ...actionButtonStyle,
-            border: '1px solid rgba(192, 132, 252, 0.28)',
-            background: 'linear-gradient(180deg, rgba(107, 33, 168, 0.42), rgba(15, 23, 42, 0.88))',
-            color: '#f5d0fe',
-          }}
-        >
-          + 添加
-        </button>
+      <div className="flex justify-between items-center">
+        <span className="text-xs font-bold text-dim uppercase tracking-wider">轮询目标</span>
+        <Button variant="purple" size="xs" onClick={addTarget} className="gap-1">
+          <Plus className="w-3 h-3" /> 添加
+        </Button>
       </div>
 
       {data.targets.length === 0 && (
-        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-          还没有轮询目标。点击“+ 添加”创建一个。
-        </div>
+        <p className="text-xs text-dim">还没有轮询目标。点击"+ 添加"创建一个。</p>
       )}
 
       {data.targets.map((target, index) => (
-        <div
-          key={target.id}
-          style={editorCardStyle}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#f5d0fe' }}>
-              目标 #{index + 1}
-            </span>
-            <button
-              onClick={() => removeTarget(target.id)}
-              style={dangerButtonStyle}
-            >
-              删除
-            </button>
-          </div>
+        <Card key={target.id} className={panelCardClass}>
+          <CardContent className="p-2.5 space-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-semibold text-purple-foreground">目标 #{index + 1}</span>
+              <Button variant="danger" size="xs" onClick={() => removeTarget(target.id)} className={panelDangerPillButtonClass}>
+                <Trash2 className="w-3 h-3" /> 删除
+              </Button>
+            </div>
 
-          <div style={{ marginBottom: 6 }}>
-            <label style={labelStyle}>名称</label>
-            <input
-              style={inputStyle}
-              value={target.label}
-              placeholder="供应商 A"
-              onChange={(e) => updateTarget(target.id, { label: e.target.value })}
-            />
-          </div>
-
-          {showTargetWeight && (
-            <div style={{ marginBottom: 6 }}>
-              <label style={labelStyle}>权重</label>
-              <input
-                style={inputStyle}
-                type="number"
-                min={1}
-                value={target.weight}
-                onChange={(e) => updateTarget(target.id, { weight: Math.max(1, Number(e.target.value) || 1) })}
+            <div className="space-y-1">
+              <Label className="text-muted text-xs">名称</Label>
+              <Input
+                value={target.label}
+                placeholder="供应商 A"
+                onChange={(e) => updateTarget(target.id, { label: e.target.value })}
+                className={cn('h-9 text-sm', panelFieldClass)}
               />
             </div>
-          )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={target.enabled}
-              onChange={(e) => updateTarget(target.id, { enabled: e.target.checked })}
-            />
-            <span style={{ fontSize: 11, color: '#d8b4fe' }}>启用</span>
-          </div>
-        </div>
+            {showTargetWeight && (
+              <div className="space-y-1">
+                <Label className="text-muted text-xs">权重</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={target.weight}
+                  onChange={(e) => updateTarget(target.id, { weight: Math.max(1, Number(e.target.value) || 1) })}
+                  className={cn('h-9 text-sm', panelFieldClass)}
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={target.enabled}
+                onCheckedChange={(checked) => updateTarget(target.id, { enabled: !!checked })}
+              />
+              <span className="text-[11px] text-purple-foreground">启用</span>
+            </div>
+          </CardContent>
+        </Card>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -685,38 +537,36 @@ function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch
 function ApplicationForm({ data, onUpdate }: { data: ApplicationNodeData; onUpdate: (patch: Partial<ApplicationNodeData>) => void }) {
   const appDefault = APPLICATION_DEFAULTS[data.appType];
   return (
-    <>
-      <div style={fieldGap}>
-        <label style={labelStyle}>Label</label>
-        <input
-          style={inputStyle}
+    <div className="flex flex-col gap-3">
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">名称</Label>
+        <Input
           value={data.label}
           onChange={(e) => onUpdate({ label: e.target.value })}
+          className={panelFieldClass}
         />
       </div>
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>监听端口</label>
-        <input
-          style={inputStyle}
+      <div className="space-y-1.5">
+        <Label className="text-muted text-xs">监听端口</Label>
+        <Input
           type="number"
           value={data.listenPort || ''}
           min={1}
           max={65535}
           placeholder="自动分配"
           onChange={(e) => onUpdate({ listenPort: Number(e.target.value) || 0 })}
+          className={panelFieldClass}
         />
-        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          0 = 自动从端口范围分配。每个应用节点监听独立端口。
-        </div>
+        <p className="text-[10px] text-dim">0 = 自动从端口范围分配。每个应用节点监听独立端口。</p>
       </div>
 
       {appDefault?.helpText && (
-        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 1.5 }}>
+        <p className="text-[11px] text-muted leading-relaxed">
           {appDefault.helpText}
-        </div>
+        </p>
       )}
-    </>
+    </div>
   );
 }
 
@@ -748,7 +598,6 @@ export default function NodePanel() {
 
   const { data } = selectedNode;
 
-  // Color header by node type
   const headerColors: Record<string, string> = {
     provider: '#60a5fa',
     switcher: '#f59e0b',
@@ -789,51 +638,39 @@ export default function NodePanel() {
   const nodeTagLabel = nodeTags.map((tag) => tagLabelMap[tag] ?? tag).join(' | ');
 
   return (
-    <div style={panelStyle}>
+    <div
+      className="absolute z-10 w-[360px] overflow-y-auto rounded-[22px] border border-border bg-card/92 p-3.5 shadow-[var(--color-shadow-strong)] backdrop-blur-xl"
+      style={{
+        top: 'calc(var(--window-controls-safe-top) + 2px)',
+        right: 'calc(var(--window-controls-safe-right) + 6px)',
+        height: 'calc(100% - var(--window-controls-safe-top) - 18px)',
+      }}
+    >
       {/* Header */}
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '14px 16px',
-          borderRadius: 18,
-          border: '1px solid rgba(148, 163, 184, 0.16)',
-          background: `linear-gradient(135deg, ${theme}30, rgba(15, 23, 42, 0.94))`,
-          color: 'var(--ui-text)',
-          marginBottom: 16,
-          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
-        }}
+        className="mb-4 flex items-center justify-between rounded-[18px] border border-border px-4 py-3.5"
+        style={{ background: `linear-gradient(135deg, ${theme}18, rgba(15, 23, 42, 0.84))` }}
       >
-        <span style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          {HeaderIcon && <HeaderIcon style={{ width: 16, height: 16 }} />}
+        <span className="font-bold text-sm text-foreground flex items-center gap-2">
+          {HeaderIcon && <HeaderIcon className="w-4 h-4" />}
           {!HeaderIcon && data.nodeType === 'provider' && <span>☁️</span>}
           {data.label || nodeDisplayName}
         </span>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-8 h-8 rounded-xl border border-border bg-surface/70"
           onClick={() => setSelectedNodeId(null)}
-          style={{
-            width: 32,
-            height: 32,
-            background: 'rgba(15, 23, 42, 0.58)',
-            border: '1px solid rgba(148, 163, 184, 0.16)',
-            borderRadius: 10,
-            color: 'var(--ui-text)',
-            fontSize: 15,
-            cursor: 'pointer',
-            padding: 0,
-          }}
-          title="Close panel"
         >
-          ✕
-        </button>
+          <X className="w-4 h-4" />
+        </Button>
       </div>
 
-      <div style={fieldGap}>
-        <label style={labelStyle}>Tag</label>
-        <div style={tagPillStyle} title="只读标签，不可修改">
+      <div className="mb-3">
+        <Label className="text-muted text-xs mb-1.5 block">标签</Label>
+        <Badge variant="outline" className="border-border bg-surface/80 text-[11px] font-bold tracking-wide text-foreground">
           {nodeTagLabel}
-        </div>
+        </Badge>
       </div>
 
       {/* Type-specific form */}

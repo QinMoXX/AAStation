@@ -1,31 +1,5 @@
 import { useAppStore } from '../../store/app-store';
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const barStyle: React.CSSProperties = {
-  height: 28,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '0 16px',
-  background: '#1a1a1a',
-  color: '#9ca3af',
-  fontSize: 11,
-  borderTop: '1px solid #2b2b2b',
-  flexShrink: 0,
-};
-
-const sectionStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 16,
-};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+import { Separator } from '@/components/ui/separator';
 
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -37,32 +11,33 @@ function formatUptime(seconds: number): string {
   return `${h}h ${rm}m`;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function StatusBar() {
   const proxyStatus = useAppStore((s) => s.proxyStatus);
 
   return (
-    <footer style={barStyle}>
-      <div style={sectionStyle}>
+    <footer className="flex h-9 shrink-0 items-center justify-between border-t border-border-soft bg-sidebar-surface/72 px-4 text-[11px] text-muted backdrop-blur-xl">
+      <div className="flex items-center gap-4">
         {proxyStatus.running && (
           <>
-            <span>Port{proxyStatus.listen_ports.length > 1 ? 's' : ''}: {proxyStatus.listen_ports.length > 0 ? proxyStatus.listen_ports.join(', ') : proxyStatus.port}</span>
-            <span>Routes: {proxyStatus.active_routes}</span>
+            <span className="rounded-full border border-border bg-card/60 px-2.5 py-1">
+              端口{proxyStatus.listen_ports.length > 1 ? '组' : ''}:
+              {' '}
+              {proxyStatus.listen_ports.length > 0 ? proxyStatus.listen_ports.join(', ') : proxyStatus.port}
+            </span>
+            <Separator orientation="vertical" className="h-3 bg-border-soft" />
+            <span>路由: {proxyStatus.active_routes}</span>
           </>
         )}
       </div>
-      <div style={sectionStyle}>
-        {proxyStatus.running && (
+      <div className="flex items-center gap-4">
+        {proxyStatus.running ? (
           <>
-            <span>Requests: {proxyStatus.total_requests}</span>
-            <span>Uptime: {formatUptime(proxyStatus.uptime_seconds)}</span>
+            <span>请求: {proxyStatus.total_requests}</span>
+            <Separator orientation="vertical" className="h-3 bg-border-soft" />
+            <span>运行时长: {formatUptime(proxyStatus.uptime_seconds)}</span>
           </>
-        )}
-        {!proxyStatus.running && (
-          <span style={{ color: '#6b7280' }}>Proxy offline</span>
+        ) : (
+          <span className="rounded-full border border-border bg-card/60 px-2.5 py-1 text-dim">代理未启动</span>
         )}
       </div>
     </footer>

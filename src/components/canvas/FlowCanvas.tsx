@@ -113,7 +113,7 @@ export default function FlowCanvas() {
     () => ({
       animated: true,
       type: 'default' as const,
-      style: { strokeWidth: 2, stroke: '#64748b' },
+      style: { strokeWidth: 1.75, stroke: 'rgba(148, 163, 184, 0.7)' },
     }),
     [],
   );
@@ -188,7 +188,7 @@ export default function FlowCanvas() {
         snapToGrid
         snapGrid={[16, 16]}
       >
-        <Background gap={20} size={1} color="rgba(148, 163, 184, 0.12)" />
+        <Background gap={22} size={1} color="rgba(148, 163, 184, 0.08)" />
         <MiniMap
           nodeColor={(node) => {
             switch (node.data?.nodeType) {
@@ -199,10 +199,10 @@ export default function FlowCanvas() {
               default: return '#6b7280';
             }
           }}
-          maskColor="rgba(2,8,23,0.72)"
+          maskColor="rgba(2,8,23,0.78)"
           style={{
-            background: 'rgba(2, 8, 23, 0.9)',
-            border: '1px solid rgba(148, 163, 184, 0.18)',
+            background: 'rgba(8, 12, 22, 0.88)',
+            border: '1px solid rgba(148, 163, 184, 0.14)',
             borderRadius: 14,
           }}
         />
