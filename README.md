@@ -50,7 +50,7 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 
 预配置主流 AI 服务，添加 API Key 即可使用：
 
-| 服务商 | 支持模型 |
+| 服务商 | 预配置模型 |
 |--------|----------|
 | **DeepSeek** | DeepSeek Chat, DeepSeek Reasoner |
 | **智谱 AI (Zhipu AI)** | GLM-5.1, GLM-5 Turbo, GLM-5, GLM-4.7, GLM-4.7 Flash, GLM-4.6, GLM-4.5 Air |
@@ -59,7 +59,7 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 | **Kimi (Moonshot)** | Kimi K2.6, K2.5, K2 0905 Preview, K2 Thinking, K2 Thinking Turbo, K2 Turbo Preview, Moonshot V1 8K/32K/128K, Moonshot V1 Vision 8K/32K/128K |
 | **火山方舟 (Ark)** | Doubao Seed 2.0 Pro/Lite/Mini/Code Preview, Doubao Seed Character, GLM-4.7, DeepSeek Chat, DeepSeek V3.1 |
 | **OpenRouter** | GPT-5.2, Claude Sonnet 4, Claude 3.5 Sonnet, GPT-4o, Gemini Pro 1.5, Llama 3.1 405B |
-| **腾讯云 (Tencent)** | GLM-5, HY 2.0 Think, HY 2.0 Instruct, Hunyuan Role, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, Kimi K2.5, Kimi K2 Thinking Turbo, Kimi K2 Turbo Preview, MiniMax M2.5, MiniMax M2.7 |
+| **腾讯云 (Tencent)** | Hy3 preview, HY 2.0 Think, HY 2.0 Instruct, Hunyuan-role, DeepSeek-V4-Flash, DeepSeek-V4-Pro, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, GLM-5.1, GLM-5V-Turbo, GLM-5-Turbo, GLM-5, Kimi-K2.6, Kimi-K2.5, MiniMax-M2.7, MiniMax-M2.5 |
 
 ### 深度集成常用 AI 客户端
 
@@ -195,6 +195,21 @@ Whether you need to route requests based on model names, path prefixes, or HTTP 
 - **State Persistence** — Persisted metrics and automatic route restoration after restart
 - **Local Proxy Server** — Local proxy supporting both OpenAI and Anthropic API formats with Switcher + Poller workflow
 - **Desktop Experience** — Native desktop app with system tray integration, Windows launch-at-startup option, and dark theme UI
+
+### Built-in Provider Presets
+
+Preconfigured mainstream AI providers. Add your API key and start using them immediately:
+
+| Provider | Preconfigured Models |
+|----------|----------------------|
+| **DeepSeek** | DeepSeek Chat, DeepSeek Reasoner |
+| **Zhipu AI** | GLM-5.1, GLM-5 Turbo, GLM-5, GLM-4.7, GLM-4.7 Flash, GLM-4.6, GLM-4.5 Air |
+| **Alibaba Bailian** | Qwen 3.6 Plus, Qwen 3 Max, Qwen Plus, Qwen Flash, Qwen Turbo, Qwen Long, QwQ Plus, Qwen 3 Coder Plus, Qwen VL Plus, Qwen Omni Turbo, Text Embedding V4 |
+| **MiniMax** | MiniMax M2.7, M2.7 Highspeed, M2.5, M2.5 Highspeed, M2.1, M2.1 Highspeed, M2 |
+| **Kimi (Moonshot)** | Kimi K2.6, K2.5, K2 0905 Preview, K2 Thinking, K2 Thinking Turbo, K2 Turbo Preview, Moonshot V1 8K/32K/128K, Moonshot V1 Vision 8K/32K/128K |
+| **Volcengine Ark** | Doubao Seed 2.0 Pro/Lite/Mini/Code Preview, Doubao Seed Character, GLM-4.7, DeepSeek Chat, DeepSeek V3.1 |
+| **OpenRouter** | GPT-5.2, Claude Sonnet 4, Claude 3.5 Sonnet, GPT-4o, Gemini Pro 1.5, Llama 3.1 405B |
+| **Tencent Cloud** | Hy3 preview, HY 2.0 Think, HY 2.0 Instruct, Hunyuan-role, DeepSeek-V4-Flash, DeepSeek-V4-Pro, Deepseek-v3.2, Deepseek-v3.1, Deepseek-r1-0528, Deepseek-v3-0324, GLM-5.1, GLM-5V-Turbo, GLM-5-Turbo, GLM-5, Kimi-K2.6, Kimi-K2.5, MiniMax-M2.7, MiniMax-M2.5 |
 
 ### Provider-Client Compatibility
 
