@@ -158,6 +158,18 @@
     ]
   },
   {
+    "id": "xunfei_coding_plan",
+    "name": "讯飞Coding Plan",
+    "icon": "[lobehub:Spark]",
+    "baseUrl": "https://maas-coding-api.cn-huabei-1.xf-yun.com/v2",
+    "anthropicBaseUrl": "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic",
+    "defaultLabel": "讯飞Coding Plan",
+    "tag": ["open_code", "claude_code"],
+    "models": [
+      { "name": "astron-code-latest", "label": "Astron Code Latest" }
+    ]
+  },
+  {
     "id": "custom_provider",
     "name": "Custom Provider",
     "icon": "custom",
