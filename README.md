@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/nicepkg/AAStation/releases">
+  <a href="https://github.com/QinMoXX/AAStation/releases">
     <img src="https://img.shields.io/badge/version-0.6.1-blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
@@ -117,7 +117,7 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 
 ```bash
 # 克隆仓库
-git clone https://github.com/nicepkg/AAStation.git
+git clone https://github.com/QinMoXX/AAStation.git
 cd AAStation
 
 # 安装前端依赖
@@ -229,7 +229,7 @@ Preconfigured mainstream AI providers. Add your API key and start using them imm
 ### Quick Start
 
 ```bash
-git clone https://github.com/nicepkg/AAStation.git
+git clone https://github.com/QinMoXX/AAStation.git
 cd AAStation
 npm install
 npm run tauri dev
