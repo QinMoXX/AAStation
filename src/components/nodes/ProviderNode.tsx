@@ -60,6 +60,24 @@ function budgetMeta(
       ? Math.max(0, budgetTokens - runtimeState.remaining_tokens)
       : 0);
 
+  // Synthetic runtime entries restored from persisted metrics may not carry
+  // budget_tokens yet. If the node itself has a configured token limit, prefer
+  // that configured budget so the canvas does not incorrectly show infinity.
+  if (budgetTokens <= 0 && fallbackBudgetTokens && fallbackBudgetTokens > 0) {
+    const usagePercent = (usedTokens / fallbackBudgetTokens) * 100;
+    const percent = Math.max(0, Math.min(100, usagePercent));
+    const fillColor =
+      usagePercent >= 100 ? '#ef4444' : usagePercent >= 70 ? '#f59e0b' : '#22c55e';
+
+    return {
+      label: `${Math.round(usagePercent)}%`,
+      percent,
+      fillColor,
+      soft: `${fillColor}22`,
+      usageText: `${formatCompactTokens(usedTokens)} / ${formatCompactTokens(fallbackBudgetTokens)}`,
+    };
+  }
+
   if (budgetTokens <= 0) {
     return {
       label: '∞',

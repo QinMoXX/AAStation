@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use super::types::{
-    PollerRuntimeState, ProviderRuntimeState, ProxyMetricsEntitySummary,
+    PollerRuntimeState, ProviderRuntimeState, ProviderRuntimeStatus, ProxyMetricsEntitySummary,
     ProxyMetricsPairSummary, ProxyMetricsSnapshot, ProxyMetricsSummary, ProxyRequestMetric,
 };
 
@@ -148,7 +148,7 @@ impl MetricsStore {
 
     pub async fn snapshot(
         &self,
-        provider_runtime: Vec<ProviderRuntimeState>,
+        mut provider_runtime: Vec<ProviderRuntimeState>,
         poller_runtime: Vec<PollerRuntimeState>,
     ) -> ProxyMetricsSnapshot {
         let state = self.inner.read().await;
@@ -177,6 +177,45 @@ impl MetricsStore {
                 .then_with(|| a.app_label.cmp(&b.app_label))
                 .then_with(|| a.provider_label.cmp(&b.provider_label))
         });
+
+        // Backfill persisted token usage into provider_runtime entries.
+        // After an app restart, ProviderRuntimeStore is in-memory and starts empty,
+        // but MetricsStore carries cumulative totals from disk. This merge ensures
+        // the frontend can display real usage even when the proxy hasn't been started.
+        let runtime_ids: std::collections::HashSet<String> = provider_runtime
+            .iter()
+            .map(|r| r.provider_id.clone())
+            .collect();
+
+        for entry in &mut provider_runtime {
+            if let Some(entity) = state.providers.get(&entry.provider_id) {
+                let persisted_total = entity.summary.total_tokens;
+                if persisted_total > entry.used_tokens {
+                    entry.used_tokens = persisted_total;
+                    entry.remaining_tokens = if entry.budget_tokens > 0 {
+                        entry.budget_tokens.saturating_sub(persisted_total)
+                    } else {
+                        0
+                    };
+                }
+            }
+        }
+
+        // Create synthetic runtime entries for providers that have persisted
+        // metrics but no runtime entry yet (e.g. after app restart, before re-publish).
+        for entity in state.providers.values() {
+            if !runtime_ids.contains(&entity.id) {
+                provider_runtime.push(ProviderRuntimeState {
+                    provider_id: entity.id.clone(),
+                    provider_label: entity.label.clone(),
+                    status: ProviderRuntimeStatus::Unknown,
+                    budget_tokens: 0,
+                    used_tokens: entity.summary.total_tokens,
+                    remaining_tokens: 0,
+                    ..ProviderRuntimeState::default()
+                });
+            }
+        }
 
         ProxyMetricsSnapshot {
             generated_at: Utc::now().to_rfc3339(),
@@ -269,4 +308,81 @@ fn accumulate_summary(summary: &mut ProxyMetricsSummary, request: &ProxyRequestM
     summary.total_tokens += request.total_tokens;
     summary.total_latency_ms += request.duration_ms;
     summary.last_request_at = Some(request.completed_at.clone());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_store_with_state(state: MetricsState) -> MetricsStore {
+        MetricsStore {
+            inner: Arc::new(RwLock::new(state)),
+            next_id: Arc::new(AtomicU64::new(0)),
+            last_persist_secs: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    #[tokio::test]
+    async fn snapshot_backfills_runtime_tokens_from_persisted_provider_summary() {
+        let mut state = MetricsState::default();
+        state.providers.insert(
+            "provider-1".to_string(),
+            ProxyMetricsEntitySummary {
+                id: "provider-1".to_string(),
+                label: "Provider 1".to_string(),
+                summary: ProxyMetricsSummary {
+                    total_tokens: 120,
+                    ..ProxyMetricsSummary::default()
+                },
+            },
+        );
+        let store = make_store_with_state(state);
+
+        let snapshot = store
+            .snapshot(
+                vec![ProviderRuntimeState {
+                    provider_id: "provider-1".to_string(),
+                    provider_label: "Provider 1".to_string(),
+                    budget_tokens: 200,
+                    used_tokens: 30,
+                    remaining_tokens: 170,
+                    ..ProviderRuntimeState::default()
+                }],
+                vec![],
+            )
+            .await;
+
+        assert_eq!(snapshot.provider_runtime.len(), 1);
+        let runtime = &snapshot.provider_runtime[0];
+        assert_eq!(runtime.used_tokens, 120);
+        assert_eq!(runtime.remaining_tokens, 80);
+    }
+
+    #[tokio::test]
+    async fn snapshot_adds_synthetic_runtime_for_persisted_provider() {
+        let mut state = MetricsState::default();
+        state.providers.insert(
+            "provider-2".to_string(),
+            ProxyMetricsEntitySummary {
+                id: "provider-2".to_string(),
+                label: "Provider 2".to_string(),
+                summary: ProxyMetricsSummary {
+                    total_tokens: 66,
+                    ..ProxyMetricsSummary::default()
+                },
+            },
+        );
+        let store = make_store_with_state(state);
+
+        let snapshot = store.snapshot(vec![], vec![]).await;
+        assert_eq!(snapshot.provider_runtime.len(), 1);
+
+        let runtime = &snapshot.provider_runtime[0];
+        assert_eq!(runtime.provider_id, "provider-2");
+        assert_eq!(runtime.provider_label, "Provider 2");
+        assert_eq!(runtime.status, ProviderRuntimeStatus::Unknown);
+        assert_eq!(runtime.used_tokens, 66);
+        assert_eq!(runtime.budget_tokens, 0);
+        assert_eq!(runtime.remaining_tokens, 0);
+    }
 }

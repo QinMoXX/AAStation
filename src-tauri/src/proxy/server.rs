@@ -571,8 +571,12 @@ mod tests {
             .await;
 
         let snapshot = server.get_metrics_snapshot().await;
-        assert_eq!(snapshot.provider_runtime.len(), 1);
-        assert_eq!(snapshot.provider_runtime[0].provider_id, "provider-1");
+        assert!(
+            snapshot
+                .provider_runtime
+                .iter()
+                .any(|runtime| runtime.provider_id == "provider-1")
+        );
         assert_eq!(snapshot.poller_runtime.len(), 1);
         assert_eq!(snapshot.poller_runtime[0].poller_id, "poller-1");
     }
