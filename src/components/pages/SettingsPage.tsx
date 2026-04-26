@@ -3,6 +3,7 @@ import { useSettingsStore } from '../../store/settings-store';
 import { useFlowStore } from '../../store/flow-store';
 import { toast } from '../../store/toast-store';
 import {
+  checkAndMaybeInstallUpdate,
   configureClaudeCode,
   configureCodexCli,
   configureOpenCode,
@@ -96,6 +97,9 @@ export default function SettingsPage() {
   const [address, setAddress] = useState(settings.listenAddress);
   const [logDirMaxMb, setLogDirMaxMb] = useState(String(settings.logDirMaxMb ?? 500));
   const [launchAtStartup, setLaunchAtStartup] = useState(settings.launchAtStartup);
+  const [autoCheckUpdate, setAutoCheckUpdate] = useState(settings.autoCheckUpdate);
+  const [autoInstallUpdate, setAutoInstallUpdate] = useState(settings.autoInstallUpdate);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -104,6 +108,8 @@ export default function SettingsPage() {
     setAddress(settings.listenAddress);
     setLogDirMaxMb(String(settings.logDirMaxMb ?? 500));
     setLaunchAtStartup(settings.launchAtStartup);
+    setAutoCheckUpdate(settings.autoCheckUpdate);
+    setAutoInstallUpdate(settings.autoInstallUpdate);
   }, [settings]);
 
   const handleSaveGeneral = async () => {
@@ -121,6 +127,8 @@ export default function SettingsPage() {
         proxyAuthToken: settings.proxyAuthToken,
         logDirMaxMb: parsedMb,
         launchAtStartup,
+        autoCheckUpdate,
+        autoInstallUpdate,
       });
       toast.success('常规设置已保存');
     } catch (err) {
@@ -135,6 +143,28 @@ export default function SettingsPage() {
   const maskedToken = authToken.length > 12
     ? authToken.slice(0, 8) + '••••••••' + authToken.slice(-4)
     : '••••••••';
+
+  const handleManualUpdateCheck = async () => {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    try {
+      const result = await checkAndMaybeInstallUpdate(autoInstallUpdate);
+      if (!result.hasUpdate) {
+        toast.info(`当前已是最新版本（${result.currentVersion}）`);
+        return;
+      }
+      if (result.installed) {
+        toast.success(`检测到新版本 ${result.latestVersion}，已安装并准备重启。`);
+        return;
+      }
+      toast.info(`检测到新版本 ${result.latestVersion}，请开启“自动下载并安装更新”后重试。`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`检查更新失败：${msg}`);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   // -----------------------------------------------------------------------
   // Application settings
@@ -540,6 +570,63 @@ export default function SettingsPage() {
         </label>
         <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
           勾选后会在系统启动时自动启动 AAStation。
+        </div>
+      </div>
+
+      <div style={fieldStyle}>
+        <label style={labelStyle}>自动更新</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 14,
+              color: '#e2e8f0',
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              className="ui-checkbox"
+              checked={autoCheckUpdate}
+              onChange={(e) => setAutoCheckUpdate(e.target.checked)}
+            />
+            启动时自动检查更新
+          </label>
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 14,
+              color: '#e2e8f0',
+              cursor: autoCheckUpdate ? 'pointer' : 'not-allowed',
+              opacity: autoCheckUpdate ? 1 : 0.66,
+            }}
+          >
+            <input
+              type="checkbox"
+              className="ui-checkbox"
+              checked={autoInstallUpdate}
+              disabled={!autoCheckUpdate}
+              onChange={(e) => setAutoInstallUpdate(e.target.checked)}
+            />
+            发现更新后自动下载并安装
+          </label>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            版本来源为 GitHub Releases，安装前会做签名校验。Windows 下安装时可能触发系统安装器窗口。
+          </div>
+          <div>
+            <button
+              onClick={handleManualUpdateCheck}
+              disabled={checkingUpdate}
+              className="ui-btn"
+              style={{ ...buttonBaseStyle, padding: '7px 12px', fontSize: 12 }}
+            >
+              {checkingUpdate ? '检查中...' : '立即检查更新'}
+            </button>
+          </div>
         </div>
       </div>
 

@@ -30,6 +30,12 @@ pub struct AppSettings {
     /// Whether the app should start automatically when the OS starts.
     #[serde(default)]
     pub launch_at_startup: bool,
+    /// Whether to check for app updates automatically on startup.
+    #[serde(default = "default_auto_check_update")]
+    pub auto_check_update: bool,
+    /// Whether to download and install updates automatically when found.
+    #[serde(default)]
+    pub auto_install_update: bool,
 }
 
 fn default_port_range() -> String {
@@ -38,6 +44,10 @@ fn default_port_range() -> String {
 
 fn default_log_dir_max_mb() -> u64 {
     500
+}
+
+fn default_auto_check_update() -> bool {
+    true
 }
 
 /// Parse a port range string into a (start, end) pair.
@@ -120,6 +130,8 @@ impl Default for AppSettings {
             proxy_auth_token: generate_auth_token(),
             log_dir_max_mb: default_log_dir_max_mb(),
             launch_at_startup: false,
+            auto_check_update: default_auto_check_update(),
+            auto_install_update: false,
         }
     }
 }

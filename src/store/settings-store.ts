@@ -30,6 +30,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   proxyAuthToken: '',
   logDirMaxMb: 500,
   launchAtStartup: false,
+  autoCheckUpdate: true,
+  autoInstallUpdate: false,
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({

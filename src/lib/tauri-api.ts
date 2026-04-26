@@ -10,6 +10,9 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { check } from '@tauri-apps/plugin-updater';
 import type { DAGDocument } from '../types/dag';
 import type { ProxyMetricsSnapshot, ProxyStatus, RouteTableSet } from '../types/proxy';
 import type { AppSettings } from '../types/settings';
@@ -110,6 +113,8 @@ export async function loadSettings(): Promise<AppSettings> {
     proxy_auth_token: string;
     log_dir_max_mb: number;
     launch_at_startup?: boolean;
+    auto_check_update?: boolean;
+    auto_install_update?: boolean;
   }>('load_settings');
   return {
     listenPortRange: raw.listen_port_range,
@@ -117,6 +122,8 @@ export async function loadSettings(): Promise<AppSettings> {
     proxyAuthToken: raw.proxy_auth_token,
     logDirMaxMb: raw.log_dir_max_mb ?? 500,
     launchAtStartup: raw.launch_at_startup ?? false,
+    autoCheckUpdate: raw.auto_check_update ?? true,
+    autoInstallUpdate: raw.auto_install_update ?? false,
   };
 }
 
@@ -129,8 +136,47 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       proxy_auth_token: settings.proxyAuthToken,
       log_dir_max_mb: settings.logDirMaxMb,
       launch_at_startup: settings.launchAtStartup,
+      auto_check_update: settings.autoCheckUpdate,
+      auto_install_update: settings.autoInstallUpdate,
     },
   });
+}
+
+export interface AppUpdateCheckResult {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion?: string;
+  notes?: string;
+  installed: boolean;
+}
+
+/**
+ * Check updates from configured updater endpoints and optionally install.
+ * On Windows, installation exits the current app process before relaunch.
+ */
+export async function checkAndMaybeInstallUpdate(autoInstall: boolean): Promise<AppUpdateCheckResult> {
+  const currentVersion = await getVersion();
+  const update = await check();
+  if (!update) {
+    return { hasUpdate: false, currentVersion, installed: false };
+  }
+
+  const result: AppUpdateCheckResult = {
+    hasUpdate: true,
+    currentVersion,
+    latestVersion: update.version,
+    notes: update.body ?? '',
+    installed: false,
+  };
+
+  if (!autoInstall) {
+    return result;
+  }
+
+  await update.downloadAndInstall();
+  result.installed = true;
+  await relaunch();
+  return result;
 }
 
 // ---------------------------------------------------------------------------

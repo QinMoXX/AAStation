@@ -10,4 +10,8 @@ export interface AppSettings {
   logDirMaxMb: number;
   /** Start AAStation automatically when the operating system starts. */
   launchAtStartup: boolean;
+  /** Check for updates automatically on startup. */
+  autoCheckUpdate: boolean;
+  /** Automatically download and install updates when available. */
+  autoInstallUpdate: boolean;
 }
