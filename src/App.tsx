@@ -5,7 +5,8 @@ import CanvasToolbar from './components/canvas/CanvasToolbar';
 import NodePanel from './components/nodes/NodePanel';
 import AppLayout from './components/layout/AppLayout';
 import { useDagSync } from './hooks/useDagSync';
-import { checkAndMaybeInstallUpdate } from './lib/tauri-api';
+import { checkForAppUpdate } from './lib/tauri-api';
+import { useAppStore } from './store/app-store';
 import { useSettingsStore } from './store/settings-store';
 import { toast } from './store/toast-store';
 
@@ -19,6 +20,8 @@ function AppInner() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loaded = useSettingsStore((s) => s.loaded);
   const settings = useSettingsStore((s) => s.settings);
+  const setAvailableUpdate = useAppStore((s) => s.setAvailableUpdate);
+  const clearAvailableUpdate = useAppStore((s) => s.clearAvailableUpdate);
   const checkedUpdateRef = useRef(false);
 
   useEffect(() => {
@@ -32,16 +35,22 @@ function AppInner() {
 
     void (async () => {
       try {
-        const result = await checkAndMaybeInstallUpdate(settings.autoInstallUpdate);
-        if (!result.hasUpdate) return;
-        if (!result.installed) {
-          toast.info(`检测到新版本 ${result.latestVersion}，可在设置页手动触发安装。`);
+        const result = await checkForAppUpdate();
+        if (!result.hasUpdate || !result.latestVersion) {
+          clearAvailableUpdate();
+          return;
         }
+        setAvailableUpdate({
+          currentVersion: result.currentVersion,
+          latestVersion: result.latestVersion,
+          notes: result.notes,
+        });
+        toast.info(`检测到新版本 ${result.latestVersion}，可进入设置界面点击“立即更新”安装。`, 7000);
       } catch {
         // Ignore startup update errors to avoid interrupting normal app usage.
       }
     })();
-  }, [loaded, settings.autoCheckUpdate, settings.autoInstallUpdate]);
+  }, [clearAvailableUpdate, loaded, setAvailableUpdate, settings.autoCheckUpdate]);
 
   return (
     <>

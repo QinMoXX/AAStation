@@ -5,6 +5,12 @@ import type { ProxyStatus } from '../types/proxy';
 // App-level state that is NOT part of the canvas graph.
 // ---------------------------------------------------------------------------
 
+interface AvailableUpdate {
+  currentVersion: string;
+  latestVersion: string;
+  notes?: string;
+}
+
 interface AppState {
   /** Current proxy server status. */
   proxyStatus: ProxyStatus;
@@ -21,6 +27,9 @@ interface AppState {
   /** Timestamp (ISO 8601) of last successful publish, if any. */
   lastPublishedAt: string | null;
 
+  /** Cached update metadata after a successful check. */
+  availableUpdate: AvailableUpdate | null;
+
   // -----------------------------------------------------------------------
   // Actions
   // -----------------------------------------------------------------------
@@ -28,6 +37,8 @@ interface AppState {
   setProxyStatus: (status: ProxyStatus) => void;
   setDirty: (dirty: boolean) => void;
   setSelectedNodeId: (id: string | null) => void;
+  setAvailableUpdate: (update: AvailableUpdate | null) => void;
+  clearAvailableUpdate: () => void;
   markPublished: () => void;
   markDirty: () => void;
 }
@@ -48,12 +59,17 @@ export const useAppStore = create<AppState>((set) => ({
   selectedNodeId: null,
   isDraft: false,
   lastPublishedAt: null,
+  availableUpdate: null,
 
   setProxyStatus: (status) => set({ proxyStatus: status }),
 
   setDirty: (dirty) => set({ isDirty: dirty }),
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
+
+  setAvailableUpdate: (update) => set({ availableUpdate: update }),
+
+  clearAvailableUpdate: () => set({ availableUpdate: null }),
 
   /** Call after a successful publish to clear draft state. */
   markPublished: () =>

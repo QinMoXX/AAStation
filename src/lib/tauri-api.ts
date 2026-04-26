@@ -150,13 +150,40 @@ export interface AppUpdateCheckResult {
   installed: boolean;
 }
 
-/**
- * Check updates from configured updater endpoints and optionally install.
- * On Windows, installation exits the current app process before relaunch.
- */
-export async function checkAndMaybeInstallUpdate(autoInstall: boolean): Promise<AppUpdateCheckResult> {
+let pendingAppUpdate: Awaited<ReturnType<typeof check>> | null = null;
+
+/** Check updates from configured updater endpoints and cache the result for later install. */
+export async function checkForAppUpdate(): Promise<AppUpdateCheckResult> {
   const currentVersion = await getVersion();
   const update = await check();
+  pendingAppUpdate = update ?? null;
+
+  if (!update) {
+    return { hasUpdate: false, currentVersion, installed: false };
+  }
+
+  return {
+    hasUpdate: true,
+    currentVersion,
+    latestVersion: update.version,
+    notes: update.body ?? '',
+    installed: false,
+  };
+}
+
+/**
+ * Download and install the cached update. If no cached update exists, re-check once.
+ * On Windows, installation exits the current app process before relaunch.
+ */
+export async function installAppUpdate(): Promise<AppUpdateCheckResult> {
+  const currentVersion = await getVersion();
+  let update = pendingAppUpdate;
+
+  if (!update) {
+    update = await check();
+    pendingAppUpdate = update ?? null;
+  }
+
   if (!update) {
     return { hasUpdate: false, currentVersion, installed: false };
   }
@@ -169,11 +196,8 @@ export async function checkAndMaybeInstallUpdate(autoInstall: boolean): Promise<
     installed: false,
   };
 
-  if (!autoInstall) {
-    return result;
-  }
-
   await update.downloadAndInstall();
+  pendingAppUpdate = null;
   result.installed = true;
   await relaunch();
   return result;

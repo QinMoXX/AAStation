@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppStore } from '../../store/app-store';
 import { useSettingsStore } from '../../store/settings-store';
 import { useFlowStore } from '../../store/flow-store';
 import { toast } from '../../store/toast-store';
 import {
-  checkAndMaybeInstallUpdate,
+  checkForAppUpdate,
   configureClaudeCode,
   configureCodexCli,
   configureOpenCode,
   getLogRuntimeStatus,
+  installAppUpdate,
   isClaudeConfigured,
   isCodexCliConfigured,
   isOpenCodeConfigured,
@@ -102,6 +104,9 @@ const subTabs: { key: SettingsSubTab; title: string; desc: string }[] = [
 
 export default function SettingsPage() {
   const { settings, saveSettings } = useSettingsStore();
+  const availableUpdate = useAppStore((s) => s.availableUpdate);
+  const setAvailableUpdate = useAppStore((s) => s.setAvailableUpdate);
+  const clearAvailableUpdate = useAppStore((s) => s.clearAvailableUpdate);
   const nodes = useFlowStore((s) => s.nodes);
 
   const [subTab, setSubTab] = useState<SettingsSubTab>('general');
@@ -114,8 +119,8 @@ export default function SettingsPage() {
   const [logDirMaxMb, setLogDirMaxMb] = useState(String(settings.logDirMaxMb ?? 500));
   const [launchAtStartup, setLaunchAtStartup] = useState(settings.launchAtStartup);
   const [autoCheckUpdate, setAutoCheckUpdate] = useState(settings.autoCheckUpdate);
-  const [autoInstallUpdate, setAutoInstallUpdate] = useState(settings.autoInstallUpdate);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -125,7 +130,6 @@ export default function SettingsPage() {
     setLogDirMaxMb(String(settings.logDirMaxMb ?? 500));
     setLaunchAtStartup(settings.launchAtStartup);
     setAutoCheckUpdate(settings.autoCheckUpdate);
-    setAutoInstallUpdate(settings.autoInstallUpdate);
   }, [settings]);
 
   const handleSaveGeneral = async () => {
@@ -144,7 +148,7 @@ export default function SettingsPage() {
         logDirMaxMb: parsedMb,
         launchAtStartup,
         autoCheckUpdate,
-        autoInstallUpdate,
+        autoInstallUpdate: settings.autoInstallUpdate,
       });
       toast.success('常规设置已保存');
     } catch (err) {
@@ -160,20 +164,45 @@ export default function SettingsPage() {
     ? authToken.slice(0, 8) + '••••••••' + authToken.slice(-4)
     : '••••••••';
 
-  const handleManualUpdateCheck = async () => {
-    if (checkingUpdate) return;
+  const handleManualUpdateAction = async () => {
+    if (checkingUpdate || installingUpdate) return;
+
+    if (availableUpdate) {
+      setInstallingUpdate(true);
+      try {
+        const result = await installAppUpdate();
+        if (!result.hasUpdate) {
+          clearAvailableUpdate();
+          toast.info(`当前已是最新版本（${result.currentVersion}）`);
+          return;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`安装更新失败：${msg}`);
+      } finally {
+        setInstallingUpdate(false);
+      }
+      return;
+    }
+
     setCheckingUpdate(true);
     try {
-      const result = await checkAndMaybeInstallUpdate(autoInstallUpdate);
+      const result = await checkForAppUpdate();
       if (!result.hasUpdate) {
+        clearAvailableUpdate();
         toast.info(`当前已是最新版本（${result.currentVersion}）`);
         return;
       }
-      if (result.installed) {
-        toast.success(`检测到新版本 ${result.latestVersion}，已安装并准备重启。`);
+      if (!result.latestVersion) {
+        toast.warning('已检测到更新，但未获取到版本号，请稍后重试。');
         return;
       }
-      toast.info(`检测到新版本 ${result.latestVersion}，请开启“自动下载并安装更新”后重试。`);
+      setAvailableUpdate({
+        currentVersion: result.currentVersion,
+        latestVersion: result.latestVersion,
+        notes: result.notes,
+      });
+      toast.info(`检测到新版本 ${result.latestVersion}，请再次点击“立即更新”开始下载并安装。`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`检查更新失败：${msg}`);
@@ -611,37 +640,24 @@ export default function SettingsPage() {
               />
               启动时自动检查更新
             </label>
-            <label
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 14,
-                color: '#e2e8f0',
-                cursor: autoCheckUpdate ? 'pointer' : 'not-allowed',
-                opacity: autoCheckUpdate ? 1 : 0.66,
-              }}
-            >
-              <input
-                type="checkbox"
-                className="ui-checkbox"
-                checked={autoInstallUpdate}
-                disabled={!autoCheckUpdate}
-                onChange={(e) => setAutoInstallUpdate(e.target.checked)}
-              />
-              发现更新后自动下载并安装
-            </label>
             <div style={{ fontSize: 12, color: '#64748b' }}>
               版本来源为 GitHub Releases，安装前会做签名校验。Windows 下安装时可能触发系统安装器窗口。
+              启动自动检查仅负责提示，不会直接安装更新。
             </div>
+            {availableUpdate && (
+              <div style={{ fontSize: 12, color: '#93c5fd', lineHeight: 1.7 }}>
+                已发现新版本 {availableUpdate.latestVersion}（当前 {availableUpdate.currentVersion}），
+                点击下方“立即更新”后将自动下载并安装。
+              </div>
+            )}
             <div>
               <button
-                onClick={handleManualUpdateCheck}
-                disabled={checkingUpdate}
+                onClick={handleManualUpdateAction}
+                disabled={checkingUpdate || installingUpdate}
                 className="ui-btn"
                 style={{ ...buttonBaseStyle, padding: '7px 12px', fontSize: 12 }}
               >
-                {checkingUpdate ? '检查中...' : '立即检查更新'}
+                {installingUpdate ? '安装中...' : checkingUpdate ? '检查中...' : availableUpdate ? '立即更新' : '立即检查更新'}
               </button>
             </div>
           </div>
