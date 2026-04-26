@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/QinMoXX/AAStation/releases">
-    <img src="https://img.shields.io/badge/version-0.6.1-blue" alt="Version" />
+    <img src="https://img.shields.io/badge/version-0.6.3-blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
   <img src="https://img.shields.io/badge/Tauri-2.0-orange" alt="Tauri" />
@@ -26,6 +26,22 @@
 AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI API 路由管道**。无需手动编写复杂的代理配置，只需在画布上拖拽节点，就能定义 API 请求如何从应用程序经过智能路由规则到达 AI 服务提供商。
 
 无论你是需要根据模型名称、路径前缀还是 HTTP 请求头来路由请求，还是按供应商健康状态与 token 预算做动态分流，AAStation 都提供了直观的节点式界面来配置一切——然后在本地运行代理服务器，实时执行你的路由逻辑。
+
+<p align="center">
+  <img src="public/Snipaste_2026-04-26_16-57-04.png" alt="AAStation 组件面宣传效果图" />
+</p>
+
+## AAStation 能做什么？
+
+- **可视化路由配置** — 无需拖拽节点，就能定义 API 请求如何从应用程序经过智能路由规则到达 AI 服务提供商。
+- **动态分流** — 基于供应商健康状态与 token 预算，实时调整请求流量。
+- **多节点支持** — 支持多个节点，每个节点可以配置不同的路由规则。
+- **自定义标题栏** — 可以自定义应用标题栏，显示自定义名称或图标。
+
+
+当需要频繁配置Agent 工具时，AAStation只需一次配置，运行时即可自由切换。
+当有多个供应商的时，AAStation 可以帮灵活调度，充分利用每个供应商的资源。
+
 
 ## 主要特性
 
@@ -100,8 +116,6 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 - Windows 开机自启动（可在设置页开关）
 - 自定义标题栏，深色主题 UI
 - 实时状态监控和请求统计（Monitor 页面）
-
-## 截图
 
 
 
