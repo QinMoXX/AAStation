@@ -176,7 +176,7 @@ function nodeDataToFrontend(
         baseUrl: (camelData.baseUrl as string) || '',
         anthropicBaseUrl: camelData.anthropicBaseUrl as string | undefined,
         apiKey: (camelData.apiKey as string) || '',
-        tokenLimit: (camelData.tokenLimit as number | undefined) ?? 1,
+        tokenLimit: camelData.tokenLimit as number | undefined,
         models: (camelData.models as ProviderNodeData['models']) || [],
         description: camelData.description as string | undefined,
       } as ProviderNodeData;

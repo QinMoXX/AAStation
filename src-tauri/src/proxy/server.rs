@@ -261,7 +261,7 @@ impl ProxyServer {
                     .observe_provider(
                         &route.provider_id,
                         &route.provider_label,
-                        route.token_limit.unwrap_or(1_000_000),
+                        route.token_limit.unwrap_or(0),
                     )
                     .await;
                 active_provider_ids.push(route.provider_id.clone());
@@ -272,7 +272,7 @@ impl ProxyServer {
                     .observe_provider(
                         &route.provider_id,
                         &route.provider_label,
-                        route.token_limit.unwrap_or(1_000_000),
+                        route.token_limit.unwrap_or(0),
                     )
                     .await;
                 active_provider_ids.push(route.provider_id.clone());
@@ -403,7 +403,7 @@ async fn run_health_probe_cycle(
             .await
             .map(|summary| summary.summary.total_tokens)
             .unwrap_or(0);
-        let budget_tokens = route.token_limit.unwrap_or(1_000_000);
+        let budget_tokens = route.token_limit.unwrap_or(0);
         if let Some(runtime_state) = provider_runtime.get(&route.provider_id).await {
             let interval = runtime_state.probe_interval_seconds.max(5);
             let should_probe = runtime_state

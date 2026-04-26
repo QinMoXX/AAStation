@@ -227,14 +227,22 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
         <input
           style={inputStyle}
           type="number"
-          min={1}
+          min={0}
           step={1}
-          value={data.tokenLimit ?? 1}
-          placeholder="1 = 100万"
-          onChange={(e) => onUpdate({ tokenLimit: Math.max(1, Number(e.target.value) || 1) })}
+          value={data.tokenLimit ?? ''}
+          placeholder="留空 = 不限"
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            if (!raw) {
+              onUpdate({ tokenLimit: undefined });
+              return;
+            }
+            const parsed = Math.floor(Number(raw));
+            onUpdate({ tokenLimit: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined });
+          }}
         />
         <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-          token_remaining 按百万为单位配置，默认 1 表示 100 万 tokens。
+          按百万配置额度，留空表示无限制。
         </div>
       </div>
 

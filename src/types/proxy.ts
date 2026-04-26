@@ -117,6 +117,7 @@ export interface ProviderRuntimeState {
   timeline: ProviderRuntimeEvent[];
   budget_tokens: number;
   remaining_tokens: number;
+  used_tokens: number;
 }
 
 export type PollerStrategyRuntime = 'weighted' | 'network_status' | 'token_remaining';

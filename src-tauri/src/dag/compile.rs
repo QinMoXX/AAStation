@@ -309,15 +309,19 @@ fn compile_provider_route(
         extra_headers: HashMap::new(),
         is_default,
         target_model,
-        token_limit: Some(provider_token_budget_to_tokens(provider_data.token_limit)),
+        token_limit: provider_token_budget_to_tokens(provider_data.token_limit),
         fuzzy_match: app_type == "claude_code",
     })
 }
 
-fn provider_token_budget_to_tokens(token_limit_millions: Option<u64>) -> u64 {
-    token_limit_millions
-        .unwrap_or(1)
-        .saturating_mul(DEFAULT_PROVIDER_TOKEN_BUDGET_TOKENS)
+fn provider_token_budget_to_tokens(token_limit_millions: Option<u64>) -> Option<u64> {
+    token_limit_millions.and_then(|value| {
+        if value == 0 {
+            None
+        } else {
+            Some(value.saturating_mul(DEFAULT_PROVIDER_TOKEN_BUDGET_TOKENS))
+        }
+    })
 }
 
 fn summarize_workflow_routes(

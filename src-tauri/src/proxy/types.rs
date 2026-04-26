@@ -232,6 +232,7 @@ pub struct ProviderRuntimeState {
     pub timeline: Vec<ProviderRuntimeEvent>,
     pub budget_tokens: u64,
     pub remaining_tokens: u64,
+    pub used_tokens: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

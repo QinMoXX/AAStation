@@ -36,6 +36,7 @@ impl ProviderRuntimeStore {
                 provider_label: provider_label.to_string(),
                 budget_tokens,
                 remaining_tokens: budget_tokens,
+                used_tokens: 0,
                 status: ProviderRuntimeStatus::Unknown,
                 failure_threshold: DEFAULT_FAILURE_THRESHOLD,
                 cooldown_seconds: DEFAULT_COOLDOWN_SECS,
@@ -44,7 +45,9 @@ impl ProviderRuntimeStore {
             });
         entry.provider_label = provider_label.to_string();
         entry.budget_tokens = budget_tokens;
-        entry.remaining_tokens = budget_tokens;
+        if budget_tokens > 0 {
+            entry.remaining_tokens = entry.remaining_tokens.min(budget_tokens);
+        }
     }
 
     pub async fn apply_policy(
@@ -64,6 +67,7 @@ impl ProviderRuntimeStore {
                 provider_label: provider_label.to_string(),
                 budget_tokens,
                 remaining_tokens: budget_tokens,
+                used_tokens: 0,
                 status: ProviderRuntimeStatus::Unknown,
                 failure_threshold: failure_threshold.max(1),
                 cooldown_seconds: cooldown_seconds.max(1),
@@ -72,6 +76,9 @@ impl ProviderRuntimeStore {
             });
         entry.provider_label = provider_label.to_string();
         entry.budget_tokens = budget_tokens;
+        if budget_tokens > 0 {
+            entry.remaining_tokens = entry.remaining_tokens.min(budget_tokens);
+        }
         entry.failure_threshold = failure_threshold.max(1);
         entry.cooldown_seconds = cooldown_seconds.max(1);
         entry.probe_interval_seconds = probe_interval_seconds.max(5);
@@ -87,13 +94,19 @@ impl ProviderRuntimeStore {
         error: Option<String>,
     ) {
         let mut state = self.inner.write().await;
+        let remaining_tokens = if budget_tokens == 0 {
+            0
+        } else {
+            budget_tokens.saturating_sub(used_tokens)
+        };
         let entry = state
             .entry(provider_id.to_string())
             .or_insert_with(|| ProviderRuntimeState {
                 provider_id: provider_id.to_string(),
                 provider_label: provider_label.to_string(),
                 budget_tokens,
-                remaining_tokens: budget_tokens.saturating_sub(used_tokens),
+                remaining_tokens,
+                used_tokens,
                 status: ProviderRuntimeStatus::Unknown,
                 failure_threshold: DEFAULT_FAILURE_THRESHOLD,
                 cooldown_seconds: DEFAULT_COOLDOWN_SECS,
@@ -105,7 +118,8 @@ impl ProviderRuntimeStore {
         let now_iso = now.to_rfc3339();
         entry.provider_label = provider_label.to_string();
         entry.budget_tokens = budget_tokens;
-        entry.remaining_tokens = budget_tokens.saturating_sub(used_tokens);
+        entry.used_tokens = used_tokens;
+        entry.remaining_tokens = remaining_tokens;
         entry.last_request_at = Some(now_iso.clone());
 
         if success {
@@ -161,13 +175,19 @@ impl ProviderRuntimeStore {
         error: Option<String>,
     ) {
         let mut state = self.inner.write().await;
+        let remaining_tokens = if budget_tokens == 0 {
+            0
+        } else {
+            budget_tokens.saturating_sub(used_tokens)
+        };
         let entry = state
             .entry(provider_id.to_string())
             .or_insert_with(|| ProviderRuntimeState {
                 provider_id: provider_id.to_string(),
                 provider_label: provider_label.to_string(),
                 budget_tokens,
-                remaining_tokens: budget_tokens.saturating_sub(used_tokens),
+                remaining_tokens,
+                used_tokens,
                 status: ProviderRuntimeStatus::Unknown,
                 failure_threshold: DEFAULT_FAILURE_THRESHOLD,
                 cooldown_seconds: DEFAULT_COOLDOWN_SECS,
@@ -178,7 +198,8 @@ impl ProviderRuntimeStore {
         let now_iso = Utc::now().to_rfc3339();
         entry.provider_label = provider_label.to_string();
         entry.budget_tokens = budget_tokens;
-        entry.remaining_tokens = budget_tokens.saturating_sub(used_tokens);
+        entry.used_tokens = used_tokens;
+        entry.remaining_tokens = remaining_tokens;
         entry.last_probe_at = Some(now_iso.clone());
 
         if reachable {

@@ -126,7 +126,7 @@ fn default_true() -> bool {
 }
 
 fn default_provider_token_budget_millions() -> Option<u64> {
-    Some(1)
+    None
 }
 
 /// Provider node data: an upstream API endpoint with model sub-nodes.
@@ -146,7 +146,7 @@ pub struct ProviderNodeData {
     pub anthropic_base_url: Option<String>,
     /// API key for authentication.
     pub api_key: String,
-    /// Token budget in millions. `1` means 1,000,000 tokens.
+    /// Token budget in millions. `None` means unlimited.
     #[serde(default = "default_provider_token_budget_millions")]
     pub token_limit: Option<u64>,
     /// Model entries, each with its own right-side output handle.

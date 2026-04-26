@@ -43,7 +43,6 @@ export function defaultProviderData(): ProviderNodeData {
     label: 'Provider',
     baseUrl: '',
     apiKey: '',
-    tokenLimit: 1,
     models: [],
   };
 }
@@ -116,7 +115,6 @@ export function createPresetProviderData(preset: ProviderPreset): ProviderNodeDa
     baseUrl: preset.baseUrl,
     anthropicBaseUrl: preset.anthropicBaseUrl,
     apiKey: '',
-    tokenLimit: 1,
     models: [],
   };
 }

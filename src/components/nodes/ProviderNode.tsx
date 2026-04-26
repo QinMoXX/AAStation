@@ -32,32 +32,55 @@ function networkMeta(status: ProviderRuntimeStatus | undefined) {
 
 function budgetMeta(
   runtimeState: ProviderRuntimeState | null | undefined,
-  fallbackBudgetTokens: number,
+  fallbackBudgetTokens: number | undefined,
 ) {
-  if (!runtimeState || runtimeState.budget_tokens <= 0) {
+  if (!runtimeState) {
+    if (!fallbackBudgetTokens || fallbackBudgetTokens <= 0) {
+      return {
+        label: '∞',
+        percent: 100,
+        fillColor: '#3b82f6',
+        soft: 'rgba(59, 130, 246, 0.12)',
+        usageText: '-- / ∞',
+      };
+    }
     return {
-      label: '100%',
-      percent: 100,
+      label: '0%',
+      percent: 0,
       fillColor: '#22c55e',
       soft: 'rgba(34, 197, 94, 0.12)',
-      remainingText: formatCompactTokens(fallbackBudgetTokens),
+      usageText: `0 / ${formatCompactTokens(fallbackBudgetTokens)}`,
     };
   }
 
-  const percent = Math.max(
-    0,
-    Math.min(100, (runtimeState.remaining_tokens / runtimeState.budget_tokens) * 100),
-  );
+  const budgetTokens = runtimeState.budget_tokens;
+  const usedTokens =
+    runtimeState.used_tokens ??
+    (budgetTokens > 0
+      ? Math.max(0, budgetTokens - runtimeState.remaining_tokens)
+      : 0);
 
+  if (budgetTokens <= 0) {
+    return {
+      label: '∞',
+      percent: 100,
+      fillColor: '#3b82f6',
+      soft: 'rgba(59, 130, 246, 0.12)',
+      usageText: `${formatCompactTokens(usedTokens)} / ∞`,
+    };
+  }
+
+  const usagePercent = (usedTokens / budgetTokens) * 100;
+  const percent = Math.max(0, Math.min(100, usagePercent));
   const fillColor =
-    percent >= 60 ? '#22c55e' : percent >= 30 ? '#f59e0b' : '#ef4444';
+    usagePercent >= 100 ? '#ef4444' : usagePercent >= 70 ? '#f59e0b' : '#22c55e';
 
   return {
-    label: `${Math.round(percent)}%`,
+    label: `${Math.round(usagePercent)}%`,
     percent,
     fillColor,
     soft: `${fillColor}22`,
-    remainingText: formatCompactTokens(runtimeState.remaining_tokens),
+    usageText: `${formatCompactTokens(usedTokens)} / ${formatCompactTokens(budgetTokens)}`,
   };
 }
 
@@ -86,7 +109,8 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
 
   const runtimeState = data.runtimeState ?? null;
   const signal = networkMeta(runtimeState?.status);
-  const fallbackBudgetTokens = Math.max(1, data.tokenLimit ?? 1) * 1_000_000;
+  const fallbackBudgetTokens =
+    data.tokenLimit && data.tokenLimit > 0 ? data.tokenLimit * 1_000_000 : undefined;
   const budget = budgetMeta(runtimeState, fallbackBudgetTokens);
   const signalHeights = [5, 8, 11, 14];
 
@@ -171,8 +195,10 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
           }}
           title={
             runtimeState
-              ? `剩余额度：${runtimeState.remaining_tokens} / ${runtimeState.budget_tokens}`
-              : `配置预算：${fallbackBudgetTokens}`
+              ? `使用量：${budget.usageText}`
+              : fallbackBudgetTokens
+                ? `使用量：0 / ${fallbackBudgetTokens}`
+                : '使用量：无限制'
           }
         >
           <div

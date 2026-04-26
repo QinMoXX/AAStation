@@ -13,8 +13,6 @@ use super::types::{
     CompiledRoute, MatchType, PollerStrategyRuntime, RouteTable,
 };
 
-const DEFAULT_PROVIDER_TOKEN_BUDGET_TOKENS: u64 = 1_000_000;
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorkflowPlan {
     pub entry_node_id: String,
@@ -221,7 +219,7 @@ async fn execute_node(
             if let Some(next_node_id) =
                 match_branches(&match_node.branches, request.path, request.headers, request.model)
             {
-                return Box::pin(execute_node(
+                let branch_result = Box::pin(execute_node(
                     plan,
                     next_node_id,
                     runtime,
@@ -230,6 +228,9 @@ async fn execute_node(
                     depth + 1,
                 ))
                 .await;
+                if !matches!(branch_result, Err(ProxyError::NoMatch)) {
+                    return branch_result;
+                }
             }
 
             if let Some(default_next) = &match_node.default_next {
@@ -249,7 +250,12 @@ async fn execute_node(
         WorkflowNodeKind::Poller(poller_node) => {
             execute_poller(plan, node_id, poller_node, runtime, request, peek_only, depth + 1).await
         }
-        WorkflowNodeKind::Provider(provider_node) => Ok(provider_node.route.clone()),
+        WorkflowNodeKind::Provider(provider_node) => {
+            if provider_over_token_limit(runtime, &provider_node.route).await {
+                return Err(ProxyError::NoMatch);
+            }
+            Ok(provider_node.route.clone())
+        }
     }
 }
 
@@ -265,7 +271,7 @@ async fn execute_poller(
     let mut candidates: Vec<(String, String, u32, CompiledRoute)> = Vec::new();
     for target in &poller_node.targets {
         let weight = target_effective_weight(poller_node.strategy, target.weight);
-        let route = Box::pin(execute_node(
+        let route_result = Box::pin(execute_node(
             plan,
             &target.next_node_id,
             runtime,
@@ -273,7 +279,12 @@ async fn execute_poller(
             true,
             depth + 1,
         ))
-        .await?;
+        .await;
+        let route = match route_result {
+            Ok(route) => route,
+            Err(ProxyError::NoMatch) => continue,
+            Err(other) => return Err(other),
+        };
         candidates.push((
             target.next_node_id.clone(),
             target.label.clone(),
@@ -404,7 +415,7 @@ async fn select_by_network_status(
             .apply_policy(
                 &route.provider_id,
                 &route.provider_label,
-                route.token_limit.unwrap_or(DEFAULT_PROVIDER_TOKEN_BUDGET_TOKENS),
+                route.token_limit.unwrap_or(0),
                 poller_node.failure_threshold,
                 poller_node.cooldown_seconds,
                 poller_node.probe_interval_seconds,
@@ -466,10 +477,10 @@ async fn select_by_token_remaining(
             .await
             .map(|summary| summary.summary.total_tokens)
             .unwrap_or(0);
-        let limit = route
+        let remaining = route
             .token_limit
-            .unwrap_or(DEFAULT_PROVIDER_TOKEN_BUDGET_TOKENS);
-        let remaining = limit.saturating_sub(used);
+            .map(|limit| limit.saturating_sub(used))
+            .unwrap_or(u64::MAX);
 
         match best_remaining {
             None => {
@@ -516,7 +527,7 @@ async fn prepare_runtime_state(
         .apply_policy(
             &route.provider_id,
             &route.provider_label,
-            route.token_limit.unwrap_or(DEFAULT_PROVIDER_TOKEN_BUDGET_TOKENS),
+            route.token_limit.unwrap_or(0),
             poller_node.failure_threshold,
             poller_node.cooldown_seconds,
             poller_node.probe_interval_seconds,
@@ -584,11 +595,24 @@ struct WorkflowRequestView<'a> {
     model: Option<&'a str>,
 }
 
+async fn provider_over_token_limit(runtime: &WorkflowRuntime, route: &CompiledRoute) -> bool {
+    let Some(limit) = route.token_limit else {
+        return false;
+    };
+    let used = runtime
+        .metrics
+        .provider_summary(&route.provider_id)
+        .await
+        .map(|summary| summary.summary.total_tokens)
+        .unwrap_or(0);
+    used >= limit
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::proxy::health::{PollerRuntimeStore, ProviderRuntimeStore};
-    use crate::proxy::types::ProviderRuntimeStatus;
+    use crate::proxy::types::{ProviderRuntimeStatus, ProxyRequestMetric};
 
     fn runtime() -> WorkflowRuntime {
         WorkflowRuntime {
@@ -615,6 +639,37 @@ mod tests {
             token_limit: None,
             fuzzy_match: false,
         }
+    }
+
+    async fn record_provider_usage(runtime: &WorkflowRuntime, provider_id: &str, total_tokens: u64) {
+        let now = Utc::now().to_rfc3339();
+        runtime
+            .metrics
+            .record(ProxyRequestMetric {
+                id: String::new(),
+                app_id: "app-1".to_string(),
+                app_label: "App 1".to_string(),
+                provider_id: provider_id.to_string(),
+                provider_label: provider_id.to_string(),
+                listen_port: 9527,
+                method: "POST".to_string(),
+                path: "/v1/messages".to_string(),
+                protocol: "openai".to_string(),
+                request_model: None,
+                target_model: None,
+                response_model: None,
+                status_code: Some(200),
+                success: true,
+                streamed: false,
+                duration_ms: 10,
+                input_tokens: total_tokens,
+                output_tokens: 0,
+                total_tokens,
+                started_at: now.clone(),
+                completed_at: now,
+                error: None,
+            })
+            .await;
     }
 
     fn make_table() -> RouteTable {
@@ -822,6 +877,66 @@ mod tests {
         let headers = HeaderMap::new();
         let selected = execute_workflow(&plan, &runtime, "/", &headers, None).await.unwrap();
         assert_eq!(selected.id, "a");
+    }
+
+    #[tokio::test]
+    async fn provider_is_not_routed_when_usage_reaches_limit() {
+        let mut route = make_route("a", MatchType::PathPrefix, "/");
+        route.token_limit = Some(100);
+        let plan = WorkflowPlan {
+            entry_node_id: "provider-a".to_string(),
+            nodes: vec![WorkflowNode {
+                id: "provider-a".to_string(),
+                kind: WorkflowNodeKind::Provider(WorkflowProviderNode { route }),
+            }],
+        };
+
+        let runtime = runtime();
+        record_provider_usage(&runtime, "provider-a", 100).await;
+        let headers = HeaderMap::new();
+        let result = execute_workflow(&plan, &runtime, "/", &headers, None).await;
+        assert!(matches!(result, Err(ProxyError::NoMatch)));
+    }
+
+    #[tokio::test]
+    async fn match_node_falls_back_to_default_when_matched_provider_over_limit() {
+        let mut primary = make_route("a", MatchType::PathPrefix, "/v1/messages");
+        primary.token_limit = Some(100);
+        let fallback = make_route("b", MatchType::PathPrefix, "/");
+        let plan = WorkflowPlan {
+            entry_node_id: "match".to_string(),
+            nodes: vec![
+                WorkflowNode {
+                    id: "match".to_string(),
+                    kind: WorkflowNodeKind::Match(WorkflowMatchNode {
+                        branches: vec![WorkflowBranch {
+                            id: "branch-a".to_string(),
+                            match_type: MatchType::PathPrefix,
+                            pattern: "/v1/messages".to_string(),
+                            fuzzy_match: false,
+                            next_node_id: "provider-a".to_string(),
+                        }],
+                        default_next: Some("provider-b".to_string()),
+                    }),
+                },
+                WorkflowNode {
+                    id: "provider-a".to_string(),
+                    kind: WorkflowNodeKind::Provider(WorkflowProviderNode { route: primary }),
+                },
+                WorkflowNode {
+                    id: "provider-b".to_string(),
+                    kind: WorkflowNodeKind::Provider(WorkflowProviderNode { route: fallback }),
+                },
+            ],
+        };
+
+        let runtime = runtime();
+        record_provider_usage(&runtime, "provider-a", 100).await;
+        let headers = HeaderMap::new();
+        let selected = execute_workflow(&plan, &runtime, "/v1/messages", &headers, None)
+            .await
+            .unwrap();
+        assert_eq!(selected.id, "b");
     }
 
     #[tokio::test]

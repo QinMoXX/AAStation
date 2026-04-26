@@ -63,6 +63,18 @@ function formatMillions(value: number): string {
   return formatNumber(value);
 }
 
+function providerUsagePercent(provider: ProviderRuntimeState): number | null {
+  if (provider.budget_tokens <= 0) return null;
+  return (provider.used_tokens / provider.budget_tokens) * 100;
+}
+
+function usageColor(percent: number | null): string {
+  if (percent == null) return '#60a5fa';
+  if (percent >= 100) return '#f87171';
+  if (percent >= 70) return '#fbbf24';
+  return '#4ade80';
+}
+
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
@@ -691,7 +703,11 @@ function RuntimeStatusCard({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
                 <div>连续失败: {formatNumber(provider.consecutive_failures)}</div>
-                <div>剩余额度: {formatMillions(provider.remaining_tokens)}</div>
+                <div style={{ color: usageColor(providerUsagePercent(provider)) }}>
+                  使用率: {providerUsagePercent(provider) == null ? '无限制' : formatPercent(providerUsagePercent(provider) ?? 0)}
+                </div>
+                <div>已使用: {formatMillions(provider.used_tokens)}</div>
+                <div>预算: {provider.budget_tokens > 0 ? formatMillions(provider.budget_tokens) : '无限制'}</div>
                 <div>阈值 / 冷却: {provider.failure_threshold} / {provider.cooldown_seconds}s</div>
                 <div>探测间隔: {provider.probe_interval_seconds}s</div>
                 <div>半开开始: {formatDateTime(provider.half_open_since)}</div>

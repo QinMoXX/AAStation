@@ -635,7 +635,7 @@ async fn record_metric(
         .record_request_result(
             &ctx.provider_id,
             &ctx.provider_label,
-            ctx.token_limit.unwrap_or(1_000_000),
+            ctx.token_limit.unwrap_or(0),
             cumulative_used_tokens,
             success,
             error,
