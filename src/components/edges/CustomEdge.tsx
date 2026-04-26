@@ -32,10 +32,10 @@ export default function CustomEdge({
           id={`${id}-bg`}
           d={edgePath}
           style={{
-            stroke: '#3b82f6',
+            stroke: '#60a5fa',
             strokeWidth: 6,
             fill: 'none',
-            opacity: 0.3,
+            opacity: 0.34,
           }}
         />
       )}
@@ -45,8 +45,9 @@ export default function CustomEdge({
         path={edgePath}
         style={{
           ...style,
-          stroke: selected ? '#3b82f6' : '#6b7280',
+          stroke: selected ? '#60a5fa' : '#64748b',
           strokeWidth: selected ? 3 : 2,
+          filter: selected ? 'drop-shadow(0 0 10px rgba(96,165,250,0.35))' : 'none',
         }}
         markerEnd={selected ? 'url(#selected-arrow)' : undefined}
       />

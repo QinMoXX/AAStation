@@ -7,67 +7,6 @@ import { NodeTag, type AppType, type MiddlewareType } from '../../types';
 // Styles
 // ---------------------------------------------------------------------------
 
-const panelStyle: React.CSSProperties = {
-  width: 256,
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  flexShrink: 0,
-  overflowY: 'auto',
-};
-
-const panelHeaderStyle: React.CSSProperties = {
-  padding: '20px 16px 12px',
-};
-
-const panelTitleStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 600,
-  color: 'var(--ui-text)',
-};
-
-const tagFilterWrapStyle: React.CSSProperties = {
-  marginTop: 10,
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 6,
-};
-
-const tagChipBaseStyle: React.CSSProperties = {
-  height: 22,
-  padding: '0 10px',
-  borderRadius: 999,
-  border: '1px solid rgba(255, 255, 255, 0.16)',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: 11,
-  fontWeight: 500,
-  cursor: 'pointer',
-  userSelect: 'none',
-  transition: 'all 0.15s',
-};
-
-const tagChipBorderColor = 'rgba(255, 255, 255, 0.16)';
-
-const sectionStyle: React.CSSProperties = {
-  padding: '0 8px 8px',
-};
-
-const categoryHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  padding: '6px 8px',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--ui-text)',
-  cursor: 'pointer',
-  borderRadius: 6,
-  userSelect: 'none',
-  transition: 'background 0.15s',
-};
-
 const chevronStyle: React.CSSProperties = {
   display: 'inline-flex',
   fontSize: 13,
@@ -79,26 +18,6 @@ const chevronStyle: React.CSSProperties = {
   lineHeight: 1,
 };
 
-const itemStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '5px 8px 5px 28px',
-  fontSize: 13,
-  color: 'var(--ui-muted)',
-  borderRadius: 6,
-  cursor: 'pointer',
-  transition: 'background 0.15s',
-};
-
-const itemHoverBg = 'rgba(255, 255, 255, 0.05)';
-
-const itemCountStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: 'var(--ui-dim)',
-  marginLeft: 'auto',
-};
-
 const categoryIconStyle: React.CSSProperties = {
   width: 16,
   height: 16,
@@ -106,12 +25,6 @@ const categoryIconStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   flexShrink: 0,
-};
-
-const emptyTextStyle: React.CSSProperties = {
-  padding: '6px 8px 6px 28px',
-  fontSize: 12,
-  color: 'var(--ui-dim)',
 };
 
 // ---------------------------------------------------------------------------
@@ -253,65 +166,57 @@ export default function HomeSubNav() {
   );
 
   return (
-    <div style={panelStyle} className="ui-subsidebar">
-      <div style={panelHeaderStyle} data-tauri-drag-region>
-        <div style={panelTitleStyle}>节点组件</div>
-        <div style={tagFilterWrapStyle}>
+    <div className="ui-subnav ui-subsidebar">
+      <div className="ui-subnav-header" data-tauri-drag-region>
+        <div className="ui-subnav-title">节点组件</div>
+        <div className="ui-subnav-subtitle">保持现有编排布局，仅统一视觉层级与交互观感。</div>
+        <div className="ui-chip-group">
           {TAG_OPTIONS.map((tag) => {
             const active = selectedTag === tag;
             return (
-              <div
+              <button
                 key={tag}
-                style={{
-                  ...tagChipBaseStyle,
-                  borderColor: active ? 'rgba(99, 102, 241, 0.65)' : tagChipBorderColor,
-                  background: active ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                  color: active ? '#c7d2fe' : 'var(--ui-muted)',
-                }}
+                type="button"
+                className={`ui-chip${active ? ' active' : ''}`}
                 onClick={() => setSelectedTag(tag)}
               >
                 {TAG_LABEL_MAP[tag]}
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
 
-      <div style={sectionStyle}>
+      <div className="ui-subnav-section">
         {CATEGORIES.map((cat, catIdx) => {
           const isOpen = expanded[cat.id];
           const count = getCategoryCount(cat.id);
 
           return (
-            <div key={cat.id} style={{ marginBottom: 8 }}>
-              {/* Category header - clickable to expand/collapse */}
-              <div
-                style={categoryHeaderStyle}
+            <div key={cat.id} className="ui-subnav-category">
+              <button
+                type="button"
+                className="ui-subnav-category-header"
                 onClick={() => toggleCategory(cat.id)}
-                onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <span style={chevronStyle}>{isOpen ? '−' : '+'}</span>
                 <span style={categoryIconStyle}>{cat.icon}</span>
                 <span>{cat.label}</span>
-                {count > 0 && <span style={itemCountStyle}>{count}</span>}
-              </div>
+                {count > 0 && <span className="ui-subnav-category-count">{count}</span>}
+              </button>
 
-              {/* Category items */}
               {isOpen && (
                 <div>
-                  {/* Application items */}
                   {cat.id === 'application' && (
                     <>
                       {filteredApplicationItems.map(([appType, appDefault]) => {
                         const Icon = getProviderIcon(appDefault.icon);
                         return (
-                          <div
+                          <button
                             key={appType}
-                            style={itemStyle}
+                            type="button"
+                            className="ui-subnav-item"
                             onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                           >
                             <span style={categoryIconStyle}>
                               {Icon && <Icon style={{ width: 14, height: 14 }} />}
@@ -319,71 +224,67 @@ export default function HomeSubNav() {
                             <span style={{ fontWeight: 500 }}>
                               {appDefault.displayLabel}
                             </span>
-                          </div>
+                          </button>
                         );
                       })}
                       {filteredApplicationItems.length === 0 && (
-                        <div style={emptyTextStyle}>当前筛选下无可用应用节点</div>
+                        <div className="ui-subnav-empty">当前筛选下无可用应用节点</div>
                       )}
                     </>
                   )}
 
-                  {/* Middleware items */}
                   {cat.id === 'middleware' && (
                     <>
                       {filteredMiddlewareItems.map(([middlewareType, middleware]) => {
                         const Icon = getProviderIcon(middleware.icon);
                         return (
-                          <div
+                          <button
                             key={middlewareType}
-                            style={itemStyle}
+                            type="button"
+                            className="ui-subnav-item"
                             onClick={() => addMiddlewareNode(middlewareType)}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                           >
                             <span style={categoryIconStyle}>
                               {Icon && <Icon style={{ width: 14, height: 14 }} />}
                             </span>
                             <span style={{ fontWeight: 500 }}>{middleware.name}</span>
-                          </div>
+                          </button>
                         );
                       })}
                       {filteredMiddlewareItems.length === 0 && (
-                        <div style={emptyTextStyle}>当前筛选下无可用中间件节点</div>
+                        <div className="ui-subnav-empty">当前筛选下无可用中间件节点</div>
                       )}
                     </>
                   )}
 
-                  {/* Provider items */}
                   {cat.id === 'provider' && (
                     <>
                       {filteredProviderPresets.map((preset) => {
                         const Icon = getProviderIcon(preset.icon);
                         const isCustomProvider = preset.createMode === 'custom';
                         return (
-                          <div
+                          <button
                             key={preset.id}
-                            style={itemStyle}
+                            type="button"
+                            className="ui-subnav-item"
                             onClick={() => (isCustomProvider ? handleAddCustom() : handleAddPreset(preset.id))}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = itemHoverBg; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                           >
                             <span style={categoryIconStyle}>
                               {Icon && <Icon style={{ width: 14, height: 14 }} />}
                             </span>
                             <span style={{ fontWeight: 500 }}>{preset.name}</span>
-                          </div>
+                          </button>
                         );
                       })}
                       {filteredProviderPresets.length === 0 && (
-                        <div style={emptyTextStyle}>当前筛选下无可用供应商节点</div>
+                        <div className="ui-subnav-empty">当前筛选下无可用供应商节点</div>
                       )}
                     </>
                   )}
                 </div>
               )}
               {catIdx < CATEGORIES.length - 1 && (
-                <div style={{ height: 1, background: 'rgba(255, 255, 255, 0.08)', margin: '6px 8px 0' }} />
+                <div className="ui-subnav-divider" />
               )}
             </div>
           );

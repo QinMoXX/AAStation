@@ -25,155 +25,106 @@ function SwitcherNode({ data, selected }: NodeProps<SwitcherNodeData>) {
     || 'Middleware';
   const MiddlewareIcon = middlewareConfig?.icon ? getProviderIcon(middlewareConfig.icon) : null;
   const entryCount = data.entries.length;
+  const handleBase: React.CSSProperties = {
+    width: 12,
+    height: 12,
+    border: '2px solid #e2e8f0',
+    boxShadow: '0 0 0 4px rgba(15, 23, 42, 0.42)',
+  };
 
   return (
     <div
+      className={`flow-node${selected ? ' is-selected' : ''}`}
       style={{
-        padding: '12px 16px',
-        borderRadius: 8,
-        border: selected ? '2px solid #f97316' : '2px solid #e5e7eb',
-        background: '#fff',
         minWidth: 220,
-        fontSize: 13,
-        position: 'relative',
-        boxSizing: 'border-box',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        ['--node-accent' as string]: '#f59e0b',
+        ['--node-surface' as string]: 'rgba(15, 23, 42, 0.95)',
       }}
     >
-      {/* Main input handle on the LEFT side - connects from Application output */}
       <Handle
         type="target"
         position={Position.Left}
         id="input"
         style={{
-          background: '#f97316',
-          width: 12,
-          height: 12,
+          ...handleBase,
+          background: '#f59e0b',
           top: '50%',
           left: -10,
           transform: 'translateY(-50%)',
-          border: '3px solid #fff',
         }}
         title="Input [any] — from Application"
       />
 
-      {/* Header */}
-      <div style={{ fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, color: '#374151' }}>
-        {MiddlewareIcon && <MiddlewareIcon style={{ width: 16, height: 16 }} />}
-        <span>{data.label || middlewareName}</span>
-      </div>
-
-      {/* Entry count */}
-      <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 8 }}>
-        {entryCount === 0
-          ? '无匹配器'
-          : `${entryCount} 个匹配器`}
-      </div>
-
-      {/* Matcher entries with RIGHT-side output handles (to Provider model handles) */}
-      {data.entries.map((entry, index, arr) => (
-        <div
-          key={entry.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            paddingTop: index === 0 ? 8 : 6,
-            paddingBottom: 6,
-            borderTop: index === 0 ? '1px solid #d1d5db' : 'none',
-            marginBottom: index === arr.length - 1 && !data.hasDefault ? -12 : 0,
-            fontSize: 12,
-            color: '#374151',
-            position: 'relative',
-            marginLeft: -16,
-            marginRight: -16,
-            paddingLeft: 16,
-            paddingRight: 16,
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>
-              {entry.label || `Matcher #${index + 1}`}
-            </div>
-            <div style={{ color: '#6b7280', fontSize: 11 }}>
-              {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || '—'}
-            </div>
+      <div className="flow-node-header">
+        <div style={{ minWidth: 0 }}>
+          <div className="flow-node-title">
+            {MiddlewareIcon && <MiddlewareIcon style={{ width: 16, height: 16 }} />}
+            <span className="flow-node-title-text">{data.label || middlewareName}</span>
           </div>
-          <Handle
-            type="source"
-            position={Position.Right}
-            id={`entry-${entry.id}`}
-            style={{
-              background: HANDLE_COLORS[entry.matchType] || HANDLE_COLORS.any,
-              width: 12,
-              height: 12,
-              right: -10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              border: '3px solid #fff',
-            }}
-            title={`[${entry.matchType}] Connect to Provider${entry.matchType === 'model' ? ' model' : ''} (matches: ${entry.pattern || '—'})`}
-          />
+          <div className="flow-node-subtitle">
+            {entryCount === 0 ? '无匹配器' : `${entryCount} 个匹配器`}
+          </div>
         </div>
-      ))}
+        <div className="flow-node-badge accent">Router</div>
+      </div>
 
-      {/* Default route with RIGHT-side output handle */}
-      {data.hasDefault && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            paddingTop: data.entries.length > 0 ? 6 : 8,
-            paddingBottom: 6,
-            borderTop: data.entries.length > 0 ? 'none' : '1px solid #d1d5db',
-            marginBottom: -12,
-            fontSize: 12,
-            color: '#374151',
-            position: 'relative',
-            marginLeft: -16,
-            marginRight: -16,
-            paddingLeft: 16,
-            paddingRight: 16,
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 500 }}>Default</div>
-            <div style={{ color: '#6b7280', fontSize: 11 }}>
-              Fallback when no matchers match
+      {data.entries.length > 0 && (
+        <div className="flow-node-list">
+          {data.entries.map((entry, index) => (
+            <div key={entry.id} className="flow-node-entry">
+              <div style={{ flex: 1 }}>
+                <div className="flow-node-entry-label">{entry.label || `Matcher #${index + 1}`}</div>
+                <div className="flow-node-entry-desc">
+                  {MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}: {entry.pattern || '—'}
+                </div>
+              </div>
+              <span className="flow-node-badge">{MATCH_TYPE_LABELS[entry.matchType] ?? entry.matchType}</span>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={`entry-${entry.id}`}
+                style={{
+                  ...handleBase,
+                  background: HANDLE_COLORS[entry.matchType] || HANDLE_COLORS.any,
+                  right: -10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+                title={`[${entry.matchType}] Connect to Provider${entry.matchType === 'model' ? ' model' : ''} (matches: ${entry.pattern || '—'})`}
+              />
             </div>
-          </div>
-          <Handle
-            type="source"
-            position={Position.Right}
-            id="default"
-            style={{
-              background: '#f97316',
-              width: 12,
-              height: 12,
-              right: -10,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              border: '3px solid #fff',
-            }}
-            title="Default [any] — fallback to Provider"
-          />
+          ))}
+          {data.hasDefault && (
+            <div className="flow-node-entry">
+              <div>
+                <div className="flow-node-entry-label">Default</div>
+                <div className="flow-node-entry-desc">Fallback when no matchers match</div>
+              </div>
+              <span className="flow-node-badge accent">Fallback</span>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="default"
+                style={{
+                  ...handleBase,
+                  background: '#f59e0b',
+                  right: -10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+                title="Default [any] — fallback to Provider"
+              />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Hint when no entries */}
+      {entryCount === 0 && data.hasDefault && (
+        <div className="flow-node-empty">仅默认路由生效，未命中匹配器时直接回退。</div>
+      )}
+
       {entryCount === 0 && !data.hasDefault && (
-        <div
-          style={{
-            marginTop: 8,
-            padding: '8px',
-            borderRadius: 6,
-            background: '#ffffff',
-            fontSize: 11,
-            color: '#6b7280',
-            textAlign: 'center',
-          }}
-        >
-          Add matchers or enable default route
-        </div>
+        <div className="flow-node-empty">Add matchers or enable default route</div>
       )}
     </div>
   );

@@ -1,36 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const containerStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 8,
-  right: 12,
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  zIndex: 9999,
-};
-
-const btnStyle: React.CSSProperties = {
-  width: 14,
-  height: 14,
-  borderRadius: '50%',
-  border: 'none',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  transition: 'all 0.15s',
-};
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -67,32 +37,29 @@ export default function TitleBar() {
   };
 
   return (
-    <div style={containerStyle}>
+    <div className="ui-titlebar">
       <button
-        style={{
-          ...btnStyle,
-          background: hovered === 'min' ? '#fbbf24' : '#6b7280',
-        }}
+        type="button"
+        className="ui-titlebar-dot"
+        style={{ background: hovered === 'min' ? '#fbbf24' : '#64748b' }}
         onClick={handleMinimize}
         title="最小化"
         onMouseEnter={() => setHovered('min')}
         onMouseLeave={() => setHovered(null)}
       />
       <button
-        style={{
-          ...btnStyle,
-          background: hovered === 'max' ? '#22c55e' : '#6b7280',
-        }}
+        type="button"
+        className="ui-titlebar-dot"
+        style={{ background: hovered === 'max' ? '#22c55e' : '#64748b' }}
         onClick={handleToggleMaximize}
         title={isMaximized ? '还原' : '最大化'}
         onMouseEnter={() => setHovered('max')}
         onMouseLeave={() => setHovered(null)}
       />
       <button
-        style={{
-          ...btnStyle,
-          background: hovered === 'close' ? '#dc2626' : '#6b7280',
-        }}
+        type="button"
+        className="ui-titlebar-dot"
+        style={{ background: hovered === 'close' ? '#ef4444' : '#64748b' }}
         onClick={handleClose}
         title="关闭"
         onMouseEnter={() => setHovered('close')}

@@ -131,128 +131,39 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
     data.tokenLimit && data.tokenLimit > 0 ? data.tokenLimit * 1_000_000 : undefined;
   const budget = budgetMeta(runtimeState, fallbackBudgetTokens);
   const signalHeights = [5, 8, 11, 14];
+  const baseHandleStyle: React.CSSProperties = {
+    width: 12,
+    height: 12,
+    border: '2px solid #e2e8f0',
+    boxShadow: '0 0 0 4px rgba(15, 23, 42, 0.42)',
+  };
 
   return (
     <div
+      className={`flow-node${selected ? ' is-selected' : ''}`}
       style={{
-        padding: '12px 14px',
-        borderRadius: 10,
-        border: selected ? '2px solid #f97316' : '1px solid rgba(226, 232, 240, 0.92)',
-        background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
         minWidth: 252,
-        fontSize: 13,
-        position: 'relative',
-        boxSizing: 'border-box',
-        boxShadow: selected ? '0 10px 28px rgba(249,115,22,0.16)' : '0 8px 24px rgba(15,23,42,0.12)',
+        ['--node-accent' as string]: '#60a5fa',
+        ['--node-surface' as string]: 'rgba(15, 23, 42, 0.94)',
       }}
     >
-      {/* Unified input handle - centered on left side of node */}
       <Handle
         type="target"
         position={Position.Left}
         id="unified"
         style={{
-          background: '#f97316',
-          width: 12,
-          height: 12,
+          ...baseHandleStyle,
+          background: '#f59e0b',
           top: '50%',
           left: -10,
           transform: 'translateY(-50%)',
-          border: '3px solid #fff',
         }}
         title="Unified [any] — accepts any connection"
       />
 
-      <div
-        style={{
-          position: 'absolute',
-          top: 10,
-          right: 12,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          zIndex: 2,
-        }}
-      >
-        <div
-          style={{
-            width: 24,
-            height: 18,
-            padding: '0 1px',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            gap: 2,
-          }}
-          title={`网络状态：${signal.label}`}
-        >
-          {signalHeights.map((height, index) => (
-            <span
-              key={height}
-              style={{
-                width: 2,
-                height,
-                borderRadius: 999,
-                background: index < signal.bars ? signal.color : 'rgba(148, 163, 184, 0.22)',
-                boxShadow: index < signal.bars ? `0 0 8px ${signal.color}22` : 'none',
-              }}
-            />
-          ))}
-        </div>
-
-        <div
-          style={{
-            position: 'relative',
-            width: 54,
-            height: 18,
-            borderRadius: 999,
-            background: 'rgba(255, 255, 255, 0.88)',
-            border: '1px solid rgba(100, 116, 139, 0.20)',
-            overflow: 'hidden',
-            boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.55)',
-          }}
-          title={
-            runtimeState
-              ? `使用量：${budget.usageText}`
-              : fallbackBudgetTokens
-                ? `使用量：0 / ${fallbackBudgetTokens}`
-                : '使用量：无限制'
-          }
-        >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 1,
-              width: `calc(${budget.percent}% - 2px)`,
-              minWidth: runtimeState ? 4 : 0,
-              borderRadius: 999,
-              background: `linear-gradient(90deg, ${budget.fillColor}CC 0%, ${budget.fillColor} 100%)`,
-              transition: 'width 0.25s ease',
-            }}
-          />
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 1,
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 9,
-              fontWeight: 700,
-              color: runtimeState ? '#ffffff' : '#64748b',
-              textShadow: runtimeState ? '0 1px 2px rgba(15,23,42,0.25)' : 'none',
-              letterSpacing: '0.01em',
-            }}
-          >
-            {budget.label}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div style={{ flex: 1, minWidth: 0, paddingRight: 72 }}>
-          <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="flow-node-header">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="flow-node-title">
             <span style={{ display: 'flex', alignItems: 'center', width: 18, height: 18 }}>
               {IconComponent ? (
                 <IconComponent style={{ width: 18, height: 18 }} />
@@ -260,116 +171,115 @@ function ProviderNode({ data, selected }: NodeProps<ProviderNodeCanvasData>) {
                 <span>☁️</span>
               )}
             </span>
-            <span>{data.label || 'Provider'}</span>
-            {preset && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  padding: '2px 7px',
-                  background: 'rgba(245, 158, 11, 0.14)',
-                  color: '#b45309',
-                  borderRadius: 999,
-                }}
-              >
-                预设
-              </span>
-            )}
+            <span className="flow-node-title-text">{data.label || 'Provider'}</span>
+            {preset && <span className="flow-node-badge accent">预设</span>}
           </div>
 
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-            <div
-              style={{
-                display: 'inline-block',
-                fontSize: 11,
-                padding: '2px 8px',
-                borderRadius: 999,
-                background: hasBaseUrl ? 'rgba(59, 130, 246, 0.10)' : 'rgba(239, 68, 68, 0.10)',
-                color: hasBaseUrl ? '#1d4ed8' : '#b91c1c',
-              }}
-            >
-              OpenAI
-            </div>
+          <div className="flow-node-badges" style={{ marginTop: 8 }}>
+            <div className={`flow-node-badge${hasBaseUrl ? ' accent' : ''}`}>OpenAI</div>
             {hasAnthropicUrl && (
-              <div
-                style={{
-                  display: 'inline-block',
-                  fontSize: 11,
-                  padding: '2px 8px',
-                  borderRadius: 999,
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  color: '#b45309',
-                }}
-                title={`Anthropic URL: ${data.anthropicBaseUrl}`}
-              >
+              <div className="flow-node-badge" title={`Anthropic URL: ${data.anthropicBaseUrl}`}>
                 Anthropic
               </div>
             )}
           </div>
+        </div>
 
-          <div
-            style={{
-              color: hasBaseUrl ? '#64748b' : '#ef4444',
-              fontSize: 12,
-              maxWidth: 170,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap' as const,
-              marginBottom: 6,
-            }}
-            title={data.baseUrl || ''}
-          >
-            {displayUrl}
+        <div className="flow-node-meta">
+          <div className="flow-node-metric" title={`网络状态：${signal.label}`}>
+            <div className="flow-node-signal">
+              {signalHeights.map((height, index) => (
+                <span
+                  key={height}
+                  style={{
+                    height,
+                    background: index < signal.bars ? signal.color : 'rgba(148, 163, 184, 0.24)',
+                    boxShadow: index < signal.bars ? `0 0 8px ${signal.color}22` : 'none',
+                  }}
+                />
+              ))}
+            </div>
+            <span>{signal.label}</span>
           </div>
 
-          <div style={{ color: '#64748b', fontSize: 12 }}>
-            密钥:
-            {' '}
-            <span style={{ color: hasApiKey ? '#16a34a' : '#ef4444' }}>
-              {hasApiKey ? '••••••' : '未设置'}
-            </span>
+          <div
+            className="flow-node-budget"
+            title={
+              runtimeState
+                ? `使用量：${budget.usageText}`
+                : fallbackBudgetTokens
+                  ? `使用量：0 / ${fallbackBudgetTokens}`
+                  : '使用量：无限制'
+            }
+          >
+            <div
+              className="flow-node-budget-bar"
+              style={{
+                width: runtimeState ? `calc(${budget.percent}% - 2px)` : 0,
+                minWidth: runtimeState ? 4 : 0,
+                background: `linear-gradient(90deg, ${budget.fillColor}CC 0%, ${budget.fillColor} 100%)`,
+              }}
+            />
+            <div
+              className="flow-node-budget-label"
+              style={{ color: runtimeState ? '#ffffff' : '#94a3b8' }}
+            >
+              {budget.label}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Model entries with left-side input handles */}
+      <div className="flow-node-url" style={{ color: hasBaseUrl ? 'var(--ui-muted)' : 'var(--ui-destructive)' }} title={data.baseUrl || ''}>
+        {displayUrl}
+      </div>
+
+      <div className="flow-node-meta" style={{ marginTop: 10 }}>
+        <div className="flow-node-metric">
+          密钥
+          <span className="flow-node-value" style={{ color: hasApiKey ? '#34d399' : '#f87171' }}>
+            {hasApiKey ? '••••••' : '未设置'}
+          </span>
+        </div>
+        {fallbackBudgetTokens ? (
+          <div className="flow-node-metric">
+            额度
+            <span className="flow-node-value">{formatCompactTokens(fallbackBudgetTokens)}</span>
+          </div>
+        ) : (
+          <div className="flow-node-metric">
+            额度
+            <span className="flow-node-value">∞</span>
+          </div>
+        )}
+      </div>
+
       {data.models.length > 0 && (
-        <div style={{ marginTop: 10, marginBottom: -12 }}>
+        <div className="flow-node-list">
           {data.models.map((model, index) => (
             <div
               key={model.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: index === 0 ? 8 : 6,
-                paddingBottom: 6,
-                borderTop: index === 0 ? '1px solid #d1d5db' : 'none',
-                fontSize: 12,
-                color: model.enabled ? '#374151' : '#9ca3af',
-                position: 'relative',
-                marginLeft: -16,
-                marginRight: -16,
-                paddingLeft: 16,
-                paddingRight: 16,
-              }}
+              className="flow-node-entry"
+              style={{ opacity: model.enabled ? 1 : 0.58 }}
             >
               <Handle
                 type="target"
                 position={Position.Left}
                 id={`model-${model.id}`}
                 style={{
-                  background: '#3b82f6',
-                  width: 12,
-                  height: 12,
+                  ...baseHandleStyle,
+                  background: '#60a5fa',
                   left: -10,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  border: '3px solid #fff',
                 }}
                 title={`Model [model]: ${model.name || 'Unnamed'}`}
               />
-              <span>{model.name || 'Unnamed'}</span>
+              <div>
+                <div className="flow-node-entry-label">{model.name || 'Unnamed'}</div>
+                <div className="flow-node-entry-desc">{model.enabled ? '已启用' : '未启用'}</div>
+              </div>
+              <span className="flow-node-badge">{index + 1}</span>
             </div>
           ))}
         </div>

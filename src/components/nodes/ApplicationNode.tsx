@@ -8,70 +8,51 @@ function ApplicationNode({ data, selected }: NodeProps<ApplicationNodeData>) {
   const appDefault = APPLICATION_DEFAULTS[data.appType];
   const appLabel = appDefault?.displayLabel || data.appType || 'Application';
   const AppIcon = appDefault?.icon ? getProviderIcon(appDefault.icon) : null;
+  const handleBase: React.CSSProperties = {
+    width: 12,
+    height: 12,
+    border: '2px solid #e2e8f0',
+    boxShadow: '0 0 0 4px rgba(15, 23, 42, 0.42)',
+  };
 
   return (
     <div
+      className={`flow-node${selected ? ' is-selected' : ''}`}
       style={{
-        padding: '12px 16px',
-        borderRadius: 8,
-        border: selected ? '2px solid #f97316' : '2px solid #e5e7eb',
-        background: '#fff',
-        minWidth: 180,
-        fontSize: 13,
-        position: 'relative',
-        boxSizing: 'border-box',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        minWidth: 190,
+        ['--node-accent' as string]: '#34d399',
+        ['--node-surface' as string]: 'rgba(15, 23, 42, 0.95)',
       }}
     >
-      {/* Output handle on the RIGHT side */}
       <Handle
         type="source"
         position={Position.Right}
         id="output"
         style={{
-          background: '#f97316',
-          width: 12,
-          height: 12,
+          ...handleBase,
+          background: '#34d399',
           right: -10,
           top: '50%',
           transform: 'translateY(-50%)',
-          border: '3px solid #fff',
         }}
         title="Output [any] — connect to Switcher or Provider"
       />
 
-      {/* Header */}
-      <div style={{ fontWeight: 600, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
-        {AppIcon && <AppIcon style={{ width: 18, height: 18 }} />}
-        <span>{data.label || appDefault?.defaultNodeLabel || 'Listener'}</span>
+      <div className="flow-node-header">
+        <div style={{ minWidth: 0 }}>
+          <div className="flow-node-title">
+            {AppIcon && <AppIcon style={{ width: 18, height: 18 }} />}
+            <span className="flow-node-title-text">{data.label || appDefault?.defaultNodeLabel || 'Listener'}</span>
+          </div>
+          <div className="flow-node-subtitle">{appLabel}</div>
+        </div>
+        <div className="flow-node-badge accent">App</div>
       </div>
 
-      {/* App type + port */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <div
-          style={{
-            display: 'inline-block',
-            fontSize: 11,
-            padding: '2px 8px',
-            borderRadius: 4,
-            background: '#ffffff',
-            color: '#4b5563',
-          }}
-        >
-          {appLabel}
-        </div>
+      <div className="flow-node-meta">
+        <div className="flow-node-badge">{data.appType}</div>
         {data.listenPort > 0 && (
-          <div
-            style={{
-              display: 'inline-block',
-              fontSize: 11,
-              padding: '2px 8px',
-              borderRadius: 4,
-              background: '#eff6ff',
-              color: '#1e40af',
-              fontFamily: 'monospace',
-            }}
-          >
+          <div className="flow-node-metric" style={{ fontFamily: 'monospace' }}>
             :{data.listenPort}
           </div>
         )}

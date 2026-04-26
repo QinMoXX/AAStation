@@ -113,7 +113,7 @@ export default function FlowCanvas() {
     () => ({
       animated: true,
       type: 'default' as const,
-      style: { strokeWidth: 2, stroke: '#6b7280' },
+      style: { strokeWidth: 2, stroke: '#64748b' },
     }),
     [],
   );
@@ -168,7 +168,7 @@ export default function FlowCanvas() {
   );
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#1a1a1a' }}>
+    <div className="ui-canvas-shell">
       <ReactFlow
         nodes={renderedNodes}
         edges={edges}
@@ -188,7 +188,7 @@ export default function FlowCanvas() {
         snapToGrid
         snapGrid={[16, 16]}
       >
-        <Background gap={16} size={0} color="#333" />
+        <Background gap={20} size={1} color="rgba(148, 163, 184, 0.12)" />
         <MiniMap
           nodeColor={(node) => {
             switch (node.data?.nodeType) {
@@ -199,8 +199,12 @@ export default function FlowCanvas() {
               default: return '#6b7280';
             }
           }}
-          maskColor="rgba(0,0,0,0.7)"
-          style={{ background: '#1a1a1a', border: '1px solid #374151', borderRadius: 6 }}
+          maskColor="rgba(2,8,23,0.72)"
+          style={{
+            background: 'rgba(2, 8, 23, 0.9)',
+            border: '1px solid rgba(148, 163, 184, 0.18)',
+            borderRadius: 14,
+          }}
         />
       </ReactFlow>
     </div>

@@ -14,22 +14,6 @@ const MonitorPage = lazy(() => import('../pages/MonitorPage'));
 // Styles
 // ---------------------------------------------------------------------------
 
-const layoutStyle: React.CSSProperties = {
-  display: 'flex',
-  width: '100vw',
-  height: '100vh',
-  overflow: 'hidden',
-  position: 'relative',
-};
-
-const mainAreaStyle: React.CSSProperties = {
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-  position: 'relative',
-};
-
 const dragRegionStyle: React.CSSProperties = {
   position: 'absolute',
   top: 0,
@@ -39,27 +23,6 @@ const dragRegionStyle: React.CSSProperties = {
   zIndex: 100,
   WebkitAppRegion: 'drag',
 } as React.CSSProperties;
-
-const contentRowStyle: React.CSSProperties = {
-  flex: 1,
-  display: 'flex',
-  overflow: 'hidden',
-};
-
-const canvasAreaStyle: React.CSSProperties = {
-  flex: 1,
-  position: 'relative',
-  overflow: 'hidden',
-};
-
-const pageFallbackStyle: React.CSSProperties = {
-  flex: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: '#94a3b8',
-  background: '#111827',
-};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -83,20 +46,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
     switch (activeTab) {
       case 'home':
         return (
-          <div style={contentRowStyle}>
+          <div className="ui-content-row">
             <HomeSubNav />
-            <div style={canvasAreaStyle}>{children}</div>
+            <div className="ui-canvas-area">{children}</div>
           </div>
         );
       case 'monitor':
         return (
-          <Suspense fallback={<div style={pageFallbackStyle}>页面加载中...</div>}>
+          <Suspense fallback={<div className="ui-loading-panel">页面加载中...</div>}>
             <MonitorPage />
           </Suspense>
         );
       case 'settings':
         return (
-          <Suspense fallback={<div style={pageFallbackStyle}>页面加载中...</div>}>
+          <Suspense fallback={<div className="ui-loading-panel">页面加载中...</div>}>
             <SettingsPage />
           </Suspense>
         );
@@ -106,9 +69,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   };
 
   return (
-    <div style={layoutStyle}>
+    <div className="ui-shell ui-page">
       <SidebarNav />
-      <div style={mainAreaStyle}>
+      <div className="ui-main">
         <div style={dragRegionStyle} data-tauri-drag-region />
         {renderContent()}
       </div>

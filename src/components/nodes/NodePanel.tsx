@@ -20,44 +20,49 @@ import { getProviderIcon } from '../icons/ProviderIcons';
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
-  top: 0,
-  right: 0,
-  width: 320,
-  height: '100%',
-  background: '#1f2937',
-  borderLeft: '1px solid #374151',
+  top: 14,
+  right: 14,
+  width: 360,
+  height: 'calc(100% - 28px)',
   overflowY: 'auto',
-  padding: 16,
+  padding: 14,
   zIndex: 10,
-  boxShadow: '-2px 0 8px rgba(0,0,0,0.2)',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  borderRadius: 22,
+  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 8, 23, 0.92))',
+  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.45)',
+  backdropFilter: 'blur(18px)',
 };
 
 const sectionTitle: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 600,
-  color: '#9ca3af',
+  fontSize: 12,
+  fontWeight: 700,
+  color: 'var(--ui-dim)',
   marginBottom: 8,
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
+  letterSpacing: '0.08em',
 };
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 12,
-  color: '#9ca3af',
-  marginBottom: 4,
+  fontWeight: 600,
+  color: 'var(--ui-muted)',
+  marginBottom: 6,
 };
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '6px 8px',
+  minHeight: 40,
+  padding: '10px 12px',
   fontSize: 13,
-  border: '1px solid #374151',
-  borderRadius: 6,
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+  borderRadius: 12,
   outline: 'none',
-  background: '#111827',
-  color: '#f9fafb',
+  background: 'rgba(15, 23, 42, 0.88)',
+  color: 'var(--ui-text)',
   boxSizing: 'border-box' as const,
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.03)',
 };
 
 const fieldGap: React.CSSProperties = { marginBottom: 12 };
@@ -68,11 +73,11 @@ const tagPillStyle: React.CSSProperties = {
   padding: '2px 10px',
   borderRadius: 999,
   fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: '0.02em',
-  background: '#0f172a',
-  color: '#93c5fd',
-  border: '1px solid #1d4ed8',
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  background: 'rgba(30, 64, 175, 0.16)',
+  color: '#dbeafe',
+  border: '1px solid rgba(96, 165, 250, 0.24)',
   userSelect: 'none',
 };
 
@@ -89,9 +94,53 @@ const tagLabelMap: Record<NodeTag, string> = {
 
 const readonlyInputStyle: React.CSSProperties = {
   ...inputStyle,
-  background: '#1f2937',
-  color: '#6b7280',
+  background: 'rgba(30, 41, 59, 0.82)',
+  color: 'var(--ui-dim)',
   cursor: 'not-allowed',
+};
+
+const actionButtonStyle: React.CSSProperties = {
+  minHeight: 30,
+  padding: '0 12px',
+  fontSize: 12,
+  fontWeight: 600,
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  borderRadius: 10,
+  background: 'rgba(15, 23, 42, 0.82)',
+  color: 'var(--ui-text)',
+  cursor: 'pointer',
+};
+
+const accentButtonStyle: React.CSSProperties = {
+  ...actionButtonStyle,
+  border: '1px solid rgba(96, 165, 250, 0.28)',
+  background: 'linear-gradient(180deg, rgba(37, 99, 235, 0.3), rgba(15, 23, 42, 0.88))',
+  color: '#dbeafe',
+};
+
+const warnButtonStyle: React.CSSProperties = {
+  ...actionButtonStyle,
+  border: '1px solid rgba(251, 191, 36, 0.26)',
+  background: 'linear-gradient(180deg, rgba(146, 64, 14, 0.36), rgba(15, 23, 42, 0.88))',
+  color: '#fde68a',
+};
+
+const dangerButtonStyle: React.CSSProperties = {
+  ...actionButtonStyle,
+  minHeight: 26,
+  padding: '0 8px',
+  border: '1px solid rgba(248, 113, 113, 0.24)',
+  background: 'rgba(127, 29, 29, 0.26)',
+  color: '#fecaca',
+};
+
+const editorCardStyle: React.CSSProperties = {
+  marginBottom: 10,
+  padding: 10,
+  borderRadius: 16,
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+  background: 'rgba(15, 23, 42, 0.72)',
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.03)',
 };
 
 function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (patch: Partial<ProviderNodeData>) => void }) {
@@ -156,11 +205,11 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
             style={{
               marginBottom: 12,
               padding: '6px 10px',
-              background: '#78350f',
-              border: '1px solid #92400e',
-              borderRadius: 6,
+              background: 'rgba(146, 64, 14, 0.22)',
+              border: '1px solid rgba(251, 191, 36, 0.2)',
+              borderRadius: 12,
               fontSize: 11,
-              color: '#fbbf24',
+              color: '#fde68a',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
@@ -252,15 +301,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
         <div style={{ display: 'flex', gap: 4 }}>
           {isPreset && availablePresetModels.length > 0 && (
             <select
-              style={{
-                fontSize: 11,
-                padding: '2px 6px',
-                border: '1px solid #3b82f6',
-                borderRadius: 4,
-                background: '#1e3a5f',
-                color: '#93c5fd',
-                cursor: 'pointer',
-              }}
+              style={{ ...inputStyle, minHeight: 30, width: 'auto', padding: '4px 10px', fontSize: 11 }}
               value=""
               onChange={(e) => {
                 if (e.target.value) addPresetModel(e.target.value);
@@ -276,15 +317,7 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
           )}
           <button
             onClick={addModel}
-            style={{
-              fontSize: 12,
-              padding: '2px 10px',
-              border: '1px solid #3b82f6',
-              borderRadius: 4,
-              background: '#1e3a5f',
-              color: '#93c5fd',
-              cursor: 'pointer',
-            }}
+            style={accentButtonStyle}
           >
             + 自定义
           </button>
@@ -300,29 +333,15 @@ function ProviderForm({ data, onUpdate }: { data: ProviderNodeData; onUpdate: (p
       {data.models.map((model, index) => (
         <div
           key={model.id}
-          style={{
-            marginBottom: 8,
-            padding: 8,
-            borderRadius: 6,
-            border: '1px solid #1e40af',
-            background: '#1e3a5f',
-          }}
+          style={editorCardStyle}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#93c5fd' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#dbeafe' }}>
               模型 #{index + 1}
             </span>
             <button
               onClick={() => removeModel(model.id)}
-              style={{
-                fontSize: 11,
-                padding: '1px 6px',
-                border: '1px solid #7f1d1d',
-                borderRadius: 3,
-                background: '#7f1d1d',
-                color: '#fca5a5',
-                cursor: 'pointer',
-              }}
+              style={dangerButtonStyle}
             >
               Remove
             </button>
@@ -409,15 +428,7 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
         <span style={{ ...sectionTitle, marginBottom: 0 }}>匹配器</span>
         <button
           onClick={addEntry}
-          style={{
-            fontSize: 12,
-            padding: '2px 10px',
-            border: '1px solid #f59e0b',
-            borderRadius: 4,
-            background: '#78350f',
-            color: '#fbbf24',
-            cursor: 'pointer',
-          }}
+          style={warnButtonStyle}
         >
           + 添加
         </button>
@@ -432,29 +443,15 @@ function SwitcherForm({ data, onUpdate }: { data: SwitcherNodeData; onUpdate: (p
       {data.entries.map((entry, index) => (
         <div
           key={entry.id}
-          style={{
-            marginBottom: 10,
-            padding: 8,
-            borderRadius: 6,
-            border: '1px solid #92400e',
-            background: '#78350f',
-          }}
+          style={editorCardStyle}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fde68a' }}>
               匹配器 #{index + 1}
             </span>
             <button
               onClick={() => removeEntry(entry.id)}
-              style={{
-                fontSize: 11,
-                padding: '1px 6px',
-                border: '1px solid #7f1d1d',
-                borderRadius: 3,
-                background: '#7f1d1d',
-                color: '#fca5a5',
-                cursor: 'pointer',
-              }}
+              style={dangerButtonStyle}
             >
               Remove
             </button>
@@ -611,13 +608,10 @@ function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch
         <button
           onClick={addTarget}
           style={{
-            fontSize: 12,
-            padding: '2px 10px',
-            border: '1px solid #a855f7',
-            borderRadius: 4,
-            background: '#581c87',
-            color: '#e9d5ff',
-            cursor: 'pointer',
+            ...actionButtonStyle,
+            border: '1px solid rgba(192, 132, 252, 0.28)',
+            background: 'linear-gradient(180deg, rgba(107, 33, 168, 0.42), rgba(15, 23, 42, 0.88))',
+            color: '#f5d0fe',
           }}
         >
           + 添加
@@ -633,29 +627,15 @@ function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch
       {data.targets.map((target, index) => (
         <div
           key={target.id}
-          style={{
-            marginBottom: 10,
-            padding: 8,
-            borderRadius: 6,
-            border: '1px solid #7e22ce',
-            background: '#581c87',
-          }}
+          style={editorCardStyle}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#e9d5ff' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#f5d0fe' }}>
               目标 #{index + 1}
             </span>
             <button
               onClick={() => removeTarget(target.id)}
-              style={{
-                fontSize: 11,
-                padding: '1px 6px',
-                border: '1px solid #7f1d1d',
-                borderRadius: 3,
-                background: '#7f1d1d',
-                color: '#fca5a5',
-                cursor: 'pointer',
-              }}
+              style={dangerButtonStyle}
             >
               删除
             </button>
@@ -766,11 +746,11 @@ export default function NodePanel() {
   const { data } = selectedNode;
 
   // Color header by node type
-  const headerColors: Record<string, { bg: string; text: string }> = {
-    provider: { bg: '#3b82f6', text: '#fff' },
-    switcher: { bg: '#f59e0b', text: '#fff' },
-    poller: { bg: '#a855f7', text: '#fff' },
-    application: { bg: '#16a34a', text: '#fff' },
+  const headerColors: Record<string, string> = {
+    provider: '#60a5fa',
+    switcher: '#f59e0b',
+    poller: '#c084fc',
+    application: '#34d399',
   };
   const theme = headerColors[data.nodeType] ?? headerColors.provider;
   const nodeDisplayName =
@@ -813,14 +793,16 @@ export default function NodePanel() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '8px 12px',
-          borderRadius: 6,
-          background: theme.bg,
-          color: theme.text,
+          padding: '14px 16px',
+          borderRadius: 18,
+          border: '1px solid rgba(148, 163, 184, 0.16)',
+          background: `linear-gradient(135deg, ${theme}30, rgba(15, 23, 42, 0.94))`,
+          color: 'var(--ui-text)',
           marginBottom: 16,
+          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
           {HeaderIcon && <HeaderIcon style={{ width: 16, height: 16 }} />}
           {!HeaderIcon && data.nodeType === 'provider' && <span>☁️</span>}
           {data.label || nodeDisplayName}
@@ -828,12 +810,15 @@ export default function NodePanel() {
         <button
           onClick={() => setSelectedNodeId(null)}
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: theme.text,
-            fontSize: 16,
+            width: 32,
+            height: 32,
+            background: 'rgba(15, 23, 42, 0.58)',
+            border: '1px solid rgba(148, 163, 184, 0.16)',
+            borderRadius: 10,
+            color: 'var(--ui-text)',
+            fontSize: 15,
             cursor: 'pointer',
-            padding: '0 4px',
+            padding: 0,
           }}
           title="Close panel"
         >

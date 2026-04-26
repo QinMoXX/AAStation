@@ -6,90 +6,6 @@ import { publishDag, startProxy, stopProxy, getProxyStatus, isClaudeConfigured }
 import { toast } from '../../store/toast-store';
 
 // ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const sidebarStyle: React.CSSProperties = {
-  width: 64,
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  padding: '24px 0 12px',
-  gap: 6,
-  flexShrink: 0,
-};
-
-const logoStyle: React.CSSProperties = {
-  width: 48,
-  height: 48,
-  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.74))',
-  border: '1px solid rgba(255, 255, 255, 0.42)',
-  boxShadow: '0 12px 30px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.56)',
-  borderRadius: 12,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: 16,
-  flexShrink: 0,
-};
-
-const navItemStyle = (active: boolean): React.CSSProperties => ({
-  width: 48,
-  height: 48,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderRadius: 12,
-  cursor: 'pointer',
-  background: active ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-  color: active ? 'rgba(255, 255, 255, 0.92)' : 'rgba(255, 255, 255, 0.65)',
-  transition: 'all 0.15s',
-});
-
-const spacerStyle: React.CSSProperties = {
-  flex: 1,
-};
-
-const dividerStyle: React.CSSProperties = {
-  width: 32,
-  height: 1,
-  background: 'rgba(255, 255, 255, 0.12)',
-  margin: '6px 0',
-};
-
-const bottomBtnStyle = (active: boolean): React.CSSProperties => ({
-  width: 40,
-  height: 40,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderRadius: 10,
-  cursor: active ? 'pointer' : 'not-allowed',
-  border: 'none',
-  background: 'transparent',
-  color: active ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.32)',
-  transition: 'all 0.15s',
-});
-
-const statusDotStyle = (running: boolean): React.CSSProperties => ({
-  width: 8,
-  height: 8,
-  borderRadius: '50%',
-  background: running ? '#22c55e' : '#6b7280',
-  boxShadow: running ? '0 0 6px #22c55e80' : 'none',
-  transition: 'all 0.3s',
-});
-
-const statusTextStyle: React.CSSProperties = {
-  fontSize: 9,
-  color: '#6b7280',
-  textAlign: 'center',
-  lineHeight: 1.2,
-  padding: '0 4px',
-};
-
-// ---------------------------------------------------------------------------
 // SVG Icon Components
 // ---------------------------------------------------------------------------
 
@@ -242,95 +158,64 @@ export default function SidebarNav() {
   }, [publishing, proxyStatus.running, getDocument, markPublished, setProxyStatus]);
 
   return (
-    <nav style={sidebarStyle} className="ui-sidebar-primary">
-      {/* Logo */}
-      <div style={logoStyle}>
-        <img src="/logo.svg" alt="AAStation" style={{ width: 32, height: 32 }} />
+    <nav className="ui-sidebar ui-sidebar-primary">
+      <div className="ui-sidebar-logo">
+        <img src="/logo.svg" alt="AAStation" />
       </div>
 
-      {/* Navigation items */}
       {navItems.map(({ id, icon: Icon, label }) => (
-        <div
+        <button
           key={id}
-          style={navItemStyle(activeTab === id)}
+          type="button"
+          className={`ui-sidebar-item${activeTab === id ? ' active' : ''}`}
           onClick={() => setTab(id)}
-          onMouseEnter={(e) => {
-            if (activeTab !== id) {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeTab !== id) {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.65)';
-            }
-          }}
           title={label}
         >
           <Icon size={20} />
-        </div>
+        </button>
       ))}
 
-      <div style={spacerStyle} />
+      <div style={{ flex: 1 }} />
 
-      {/* Divider */}
-      <div style={dividerStyle} />
+      <div className="ui-sidebar-divider" />
 
-      {/* Publish button */}
       <button
-        style={bottomBtnStyle(isDraft && !publishing)}
+        type="button"
+        className="ui-sidebar-action"
         onClick={handlePublish}
         disabled={!isDraft || publishing}
+        style={{ color: isDraft && !publishing ? 'var(--ui-muted)' : 'var(--ui-dim)' }}
         title={publishing ? 'Saving...' : '保存'}
-        onMouseEnter={(e) => {
-          if (isDraft && !publishing) {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.92)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color =
-            isDraft && !publishing ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.32)';
-        }}
       >
         <UploadIcon size={20} />
       </button>
 
-      {/* Toggle proxy button */}
       <button
-        style={{
-          ...bottomBtnStyle(true),
-          color: proxyStatus.running ? '#22c55e' : '#9ca3af',
-        }}
+        type="button"
+        className="ui-sidebar-action"
         onClick={handleToggleProxy}
         disabled={toggling}
+        style={{ color: proxyStatus.running ? 'var(--ui-success)' : 'var(--ui-muted)' }}
         title={toggling ? '处理中...' : proxyStatus.running ? '关闭代理' : '开启代理'}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = proxyStatus.running ? '#7f1d1d40' : '#16653440';
-          e.currentTarget.style.color = proxyStatus.running ? '#f87171' : '#4ade80';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = proxyStatus.running ? '#22c55e' : '#9ca3af';
-        }}
       >
         <PowerIcon size={20} />
       </button>
 
-      {/* Status dot + info */}
-      <div style={statusDotStyle(proxyStatus.running)} title={proxyStatus.running ? `Port ${proxyStatus.port}` : 'Proxy offline'} />
-      {proxyStatus.running ? (
-        <div style={statusTextStyle}>
-          :{proxyStatus.port}
-          <br />
-          {proxyStatus.total_requests}req · {formatUptime(proxyStatus.uptime_seconds)}
-        </div>
-      ) : (
-        <div style={statusTextStyle}>offline</div>
-      )}
-
+      <div className="ui-sidebar-status">
+        <div
+          className={`ui-sidebar-status-dot${proxyStatus.running ? ' running' : ''}`}
+          title={proxyStatus.running ? `Port ${proxyStatus.port}` : 'Proxy offline'}
+        />
+        {proxyStatus.running ? (
+          <div>
+            :{proxyStatus.port}
+            <br />
+            {proxyStatus.total_requests}req · {formatUptime(proxyStatus.uptime_seconds)}
+          </div>
+        ) : (
+          <div>offline</div>
+        )}
+      </div>
     </nav>
   );
 }
