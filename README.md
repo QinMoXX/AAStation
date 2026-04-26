@@ -28,7 +28,7 @@ AAStation 是一个桌面应用，让你可以**通过可视化方式构建 AI A
 无论你是需要根据模型名称、路径前缀还是 HTTP 请求头来路由请求，还是按供应商健康状态与 token 预算做动态分流，AAStation 都提供了直观的节点式界面来配置一切——然后在本地运行代理服务器，实时执行你的路由逻辑。
 
 <p align="center">
-  <img src="public/Snipaste_2026-04-26_16-57-04.png" alt="AAStation 组件面宣传效果图" />
+  <img src="public/Snipaste_2026-04-26_21-36-04.png" alt="AAStation 组件面宣传效果图" />
 </p>
 
 ## AAStation 能做什么？
