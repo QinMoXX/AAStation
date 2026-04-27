@@ -8,8 +8,8 @@
     "defaultLabel": "DeepSeek",
     "tag": ["open_code", "claude_code"],
     "models": [
-      { "name": "deepseek-chat", "label": "DeepSeek Chat" },
-      { "name": "deepseek-reasoner", "label": "DeepSeek Reasoner" }
+      { "name": "deepseek-v4-pro", "label": "DeepSeek Chat" },
+      { "name": "deepseek-v4-flash", "label": "DeepSeek Reasoner" }
     ]
   },
   {
