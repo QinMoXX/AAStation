@@ -128,12 +128,17 @@ pub async fn forward_request(
 
     // Copy original headers, excluding hop-by-hop headers and content-length
     // (content-length must match the actual body after potential model replacement,
-    //  so we let reqwest set it automatically)
+    //  so we let reqwest set it automatically).
+    //
+    // We also strip Accept-Encoding. The proxy may inspect or patch Anthropic
+    // responses, and forwarding compressed SSE/JSON makes that unsafe because the
+    // patchers operate on plain text.
     for (name, value) in headers.iter() {
         if name == axum::http::header::HOST
             || name == axum::http::header::AUTHORIZATION
             || name == "x-api-key"
             || name == "anthropic-version"
+            || name == axum::http::header::ACCEPT_ENCODING
             || name == axum::http::header::CONTENT_LENGTH
             || name == axum::http::header::TRANSFER_ENCODING
             || name == axum::http::header::CONNECTION

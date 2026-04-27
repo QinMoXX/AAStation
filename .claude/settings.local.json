@@ -9,7 +9,9 @@
       "Bash(npm list *)",
       "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
       "Bash(node *)",
-      "Bash(cargo search *)"
+      "Bash(cargo search *)",
+      "Bash(mkdir -p /d/Project/AAStation/.claude/skills)",
+      "Bash(mv .agents/skills/create-readme /d/Project/AAStation/.claude/skills/)"
     ]
   }
 }

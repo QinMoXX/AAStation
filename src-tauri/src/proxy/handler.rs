@@ -378,6 +378,9 @@ async fn build_response(
     request_guard: Option<ActiveRequestGuard>,
 ) -> Response {
     let status = StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let has_content_encoding = upstream
+        .headers()
+        .contains_key(axum::http::header::CONTENT_ENCODING);
 
     // Copy response headers
     let mut response_headers = HeaderMap::new();
@@ -392,12 +395,19 @@ async fn build_response(
     // SSE detection: stream passthrough
     if is_sse_response(&upstream.headers()) {
         tracing::info!("← Upstream SSE stream response (status: {})", status);
+        let should_patch_anthropic_sse =
+            source_protocol == RequestProtocol::Anthropic && !has_content_encoding;
         let (bytes_tx, bytes_rx) = oneshot::channel::<u64>();
-        let raw_stream: super::stream::BoxStream = if source_protocol == RequestProtocol::Anthropic {
+        let raw_stream: super::stream::BoxStream = if should_patch_anthropic_sse {
             // Patch Anthropic SSE to fix missing fields (e.g. input_tokens in usage)
             let patched = AnthropicSsePatchStream::new(upstream.bytes_stream());
             Box::pin(patched)
         } else {
+            if source_protocol == RequestProtocol::Anthropic && has_content_encoding {
+                tracing::warn!(
+                    "Skipping Anthropic SSE patch because upstream response is encoded; forwarding raw stream"
+                );
+            }
             let logged = LoggedStream::new(upstream.bytes_stream());
             Box::pin(logged)
         };
@@ -462,9 +472,14 @@ async fn build_response(
     // Patch non-SSE Anthropic responses to ensure usage fields are present.
     // Some providers (e.g. Zhipu) return Anthropic-compatible JSON but with
     // missing `input_tokens` in `usage`, which crashes Claude Code.
-    let body_bytes = if source_protocol == RequestProtocol::Anthropic {
+    let body_bytes = if source_protocol == RequestProtocol::Anthropic && !has_content_encoding {
         patch_anthropic_json_response(&body_bytes)
     } else {
+        if source_protocol == RequestProtocol::Anthropic && has_content_encoding {
+            tracing::warn!(
+                "Skipping Anthropic JSON patch because upstream response is encoded; forwarding raw body"
+            );
+        }
         body_bytes
     };
 
