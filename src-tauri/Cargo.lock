@@ -4293,7 +4293,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-app"
-version = "0.7.2"
+version = "0.7.3"
 dependencies = [
  "axum",
  "bytes",
