@@ -10,6 +10,7 @@ const DEFAULT_STATUS: ProxyStatus = {
   listen_ports: [],
   published_at: null,
   active_routes: 0,
+  active_requests: 0,
   total_requests: 0,
   uptime_seconds: 0,
 };

@@ -11,6 +11,14 @@ interface AvailableUpdate {
   notes?: string;
 }
 
+export type StopProxyDialogIntent = 'stop' | 'quit';
+
+interface StopProxyDialogState {
+  open: boolean;
+  activeRequests: number;
+  intent: StopProxyDialogIntent;
+}
+
 interface AppState {
   /** Current proxy server status. */
   proxyStatus: ProxyStatus;
@@ -30,6 +38,9 @@ interface AppState {
   /** Cached update metadata after a successful check. */
   availableUpdate: AvailableUpdate | null;
 
+  /** Global stop-proxy confirmation dialog state. */
+  stopProxyDialog: StopProxyDialogState;
+
   // -----------------------------------------------------------------------
   // Actions
   // -----------------------------------------------------------------------
@@ -39,6 +50,8 @@ interface AppState {
   setSelectedNodeId: (id: string | null) => void;
   setAvailableUpdate: (update: AvailableUpdate | null) => void;
   clearAvailableUpdate: () => void;
+  openStopProxyDialog: (payload: { activeRequests: number; intent?: StopProxyDialogIntent }) => void;
+  closeStopProxyDialog: () => void;
   markPublished: () => void;
   markDirty: () => void;
 }
@@ -49,8 +62,15 @@ const DEFAULT_PROXY_STATUS: ProxyStatus = {
   listen_ports: [],
   published_at: null,
   active_routes: 0,
+  active_requests: 0,
   total_requests: 0,
   uptime_seconds: 0,
+};
+
+const DEFAULT_STOP_PROXY_DIALOG: StopProxyDialogState = {
+  open: false,
+  activeRequests: 0,
+  intent: 'stop',
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -60,6 +80,7 @@ export const useAppStore = create<AppState>((set) => ({
   isDraft: false,
   lastPublishedAt: null,
   availableUpdate: null,
+  stopProxyDialog: DEFAULT_STOP_PROXY_DIALOG,
 
   setProxyStatus: (status) => set({ proxyStatus: status }),
 
@@ -70,6 +91,17 @@ export const useAppStore = create<AppState>((set) => ({
   setAvailableUpdate: (update) => set({ availableUpdate: update }),
 
   clearAvailableUpdate: () => set({ availableUpdate: null }),
+
+  openStopProxyDialog: ({ activeRequests, intent = 'stop' }) =>
+    set({
+      stopProxyDialog: {
+        open: true,
+        activeRequests,
+        intent,
+      },
+    }),
+
+  closeStopProxyDialog: () => set({ stopProxyDialog: DEFAULT_STOP_PROXY_DIALOG }),
 
   /** Call after a successful publish to clear draft state. */
   markPublished: () =>

@@ -306,6 +306,7 @@ pub struct ProxyStatus {
     pub listen_ports: Vec<u16>,
     pub published_at: Option<String>,
     pub active_routes: usize,
+    pub active_requests: u64,
     pub total_requests: u64,
     pub uptime_seconds: u64,
 }
@@ -318,6 +319,7 @@ impl Default for ProxyStatus {
             listen_ports: Vec::new(),
             published_at: None,
             active_routes: 0,
+            active_requests: 0,
             total_requests: 0,
             uptime_seconds: 0,
         }

@@ -606,6 +606,8 @@ mod tests {
             proxy_auth_token: String::new(),
             log_dir_max_mb: 500,
             launch_at_startup: false,
+            auto_check_update: true,
+            auto_install_update: false,
         }
     }
 

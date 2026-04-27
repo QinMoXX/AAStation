@@ -87,8 +87,8 @@ export async function startProxy(): Promise<void> {
 }
 
 /** Stop the running proxy server. */
-export async function stopProxy(): Promise<void> {
-  return invoke<void>('stop_proxy');
+export async function stopProxy(force = false): Promise<void> {
+  return invoke<void>('stop_proxy', { force });
 }
 
 /** Get the current proxy server status. */

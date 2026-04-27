@@ -26,3 +26,7 @@ plan.md
 .claude/*
 .trae/*
 ~/*
+.claude/*
+CLAUDE.md
+.agents/*
+skills-lock.json

@@ -1,10 +1,50 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime, WindowEvent,
+    AppHandle, Emitter, Manager, Runtime, WindowEvent,
 };
+use serde::Serialize;
 
 use crate::store::AppState;
+
+const TRAY_STOP_PROXY_DIALOG_EVENT: &str = "tray-stop-proxy-dialog";
+
+#[derive(Clone, Serialize)]
+struct TrayStopProxyDialogPayload {
+    active_requests: u64,
+    intent: &'static str,
+}
+
+fn toggle_main_window<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
+fn emit_stop_proxy_dialog<R: Runtime>(
+    app: &AppHandle<R>,
+    active_requests: u64,
+    intent: &'static str,
+) {
+    // Show window first so the dialog is visible
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    let _ = app.emit_to(
+        "main",
+        TRAY_STOP_PROXY_DIALOG_EVENT,
+        TrayStopProxyDialogPayload {
+            active_requests,
+            intent,
+        },
+    );
+}
 
 fn build_tray_menu<R: Runtime>(
     app: &AppHandle<R>,
@@ -36,37 +76,62 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
         .tooltip("AAStation - API 代理")
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show_hide" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    if window.is_visible().unwrap_or(false) {
-                        let _ = window.hide();
-                    } else {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
+                toggle_main_window(app);
             }
             "toggle_proxy" => {
                 let app_handle = app.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Some(state) = app_handle.try_state::<AppState>() {
-                        // Hold the same guard across the check-then-act sequence so
-                        // that no concurrent toggle can observe a stale `running`
-                        // value and trigger a duplicate start or stop.
-                        let proxy = state.proxy.read().await;
-                        let status = proxy.get_status().await;
-                        if status.running {
-                            let _ = proxy.stop().await;
+                        // Snapshot the status under a short-lived read lock, then
+                        // release it before calling start/stop.  This avoids holding
+                        // the lock across async operations (which could deadlock or
+                        // block concurrent reads) while still making a consistent
+                        // decision.  start()/stop() internally perform their own
+                        // atomic checks to prevent duplicate operations.
+                        let (running, active_requests) = {
+                            let proxy = state.proxy.read().await;
+                            let status = proxy.get_status().await;
+                            (status.running, status.active_requests)
+                        }; // read lock released here
+
+                        if running {
+                            if active_requests > 0 {
+                                emit_stop_proxy_dialog(&app_handle, active_requests, "stop");
+                                return;
+                            }
+                            let _ = state.proxy.read().await.stop(false).await;
                         } else {
-                            let _ = proxy.start().await;
+                            let _ = state.proxy.read().await.start().await;
                         }
-                        let new_status = proxy.get_status().await;
-                        drop(proxy);
+
+                        let new_status = state.proxy.read().await.get_status().await;
                         update_tray_menu(&app_handle, new_status.running);
                     }
                 });
             }
             "quit" => {
-                app.exit(0);
+                let app_handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Some(state) = app_handle.try_state::<AppState>() {
+                        let (running, active_requests) = {
+                            let proxy = state.proxy.read().await;
+                            let status = proxy.get_status().await;
+                            (status.running, status.active_requests)
+                        };
+
+                        if running && active_requests > 0 {
+                            emit_stop_proxy_dialog(&app_handle, active_requests, "quit");
+                            return;
+                        }
+
+                        // Stop proxy before exiting to release bound ports
+                        if running {
+                            let _ = state.proxy.read().await.stop(false).await;
+                        }
+                    }
+
+                    app_handle.exit(0);
+                });
             }
             _ => {}
         })
@@ -78,14 +143,7 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
             } = event
             {
                 let app = tray.app_handle();
-                if let Some(window) = app.get_webview_window("main") {
-                    if window.is_visible().unwrap_or(false) {
-                        let _ = window.hide();
-                    } else {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
+                toggle_main_window(app);
             }
         })
         .build(app)?;

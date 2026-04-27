@@ -18,6 +18,25 @@ use super::stream::{is_sse_response, LoggedStream, MeteredStream};
 use super::types::{ProxyRequestMetric, RequestProtocol};
 use super::workflow::{execute_workflow, WorkflowRuntime};
 
+struct ActiveRequestGuard {
+    counter: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
+}
+
+impl ActiveRequestGuard {
+    fn new(counter: std::sync::Arc<std::sync::atomic::AtomicU64>) -> Self {
+        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Self { counter: Some(counter) }
+    }
+}
+
+impl Drop for ActiveRequestGuard {
+    fn drop(&mut self) {
+        if let Some(counter) = self.counter.take() {
+            counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
 #[derive(Clone)]
 struct RequestMetricContext {
     started_at: String,
@@ -72,6 +91,7 @@ pub async fn proxy_handler(
     state
         .request_counter
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let request_guard = ActiveRequestGuard::new(state.active_request_counter.clone());
 
     // Decompose the incoming request (clone owned values before consuming req)
     let method = req.method().clone();
@@ -221,7 +241,7 @@ pub async fn proxy_handler(
     };
 
     // Build the downstream response from upstream response
-    build_response(upstream_resp, source_protocol, metric_ctx, &state).await
+    build_response(upstream_resp, source_protocol, metric_ctx, &state, Some(request_guard)).await
 }
 
 /// Determine if this request is a connectivity/health-check probe.
@@ -355,6 +375,7 @@ async fn build_response(
     source_protocol: RequestProtocol,
     metric_ctx: RequestMetricContext,
     state: &HandlerState,
+    request_guard: Option<ActiveRequestGuard>,
 ) -> Response {
     let status = StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
 
@@ -380,7 +401,11 @@ async fn build_response(
             let logged = LoggedStream::new(upstream.bytes_stream());
             Box::pin(logged)
         };
-        let body = Body::from_stream(MeteredStream::new(raw_stream, bytes_tx));
+        let body = if let Some(guard) = request_guard {
+            Body::from_stream(MeteredStream::with_attachment(raw_stream, bytes_tx, guard))
+        } else {
+            Body::from_stream(MeteredStream::new(raw_stream, bytes_tx))
+        };
 
         let state_for_metrics = state.clone();
         let metric_ctx_for_metrics = metric_ctx.clone();

@@ -20,6 +20,7 @@ pub(crate) struct RunningListener {
     pub shutdown_tx: Option<oneshot::Sender<()>>,
     pub server_handle: Option<JoinHandle<()>>,
     pub request_counter: Arc<std::sync::atomic::AtomicU64>,
+    pub active_request_counter: Arc<std::sync::atomic::AtomicU64>,
     pub start_time: Instant,
 }
 
@@ -55,6 +56,7 @@ pub struct ProxyServer {
 pub struct HandlerState {
     pub route_table: Arc<RwLock<RouteTable>>,
     pub request_counter: Arc<std::sync::atomic::AtomicU64>,
+    pub active_request_counter: Arc<std::sync::atomic::AtomicU64>,
     pub listen_port: u16,
     pub metrics: MetricsStore,
     pub http_client: reqwest::Client,
@@ -131,11 +133,13 @@ impl ProxyServer {
             let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
             let app_request_counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let app_active_request_counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
 
             // Handler state (shared across all request tasks for this listener)
             let handler_state = HandlerState {
                 route_table: Arc::clone(route_table),
                 request_counter: Arc::clone(&app_request_counter),
+                active_request_counter: Arc::clone(&app_active_request_counter),
                 listen_port: *port,
                 metrics: self.state.metrics.clone(),
                 http_client: reqwest::Client::builder()
@@ -171,6 +175,7 @@ impl ProxyServer {
                 shutdown_tx: Some(shutdown_tx),
                 server_handle: Some(handle),
                 request_counter: app_request_counter,
+                active_request_counter: app_active_request_counter,
                 start_time: Instant::now(),
             });
         }
@@ -190,8 +195,8 @@ impl ProxyServer {
         Ok(())
     }
 
-    /// Stop all proxy listeners gracefully.
-    pub async fn stop(&self) -> Result<(), ProxyError> {
+    /// Stop all proxy listeners gracefully, or abort long-lived streams when forced.
+    pub async fn stop(&self, force: bool) -> Result<(), ProxyError> {
         if !self.is_running().await {
             return Err(ProxyError::NotRunning);
         }
@@ -207,6 +212,9 @@ impl ProxyServer {
 
         for (_, listener) in listeners.iter_mut() {
             if let Some(handle) = listener.server_handle.take() {
+                if force {
+                    handle.abort();
+                }
                 let _ = handle.await;
             }
         }
@@ -217,6 +225,9 @@ impl ProxyServer {
             let _ = tx.send(());
         }
         if let Some(handle) = self.state.health_probe_handle.write().await.take() {
+            if force {
+                handle.abort();
+            }
             let _ = handle.await;
         }
 
@@ -330,6 +341,10 @@ impl ProxyServer {
             .values()
             .map(|l| l.request_counter.load(std::sync::atomic::Ordering::Relaxed))
             .sum();
+        let active_requests: u64 = self.state.listeners.read().await
+            .values()
+            .map(|l| l.active_request_counter.load(std::sync::atomic::Ordering::Relaxed))
+            .sum();
 
         ProxyStatus {
             running: status.running,
@@ -337,6 +352,7 @@ impl ProxyServer {
             listen_ports: self.listen_ports().await,
             published_at: status.published_at.clone(),
             active_routes: status.active_routes,
+            active_requests,
             total_requests,
             uptime_seconds: uptime,
         }

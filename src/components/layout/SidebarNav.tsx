@@ -22,6 +22,7 @@ export default function SidebarNav() {
   const isDraft = useAppStore((s) => s.isDraft);
   const markPublished = useAppStore((s) => s.markPublished);
   const setProxyStatus = useAppStore((s) => s.setProxyStatus);
+  const openStopProxyDialog = useAppStore((s) => s.openStopProxyDialog);
   const getDocument = useFlowStore((s) => s.getDocument);
 
   const [toggling, setToggling] = useState(false);
@@ -37,16 +38,38 @@ export default function SidebarNav() {
 
   const handleToggleProxy = useCallback(async () => {
     if (toggling) return;
-    setToggling(true);
-    try {
-      if (proxyStatus.running) {
+    if (proxyStatus.running) {
+      setToggling(true);
+      try {
+        const currentStatus = await getProxyStatus();
+        setProxyStatus(currentStatus);
+        if (currentStatus.active_requests > 0) {
+          openStopProxyDialog({
+            activeRequests: currentStatus.active_requests,
+            intent: 'stop',
+          });
+          return;
+        }
+
         await stopProxy();
         toast.success('代理服务已停止');
-      } else {
-        await startProxy();
-        toast.success('代理服务已启动');
-        maybeShowAppConfigGuide();
+        const status = await getProxyStatus();
+        setProxyStatus(status);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`切换代理服务失败：${msg}`);
+        console.error('[SidebarNav] Toggle proxy failed:', err);
+      } finally {
+        setToggling(false);
       }
+      return;
+    }
+
+    setToggling(true);
+    try {
+      await startProxy();
+      toast.success('代理服务已启动');
+      maybeShowAppConfigGuide();
       const status = await getProxyStatus();
       setProxyStatus(status);
     } catch (err) {
@@ -56,7 +79,7 @@ export default function SidebarNav() {
     } finally {
       setToggling(false);
     }
-  }, [proxyStatus.running, toggling, setProxyStatus]);
+  }, [proxyStatus.running, toggling, setProxyStatus, openStopProxyDialog, maybeShowAppConfigGuide]);
 
   const handlePublish = useCallback(async () => {
     if (publishing) return;

@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import TitleBar from './TitleBar';
 import SidebarNav from './SidebarNav';
 import HomeSubNav from './HomeSubNav';
+import StopProxyDialogController from '../common/StopProxyDialogController';
 import ToastContainer from '../common/ToastContainer';
 import { useProxyStatus } from '../../hooks/useProxyStatus';
 import { useAppStore } from '../../store/app-store';
@@ -61,6 +62,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {renderContent()}
       </div>
       <TitleBar />
+      <StopProxyDialogController />
       <ToastContainer />
     </div>
   );

@@ -40,6 +40,7 @@ pub struct MeteredStream<S> {
     inner: S,
     total_bytes: u64,
     done_tx: Option<oneshot::Sender<u64>>,
+    _attachment: Option<Box<dyn Send>>,
 }
 
 impl<S> MeteredStream<S> {
@@ -48,6 +49,16 @@ impl<S> MeteredStream<S> {
             inner,
             total_bytes: 0,
             done_tx: Some(done_tx),
+            _attachment: None,
+        }
+    }
+
+    pub fn with_attachment<T: Send + 'static>(inner: S, done_tx: oneshot::Sender<u64>, attachment: T) -> Self {
+        Self {
+            inner,
+            total_bytes: 0,
+            done_tx: Some(done_tx),
+            _attachment: Some(Box::new(attachment)),
         }
     }
 

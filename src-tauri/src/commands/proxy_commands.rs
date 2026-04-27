@@ -20,9 +20,9 @@ pub async fn start_proxy(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn stop_proxy(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn stop_proxy(state: State<'_, AppState>, force: Option<bool>) -> Result<(), String> {
     let proxy = state.proxy.read().await;
-    proxy.stop().await.map_err(|e| e.to_string())
+    proxy.stop(force.unwrap_or(false)).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

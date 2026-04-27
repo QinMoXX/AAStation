@@ -7,6 +7,7 @@ export interface ProxyStatus {
   listen_ports: number[];
   published_at: string | null;
   active_routes: number;
+  active_requests: number;
   total_requests: number;
   uptime_seconds: number;
 }
