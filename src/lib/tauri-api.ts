@@ -11,6 +11,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
+import { open } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { check } from '@tauri-apps/plugin-updater';
 import type { DAGDocument } from '../types/dag';
@@ -26,6 +27,15 @@ import { toBackendDocument, fromBackendDocument } from './dag-utils';
 export interface ValidationError {
   kind: string;
   message: string;
+}
+
+export interface ExportConfigArchiveRequest {
+  outputDir: string;
+  includeSensitiveValues: boolean;
+}
+
+export interface ExportConfigArchiveResult {
+  archivePath: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +150,29 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       auto_install_update: settings.autoInstallUpdate,
     },
   });
+}
+
+export async function pickExportDirectory(): Promise<string | null> {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: '选择配置导出目录',
+  });
+  return typeof selected === 'string' ? selected : null;
+}
+
+export async function exportConfigArchive(
+  request: ExportConfigArchiveRequest,
+): Promise<ExportConfigArchiveResult> {
+  const raw = await invoke<{ archive_path: string }>('export_config_archive', {
+    request: {
+      output_dir: request.outputDir,
+      include_sensitive_values: request.includeSensitiveValues,
+    },
+  });
+  return {
+    archivePath: raw.archive_path,
+  };
 }
 
 export interface AppUpdateCheckResult {

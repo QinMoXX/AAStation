@@ -1,4 +1,5 @@
 mod claude_config;
+mod config_export;
 mod codex_config;
 mod commands;
 mod dag;
@@ -59,6 +60,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(state)
@@ -92,6 +94,7 @@ pub fn run() {
             commands::app_commands::is_codex_cli_configured,
             commands::app_commands::unconfigure_codex_cli,
             commands::app_commands::restore_codex_cli_config,
+            commands::config_commands::export_config_archive,
         ])
         .setup(move |app| {
             // Setup system tray

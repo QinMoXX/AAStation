@@ -8,12 +8,14 @@ import {
   configureClaudeCode,
   configureCodexCli,
   configureOpenCode,
+  exportConfigArchive,
   getLogRuntimeStatus,
   installAppUpdate,
   isClaudeConfigured,
   isCodexCliConfigured,
   isOpenCodeConfigured,
   openLogDir,
+  pickExportDirectory,
   pollRuntimeLogs,
   restoreClaudeConfig,
   restoreCodexCliConfig,
@@ -25,6 +27,7 @@ import {
 } from '../../lib/tauri-api';
 import type { ApplicationNodeData } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -44,6 +47,14 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ChevronRight, Eye, EyeOff, Copy, RefreshCw, Download, FolderOpen, Pause, Play, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -73,6 +84,9 @@ export default function SettingsPage() {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportIncludeSensitiveValues, setExportIncludeSensitiveValues] = useState(false);
+  const [exportingConfig, setExportingConfig] = useState(false);
 
   useEffect(() => {
     setPortRange(settings.listenPortRange);
@@ -158,6 +172,36 @@ export default function SettingsPage() {
       toast.error(`检查更新失败：${msg}`);
     } finally {
       setCheckingUpdate(false);
+    }
+  };
+
+  const handleOpenExportDialog = () => {
+    setExportIncludeSensitiveValues(false);
+    setExportDialogOpen(true);
+  };
+
+  const handleExportConfig = async () => {
+    if (exportingConfig) return;
+
+    const outputDir = await pickExportDirectory();
+    if (!outputDir) {
+      toast.info('已取消选择导出目录。');
+      return;
+    }
+
+    setExportingConfig(true);
+    try {
+      const result = await exportConfigArchive({
+        outputDir,
+        includeSensitiveValues: exportIncludeSensitiveValues,
+      });
+      toast.success(`配置已导出到 ${result.archivePath}`);
+      setExportDialogOpen(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`导出配置失败：${msg}`);
+    } finally {
+      setExportingConfig(false);
     }
   };
 
@@ -711,6 +755,24 @@ export default function SettingsPage() {
           <Separator />
 
           <div className="space-y-2">
+            <Label className="text-muted text-xs">配置导出</Label>
+            <p className="text-xs text-dim leading-relaxed">
+              将当前配置导出为 ZIP 多文件包，包含 `metrics.json`、`pipeline.json`、`settings.json` 和 `manifest.json`，不包含日志文件。
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleOpenExportDialog}
+              className="gap-1.5"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              导出配置
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
             <Label className="text-muted text-xs">
               代理认证令牌
               <span className="text-dim text-[11px] ml-2">只读 · 客户端通过此令牌向代理认证</span>
@@ -761,6 +823,58 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>确认导出配置</DialogTitle>
+            <DialogDescription>
+              导出时会先选择目标目录，然后在该目录生成 `AAStationConfig.zip`。压缩包内固定包含 `metrics.json`、`pipeline.json`、`settings.json` 和 `manifest.json`。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-surface/60 px-3 py-3">
+              <Checkbox
+                id="export-redact-sensitive"
+                checked={exportIncludeSensitiveValues}
+                onCheckedChange={(checked) => setExportIncludeSensitiveValues(checked === true)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="export-redact-sensitive" className="text-sm text-foreground cursor-pointer">
+                  包含 API Key
+                </Label>
+                <p className="text-xs text-dim leading-relaxed">
+                  默认不勾选。不勾选时导出的 `pipeline.json` 会自动清空 Provider 节点的 API Key；勾选后才会在导出包中保留原始 API Key。
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100 leading-relaxed">
+              导出不会包含日志文件。若目标目录已存在同名 `AAStationConfig.zip`，将直接覆盖。
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setExportDialogOpen(false)}
+              disabled={exportingConfig}
+            >
+              取消
+            </Button>
+            <Button
+              variant="accent"
+              onClick={handleExportConfig}
+              disabled={exportingConfig}
+              className="gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {exportingConfig ? '导出中...' : '选择目录并导出'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
