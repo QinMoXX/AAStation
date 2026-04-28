@@ -15,6 +15,7 @@ import {
   ClaudeCode,
   Codex,
   OpenCode,
+  XiaomiMiMo,
 } from '@lobehub/icons';
 
 // ---------------------------------------------------------------------------
@@ -149,6 +150,7 @@ const LOBEHUB_ICONS: Record<string, React.FC<{ size?: number }>> = {
   zhipu: Zhipu,
   openrouter: OpenRouter,
   tencentcloud: TencentCloud,
+  xiaomimimo: XiaomiMiMo,
   claudecode: ClaudeCode.Color,
   codex: Codex.Color,
   opencode: OpenCode,
@@ -229,4 +231,4 @@ export function getProviderIconById(presetId: string): React.FC<SVGProps<SVGSVGE
 // Re-export LobeHub icons for direct usage
 // ---------------------------------------------------------------------------
 
-export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Minimax, Moonshot, Spark, Volcengine, Zhipu, OpenRouter, TencentCloud };
+export { Alibaba, Bailian, OpenAI, Anthropic, DeepSeek, Minimax, Moonshot, Spark, Volcengine, Zhipu, OpenRouter, TencentCloud, XiaomiMiMo };
