@@ -791,38 +791,31 @@ export default function SettingsPage() {
           <Separator />
 
           <div className="space-y-2">
-            <Label className="text-muted text-xs">配置导入</Label>
+            <Label className="text-muted text-xs">配置导入 / 导出</Label>
             <p className="text-xs text-dim leading-relaxed">
-              选择 `AAStationConfig.zip` 后会自动校验 `hash.txt`，再依次导入 `manifest.json`、`settings.json`、`metrics.json` 与 `pipeline.json`。任一步失败都会自动回退原数据。
+              导入备份将覆盖当前配置与流水线，操作前会自动校验完整性，失败时自动回退。导出仅包含配置与流水线，不含日志数据。
             </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleImportConfig}
-              className="gap-1.5"
-              disabled={importingConfig}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              {importingConfig ? '导入中...' : '导入配置'}
-            </Button>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <Label className="text-muted text-xs">配置导出</Label>
-            <p className="text-xs text-dim leading-relaxed">
-              将当前配置导出为 ZIP 多文件包，包含 `hash.txt`、`metrics.json`、`pipeline.json`、`settings.json` 和 `manifest.json`，不包含日志文件。
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleOpenExportDialog}
-              className="gap-1.5"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              导出配置
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleImportConfig}
+                className="gap-1.5"
+                disabled={importingConfig}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                {importingConfig ? '导入中...' : '导入配置'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleOpenExportDialog}
+                className="gap-1.5"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                导出配置
+              </Button>
+            </div>
           </div>
 
           <Separator />

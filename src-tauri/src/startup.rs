@@ -1,4 +1,4 @@
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 mod platform {
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
     use winreg::RegKey;
@@ -40,14 +40,29 @@ mod platform {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
 mod platform {
     pub fn is_enabled() -> Result<bool, String> {
-        Err("当前平台暂不支持开机自启动设置".to_string())
+        tracing::info!("macOS 开机自启动功能尚未实现");
+        Ok(false)
     }
 
     pub fn set_enabled(_enabled: bool) -> Result<(), String> {
-        Err("当前平台暂不支持开机自启动设置".to_string())
+        tracing::info!("macOS 开机自启动功能尚未实现，忽略设置请求");
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod platform {
+    pub fn is_enabled() -> Result<bool, String> {
+        tracing::info!("Linux 开机自启动功能尚未实现");
+        Ok(false)
+    }
+
+    pub fn set_enabled(_enabled: bool) -> Result<(), String> {
+        tracing::info!("Linux 开机自启动功能尚未实现，忽略设置请求");
+        Ok(())
     }
 }
 
