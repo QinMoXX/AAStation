@@ -61,6 +61,10 @@ if (updatedReadme === readme) {
 fs.writeFileSync(readmePath, updatedReadme);
 
 // 5) Regenerate Cargo.lock so tauri-app package version is synchronized
-run("cargo generate-lockfile", { cwd: path.join(root, "src-tauri") });
+if (!process.env.SKIP_CARGO_LOCKFILE) {
+  run("cargo generate-lockfile", { cwd: path.join(root, "src-tauri") });
+} else {
+  console.log("Skipping Cargo.lock regeneration (SKIP_CARGO_LOCKFILE is set)");
+}
 
 console.log(`Version bumped to ${next}`);
