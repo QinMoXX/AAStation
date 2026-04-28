@@ -16,6 +16,16 @@ pub struct ExportConfigResponse {
     pub archive_path: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ImportConfigRequest {
+    pub archive_path: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ImportConfigResponse {
+    pub manifest_warnings: Vec<String>,
+}
+
 #[tauri::command]
 pub async fn export_config_archive(
     app: AppHandle,
@@ -39,5 +49,25 @@ pub async fn export_config_archive(
 
     Ok(ExportConfigResponse {
         archive_path: result.archive_path,
+    })
+}
+
+#[tauri::command]
+pub async fn import_config_archive(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    request: ImportConfigRequest,
+) -> Result<ImportConfigResponse, String> {
+    let result = crate::config_import::import_config_archive(
+        &app,
+        state.inner(),
+        crate::config_import::ConfigImportRequest {
+            archive_path: PathBuf::from(request.archive_path),
+        },
+    )
+    .await?;
+
+    Ok(ImportConfigResponse {
+        manifest_warnings: result.manifest_warnings,
     })
 }

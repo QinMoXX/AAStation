@@ -61,18 +61,25 @@ fn assign_missing_ports(
     Ok(())
 }
 
-fn prepare_route_table_set(mut doc: DAGDocument) -> Result<(DAGDocument, RouteTableSet), String> {
+pub(crate) fn prepare_route_table_set_with_settings(
+    mut doc: DAGDocument,
+    app_settings: &settings::AppSettings,
+) -> Result<(DAGDocument, RouteTableSet), String> {
     let errors = validate::validate(&doc);
     if !errors.is_empty() {
         let msgs: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
         return Err(format!("Validation failed:\n{}", msgs.join("\n")));
     }
 
-    let app_settings = settings::load_settings().map_err(|e| e.to_string())?;
-    assign_missing_ports(&mut doc, &app_settings)?;
+    assign_missing_ports(&mut doc, app_settings)?;
 
-    let route_table_set = compile::compile(&doc, &app_settings).map_err(|e| e.to_string())?;
+    let route_table_set = compile::compile(&doc, app_settings).map_err(|e| e.to_string())?;
     Ok((doc, route_table_set))
+}
+
+fn prepare_route_table_set(doc: DAGDocument) -> Result<(DAGDocument, RouteTableSet), String> {
+    let app_settings = settings::load_settings().map_err(|e| e.to_string())?;
+    prepare_route_table_set_with_settings(doc, &app_settings)
 }
 
 pub(crate) async fn restore_persisted_routes(state: &AppState) -> Result<bool, String> {

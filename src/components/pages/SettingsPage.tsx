@@ -9,13 +9,17 @@ import {
   configureCodexCli,
   configureOpenCode,
   exportConfigArchive,
+  getProxyStatus,
+  importConfigArchive,
   getLogRuntimeStatus,
   installAppUpdate,
   isClaudeConfigured,
   isCodexCliConfigured,
   isOpenCodeConfigured,
+  loadDag,
   openLogDir,
   pickExportDirectory,
+  pickImportArchive,
   pollRuntimeLogs,
   restoreClaudeConfig,
   restoreCodexCliConfig,
@@ -55,7 +59,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronRight, Eye, EyeOff, Copy, RefreshCw, Download, FolderOpen, Pause, Play, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
+import { ChevronRight, Eye, EyeOff, Copy, RefreshCw, Download, FolderOpen, Pause, Play, RotateCcw, Trash2, AlertTriangle, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SettingsSubTab = 'general' | 'applications' | 'logs';
@@ -64,7 +68,7 @@ const LOG_POLL_INTERVAL_MS = 1200;
 const LOG_MAX_LINES = 1200;
 
 export default function SettingsPage() {
-  const { settings, saveSettings } = useSettingsStore();
+  const { settings, saveSettings, loadSettings: reloadSettings } = useSettingsStore();
   const availableUpdate = useAppStore((s) => s.availableUpdate);
   const setAvailableUpdate = useAppStore((s) => s.setAvailableUpdate);
   const clearAvailableUpdate = useAppStore((s) => s.clearAvailableUpdate);
@@ -87,6 +91,7 @@ export default function SettingsPage() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportIncludeSensitiveValues, setExportIncludeSensitiveValues] = useState(false);
   const [exportingConfig, setExportingConfig] = useState(false);
+  const [importingConfig, setImportingConfig] = useState(false);
 
   useEffect(() => {
     setPortRange(settings.listenPortRange);
@@ -202,6 +207,37 @@ export default function SettingsPage() {
       toast.error(`导出配置失败：${msg}`);
     } finally {
       setExportingConfig(false);
+    }
+  };
+
+  const handleImportConfig = async () => {
+    if (importingConfig) return;
+
+    const archivePath = await pickImportArchive();
+    if (!archivePath) {
+      toast.info('已取消选择导入文件。');
+      return;
+    }
+
+    setImportingConfig(true);
+    try {
+      const result = await importConfigArchive({ archivePath });
+      await reloadSettings();
+      const importedDoc = await loadDag();
+      const latestProxyStatus = await getProxyStatus();
+      useFlowStore.getState().loadDocument(importedDoc);
+      useAppStore.getState().setProxyStatus(latestProxyStatus);
+      useAppStore.getState().markPublished();
+      toast.success('配置导入成功，已覆盖本地数据并应用。');
+
+      if (result.manifestWarnings.length > 0) {
+        toast.warning(`导入完成，兼容性提示：${result.manifestWarnings.join('；')}`, 8000);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`导入配置失败：${msg}`);
+    } finally {
+      setImportingConfig(false);
     }
   };
 
@@ -755,9 +791,28 @@ export default function SettingsPage() {
           <Separator />
 
           <div className="space-y-2">
+            <Label className="text-muted text-xs">配置导入</Label>
+            <p className="text-xs text-dim leading-relaxed">
+              选择 `AAStationConfig.zip` 后会自动校验 `hash.txt`，再依次导入 `manifest.json`、`settings.json`、`metrics.json` 与 `pipeline.json`。任一步失败都会自动回退原数据。
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleImportConfig}
+              className="gap-1.5"
+              disabled={importingConfig}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {importingConfig ? '导入中...' : '导入配置'}
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
             <Label className="text-muted text-xs">配置导出</Label>
             <p className="text-xs text-dim leading-relaxed">
-              将当前配置导出为 ZIP 多文件包，包含 `metrics.json`、`pipeline.json`、`settings.json` 和 `manifest.json`，不包含日志文件。
+              将当前配置导出为 ZIP 多文件包，包含 `hash.txt`、`metrics.json`、`pipeline.json`、`settings.json` 和 `manifest.json`，不包含日志文件。
             </p>
             <Button
               variant="secondary"
@@ -829,7 +884,7 @@ export default function SettingsPage() {
           <DialogHeader>
             <DialogTitle>确认导出配置</DialogTitle>
             <DialogDescription>
-              导出时会先选择目标目录，然后在该目录生成 `AAStationConfig.zip`。压缩包内固定包含 `metrics.json`、`pipeline.json`、`settings.json` 和 `manifest.json`。
+              导出时会先选择目标目录，然后在该目录生成 `AAStationConfig.zip`。压缩包内固定包含 `hash.txt`、`metrics.json`、`pipeline.json`、`settings.json` 和 `manifest.json`。
             </DialogDescription>
           </DialogHeader>
 

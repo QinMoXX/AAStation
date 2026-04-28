@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use tauri::AppHandle;
@@ -22,7 +22,7 @@ const MANIFEST_KIND: &str = "manifest";
 const SETTINGS_FILE: &str = "settings.json";
 const PIPELINE_FILE: &str = "pipeline.json";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigExportManifest {
     pub schema_version: u32,
     pub exported_at: String,
@@ -31,19 +31,19 @@ pub struct ConfigExportManifest {
     pub files: Vec<ManifestFileRecord>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestAppInfo {
     pub name: String,
     pub version: String,
     pub identifier: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestExportOptions {
     pub include_sensitive_values: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestFileRecord {
     pub name: String,
     pub kind: String,

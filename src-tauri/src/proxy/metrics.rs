@@ -248,6 +248,65 @@ impl MetricsStore {
             .find(|request| request.provider_id == provider_id)
             .cloned()
     }
+
+    pub async fn replace_with_snapshot(
+        &self,
+        snapshot: ProxyMetricsSnapshot,
+    ) -> Result<(), String> {
+        let mut state = MetricsState {
+            summary: snapshot.summary,
+            applications: snapshot
+                .applications
+                .into_iter()
+                .map(|entity| (entity.id.clone(), entity))
+                .collect(),
+            providers: snapshot
+                .providers
+                .into_iter()
+                .map(|entity| (entity.id.clone(), entity))
+                .collect(),
+            app_provider_pairs: snapshot
+                .app_provider_pairs
+                .into_iter()
+                .map(|pair| (format!("{}::{}", pair.app_id, pair.provider_id), pair))
+                .collect(),
+            recent_requests: snapshot.recent_requests.into_iter().collect(),
+        };
+
+        while state.recent_requests.len() > MAX_RECENT_REQUESTS {
+            state.recent_requests.pop_back();
+        }
+
+        let next_id = state
+            .recent_requests
+            .iter()
+            .filter_map(|request| extract_request_sequence(&request.id))
+            .max()
+            .unwrap_or(0)
+            .max(state.summary.requests);
+
+        let persisted = PersistedMetrics {
+            next_id,
+            state: state.clone(),
+        };
+
+        {
+            let mut inner = self.inner.write().await;
+            *inner = state;
+        }
+        self.next_id.store(next_id, Ordering::Relaxed);
+        self.last_persist_secs.store(0, Ordering::Relaxed);
+
+        tokio::task::spawn_blocking(move || save_persisted_metrics(&persisted))
+            .await
+            .unwrap_or_else(|e| Err(format!("persist task panicked: {e}")))?;
+
+        Ok(())
+    }
+}
+
+fn extract_request_sequence(request_id: &str) -> Option<u64> {
+    request_id.strip_prefix("req-")?.parse::<u64>().ok()
 }
 
 fn metrics_path() -> Result<PathBuf, String> {

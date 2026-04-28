@@ -2,6 +2,25 @@ use crate::settings::AppSettings;
 use crate::store::AppState;
 use tauri::{AppHandle, State};
 
+pub(crate) async fn apply_settings(
+    app: &AppHandle,
+    state: &AppState,
+    mut settings: AppSettings,
+) -> Result<AppSettings, String> {
+    crate::startup::set_launch_at_startup_enabled(app, settings.launch_at_startup)?;
+    if let Ok(actual_enabled) = crate::startup::is_launch_at_startup_enabled(app) {
+        settings.launch_at_startup = actual_enabled;
+    }
+
+    crate::settings::save_settings(&settings).map_err(|e| e.to_string())?;
+
+    state.update_auth_token(settings.proxy_auth_token.clone()).await;
+    let proxy = state.proxy.read().await;
+    proxy.update_auth_token(settings.proxy_auth_token.clone()).await;
+
+    Ok(settings)
+}
+
 #[tauri::command]
 pub async fn load_settings(app: AppHandle) -> Result<AppSettings, String> {
     let mut settings = crate::settings::load_settings().map_err(|e| e.to_string())?;
@@ -26,20 +45,8 @@ pub async fn load_settings(app: AppHandle) -> Result<AppSettings, String> {
 pub async fn save_settings(
     app: AppHandle,
     state: State<'_, AppState>,
-    mut settings: AppSettings,
+    settings: AppSettings,
 ) -> Result<(), String> {
-    crate::startup::set_launch_at_startup_enabled(&app, settings.launch_at_startup)?;
-    if let Ok(actual_enabled) = crate::startup::is_launch_at_startup_enabled(&app) {
-        settings.launch_at_startup = actual_enabled;
-    }
-
-    // Persist to disk
-    crate::settings::save_settings(&settings).map_err(|e| e.to_string())?;
-
-    // Sync auth token to AppState and ProxyServer
-    state.update_auth_token(settings.proxy_auth_token.clone()).await;
-    let proxy = state.proxy.read().await;
-    proxy.update_auth_token(settings.proxy_auth_token).await;
-
+    apply_settings(&app, state.inner(), settings).await?;
     Ok(())
 }

@@ -1,4 +1,5 @@
 mod claude_config;
+mod config_import;
 mod config_export;
 mod codex_config;
 mod commands;
@@ -95,6 +96,7 @@ pub fn run() {
             commands::app_commands::unconfigure_codex_cli,
             commands::app_commands::restore_codex_cli_config,
             commands::config_commands::export_config_archive,
+            commands::config_commands::import_config_archive,
         ])
         .setup(move |app| {
             // Setup system tray

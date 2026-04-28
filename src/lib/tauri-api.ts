@@ -38,6 +38,14 @@ export interface ExportConfigArchiveResult {
   archivePath: string;
 }
 
+export interface ImportConfigArchiveRequest {
+  archivePath: string;
+}
+
+export interface ImportConfigArchiveResult {
+  manifestWarnings: string[];
+}
+
 // ---------------------------------------------------------------------------
 // DAG commands
 // ---------------------------------------------------------------------------
@@ -161,6 +169,21 @@ export async function pickExportDirectory(): Promise<string | null> {
   return typeof selected === 'string' ? selected : null;
 }
 
+export async function pickImportArchive(): Promise<string | null> {
+  const selected = await open({
+    directory: false,
+    multiple: false,
+    title: '选择配置导入包',
+    filters: [
+      {
+        name: 'ZIP Archive',
+        extensions: ['zip'],
+      },
+    ],
+  });
+  return typeof selected === 'string' ? selected : null;
+}
+
 export async function exportConfigArchive(
   request: ExportConfigArchiveRequest,
 ): Promise<ExportConfigArchiveResult> {
@@ -172,6 +195,19 @@ export async function exportConfigArchive(
   });
   return {
     archivePath: raw.archive_path,
+  };
+}
+
+export async function importConfigArchive(
+  request: ImportConfigArchiveRequest,
+): Promise<ImportConfigArchiveResult> {
+  const raw = await invoke<{ manifest_warnings: string[] }>('import_config_archive', {
+    request: {
+      archive_path: request.archivePath,
+    },
+  });
+  return {
+    manifestWarnings: raw.manifest_warnings ?? [],
   };
 }
 

@@ -377,6 +377,29 @@ impl ProxyServer {
             .await
     }
 
+    pub async fn route_table_set_snapshot(&self) -> RouteTableSet {
+        let listen_address = self.state.config.read().await.listen_address.clone();
+        let table_refs: Vec<Arc<RwLock<RouteTable>>> = self
+            .state
+            .route_tables_by_port
+            .read()
+            .await
+            .values()
+            .cloned()
+            .collect();
+
+        let mut tables = Vec::with_capacity(table_refs.len());
+        for table_ref in table_refs {
+            tables.push(table_ref.read().await.clone());
+        }
+        tables.sort_by_key(|table| table.listen_port);
+
+        RouteTableSet {
+            listen_address,
+            tables,
+        }
+    }
+
     async fn start_health_probe_loop(&self) {
         let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
         *self.state.health_probe_shutdown.write().await = Some(shutdown_tx);
