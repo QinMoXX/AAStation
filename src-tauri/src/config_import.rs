@@ -56,6 +56,8 @@ pub async fn import_config_archive(
 
     let manifest = parse_manifest(required_entry(&archive_entries, MANIFEST_FILE)?)?;
     let manifest_warnings = compare_manifest(app, &manifest);
+    // TODO: Replace warning-only behavior with real compatibility gating based on
+    // manifest schema_version, app identifier, and version policy.
 
     let imported_settings = parse_imported_settings(required_entry(&archive_entries, SETTINGS_FILE)?)?;
     let imported_dag = parse_imported_dag(required_entry(&archive_entries, PIPELINE_FILE)?)?;
