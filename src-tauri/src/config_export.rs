@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use serde::Serialize;
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 use tauri::AppHandle;
 use zip::write::SimpleFileOptions;
 
@@ -13,6 +14,11 @@ use crate::error::AppError;
 pub const EXPORT_ARCHIVE_NAME: &str = "AAStationConfig.zip";
 
 const APP_DIR: &str = ".aastation";
+const HASH_FILE: &str = "hash.txt";
+const HASH_KIND: &str = "hash";
+const HASH_ALGORITHM: &str = "SHA-256";
+const MANIFEST_FILE: &str = "manifest.json";
+const MANIFEST_KIND: &str = "manifest";
 const SETTINGS_FILE: &str = "settings.json";
 const PIPELINE_FILE: &str = "pipeline.json";
 
@@ -67,6 +73,11 @@ pub struct ExportFileSpec {
     pub loader: fn(&AppHandle, &ExportContext) -> Result<Vec<u8>, AppError>,
 }
 
+struct ExportArtifact {
+    archive_name: String,
+    bytes: Vec<u8>,
+}
+
 pub fn export_config_archive(
     app: &AppHandle,
     request: ConfigExportRequest,
@@ -80,25 +91,27 @@ pub fn export_config_archive(
     };
 
     let file_specs = export_file_specs();
+    let mut artifacts = build_export_artifacts(app, &context, &file_specs)?;
     let manifest = build_manifest(app, &context, &file_specs);
+    artifacts.push(ExportArtifact {
+        archive_name: MANIFEST_FILE.to_string(),
+        bytes: serde_json::to_vec_pretty(&manifest)?,
+    });
+    artifacts.push(ExportArtifact {
+        archive_name: HASH_FILE.to_string(),
+        bytes: build_hash_file_bytes(&artifacts),
+    });
 
     let archive_file = File::create(&archive_path)?;
     let mut zip_writer = zip::ZipWriter::new(archive_file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    for spec in &file_specs {
-        let bytes = (spec.loader)(app, &context)?;
+    for artifact in &artifacts {
         zip_writer
-            .start_file(spec.archive_name, options)
+            .start_file(&artifact.archive_name, options)
             .map_err(zip_to_io_error)?;
-        zip_writer.write_all(&bytes)?;
+        zip_writer.write_all(&artifact.bytes)?;
     }
-
-    let manifest_bytes = serde_json::to_vec_pretty(&manifest)?;
-    zip_writer
-        .start_file("manifest.json", options)
-        .map_err(zip_to_io_error)?;
-    zip_writer.write_all(&manifest_bytes)?;
     zip_writer.finish().map_err(zip_to_io_error)?;
 
     Ok(ConfigExportResult {
@@ -130,12 +143,34 @@ fn build_manifest(
                 name: spec.archive_name.to_string(),
                 kind: spec.kind.to_string(),
             })
-            .chain(std::iter::once(ManifestFileRecord {
-                name: "manifest.json".to_string(),
-                kind: "manifest".to_string(),
-            }))
+            .chain([
+                ManifestFileRecord {
+                    name: MANIFEST_FILE.to_string(),
+                    kind: MANIFEST_KIND.to_string(),
+                },
+                ManifestFileRecord {
+                    name: HASH_FILE.to_string(),
+                    kind: HASH_KIND.to_string(),
+                },
+            ])
             .collect(),
     }
+}
+
+fn build_export_artifacts(
+    app: &AppHandle,
+    context: &ExportContext,
+    file_specs: &[ExportFileSpec],
+) -> Result<Vec<ExportArtifact>, AppError> {
+    file_specs
+        .iter()
+        .map(|spec| {
+            Ok(ExportArtifact {
+                archive_name: spec.archive_name.to_string(),
+                bytes: (spec.loader)(app, context)?,
+            })
+        })
+        .collect()
 }
 
 fn export_file_specs() -> Vec<ExportFileSpec> {
@@ -173,6 +208,31 @@ fn load_pipeline_bytes(_app: &AppHandle, context: &ExportContext) -> Result<Vec<
 fn load_settings_bytes(_app: &AppHandle, _context: &ExportContext) -> Result<Vec<u8>, AppError> {
     let value = read_json_from_app_dir(SETTINGS_FILE)?.unwrap_or_else(default_settings_json);
     Ok(serde_json::to_vec_pretty(&value)?)
+}
+
+fn build_hash_file_bytes(artifacts: &[ExportArtifact]) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+
+    for artifact in artifacts {
+        hasher.update(artifact.archive_name.as_bytes());
+        hasher.update(b"\n");
+        hasher.update(artifact.bytes.len().to_string().as_bytes());
+        hasher.update(b"\n");
+        hasher.update(&artifact.bytes);
+        hasher.update(b"\n");
+    }
+
+    let hash = format!("{:x}", hasher.finalize());
+    let file_names = artifacts
+        .iter()
+        .map(|artifact| artifact.archive_name.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+
+    format!(
+        "algorithm={HASH_ALGORITHM}\nfiles={file_names}\nhash={hash}\n"
+    )
+    .into_bytes()
 }
 
 fn redact_pipeline_api_keys(value: &mut Value) {
