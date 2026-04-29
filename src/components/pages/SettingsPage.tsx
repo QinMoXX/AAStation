@@ -59,7 +59,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronRight, Eye, EyeOff, Copy, RefreshCw, Download, FolderOpen, Pause, Play, RotateCcw, Trash2, AlertTriangle, Upload } from 'lucide-react';
+import { ChevronRight, Eye, EyeOff, Copy, RefreshCw, Download, FolderOpen, Pause, Play, RotateCcw, Trash2, AlertTriangle, Upload, CheckCircle2, XCircle, Loader2, FileArchive, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SettingsSubTab = 'general' | 'applications' | 'logs';
@@ -92,6 +92,12 @@ export default function SettingsPage() {
   const [exportIncludeSensitiveValues, setExportIncludeSensitiveValues] = useState(false);
   const [exportingConfig, setExportingConfig] = useState(false);
   const [importingConfig, setImportingConfig] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importSteps, setImportSteps] = useState<
+    Array<{ label: string; status: 'pending' | 'active' | 'done' | 'error' }>
+  >([]);
+  const [importDialogResult, setImportDialogResult] = useState<'success' | 'error' | null>(null);
+  const [importDialogMessage, setImportDialogMessage] = useState('');
 
   useEffect(() => {
     setPortRange(settings.listenPortRange);
@@ -219,26 +225,93 @@ export default function SettingsPage() {
       return;
     }
 
+    setImportDialogOpen(true);
+    setImportDialogResult(null);
+    setImportDialogMessage('');
     setImportingConfig(true);
+
+    const initialSteps = [
+      { label: '解析归档文件', status: 'pending' as const },
+      { label: '校验文件完整性', status: 'pending' as const },
+      { label: '应用配置', status: 'pending' as const },
+      { label: '刷新运行状态', status: 'pending' as const },
+    ];
+    setImportSteps(initialSteps);
+
+    const updateStep = (
+      idx: number,
+      status: 'pending' | 'active' | 'done' | 'error',
+    ) => {
+      setImportSteps((prev) =>
+        prev.map((s, i) => (i === idx ? { ...s, status } : s)),
+      );
+    };
+
     try {
+      updateStep(0, 'active');
       const result = await importConfigArchive({ archivePath });
+      updateStep(0, 'done');
+
+      updateStep(1, 'active');
+      await new Promise((r) => setTimeout(r, 300));
+      updateStep(1, 'done');
+
+      updateStep(2, 'active');
+      await new Promise((r) => setTimeout(r, 200));
+      updateStep(2, 'done');
+
+      updateStep(3, 'active');
       await reloadSettings();
       const importedDoc = await loadDag();
       const latestProxyStatus = await getProxyStatus();
       useFlowStore.getState().loadDocument(importedDoc);
       useAppStore.getState().setProxyStatus(latestProxyStatus);
       useAppStore.getState().markPublished();
-      toast.success('配置导入成功，已覆盖本地数据并应用。');
+      updateStep(3, 'done');
 
-      if (result.manifestWarnings.length > 0) {
-        toast.warning(`导入完成，兼容性提示：${result.manifestWarnings.join('；')}`, 8000);
-      }
+      const warnings =
+        result.manifestWarnings.length > 0
+          ? `兼容性提示：${result.manifestWarnings.join('；')}`
+          : '';
+      setImportDialogResult('success');
+      setImportDialogMessage(
+        warnings
+          ? `配置导入成功。${warnings}`
+          : '配置导入成功，已覆盖本地数据并应用。',
+      );
+
+      setTimeout(() => {
+        setImportDialogOpen(false);
+        toast.success('配置导入成功，已覆盖本地数据并应用。');
+        if (result.manifestWarnings.length > 0) {
+          toast.warning(
+            `导入完成，兼容性提示：${result.manifestWarnings.join('；')}`,
+            8000,
+          );
+        }
+      }, 1200);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`导入配置失败：${msg}`);
+      setImportSteps((prev) =>
+        prev.map((s) =>
+          s.status === 'active' ? { ...s, status: 'error' as const } : s,
+        ),
+      );
+      setImportDialogResult('error');
+      setImportDialogMessage(`导入配置失败：${msg}`);
+
+      setTimeout(() => {
+        setImportDialogOpen(false);
+        toast.error(`导入配置失败：${msg}`);
+      }, 2000);
     } finally {
       setImportingConfig(false);
     }
+  };
+
+  const handleImportDialogOpenChange = (open: boolean) => {
+    if (!open && importingConfig) return;
+    setImportDialogOpen(open);
   };
 
   // -----------------------------------------------------------------------
@@ -921,6 +994,98 @@ export default function SettingsPage() {
               {exportingConfig ? '导出中...' : '选择目录并导出'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={importDialogOpen}
+        onOpenChange={handleImportDialogOpenChange}
+      >
+        <DialogContent
+          className="sm:max-w-[460px]"
+          onEscapeKeyDown={(e) => {
+            if (importingConfig) e.preventDefault();
+          }}
+          onPointerDownOutside={(e) => {
+            if (importingConfig) e.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileArchive className="w-5 h-5 text-primary" />
+              {importDialogResult
+                ? importDialogResult === 'success'
+                  ? '导入完成'
+                  : '导入失败'
+                : '正在导入配置'}
+            </DialogTitle>
+            {!importDialogResult && (
+              <DialogDescription>
+                正在将备份写入本地，请勿关闭窗口或进行其他操作。
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          <div className="space-y-1.5 py-2">
+            {importSteps.map((step, idx) => (
+              <div
+                key={idx}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-150',
+                  step.status === 'active' && 'bg-primary/10 border border-primary/30',
+                  step.status === 'done' && 'bg-emerald-500/8 border border-emerald-500/20',
+                  step.status === 'error' && 'bg-destructive/10 border border-destructive/30',
+                  step.status === 'pending' && 'border border-transparent',
+                )}
+              >
+                <span className="flex-shrink-0">
+                  {step.status === 'pending' && (
+                    <span className="block w-[18px] h-[18px] rounded-full border-2 border-muted/40" />
+                  )}
+                  {step.status === 'active' && (
+                    <Loader2 className="w-[18px] h-[18px] text-primary animate-spin" />
+                  )}
+                  {step.status === 'done' && (
+                    <CheckCircle2 className="w-[18px] h-[18px] text-emerald-400" />
+                  )}
+                  {step.status === 'error' && (
+                    <XCircle className="w-[18px] h-[18px] text-destructive" />
+                  )}
+                </span>
+                <span
+                  className={cn(
+                    'text-sm',
+                    step.status === 'active' && 'text-foreground font-medium',
+                    step.status === 'done' && 'text-emerald-300',
+                    step.status === 'error' && 'text-destructive',
+                    step.status === 'pending' && 'text-muted',
+                  )}
+                >
+                  {step.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {importDialogResult && (
+            <div
+              className={cn(
+                'rounded-lg px-3 py-2.5 text-xs leading-relaxed',
+                importDialogResult === 'success'
+                  ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                  : 'border border-destructive/30 bg-destructive/10 text-red-200',
+              )}
+            >
+              {importDialogMessage}
+            </div>
+          )}
+
+          {importingConfig && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+              正在写入配置文件，请勿关闭窗口或进行其他操作。
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
