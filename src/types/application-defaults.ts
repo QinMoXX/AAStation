@@ -13,6 +13,8 @@ export interface ApplicationDefault {
   helpText?: string;
   /** Capability tags for compatibility filtering. */
   tag: NodeTag[];
+  /** Official website URL for this application (optional). */
+  websiteUrl?: string;
 }
 
 /** Map of application node defaults by app type. */

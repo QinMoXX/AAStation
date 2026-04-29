@@ -12,7 +12,7 @@ use super::health::{probe_interval, PollerRuntimeStore, ProviderRuntimeStore};
 use super::metrics::MetricsStore;
 use super::handler::proxy_handler;
 use super::types::{CompiledRoute, ProxyConfig, ProxyStatus, RouteTable, RouteTableSet};
-use super::workflow::ensure_route_table_workflow;
+use super::workflow::{ensure_route_table_workflow, PollerCursorState};
 
 /// A single running listener — one per Application node.
 pub(crate) struct RunningListener {
@@ -35,7 +35,7 @@ pub struct ProxyState {
     /// Running listeners, keyed by port.
     pub listeners: Arc<RwLock<HashMap<u16, RunningListener>>>,
     pub config: Arc<RwLock<ProxyConfig>>,
-    pub poller_cursors: Arc<RwLock<HashMap<String, usize>>>,
+    pub poller_cursors: Arc<RwLock<HashMap<String, PollerCursorState>>>,
     pub provider_runtime: ProviderRuntimeStore,
     pub poller_runtime: PollerRuntimeStore,
     pub health_probe_shutdown: Arc<RwLock<Option<oneshot::Sender<()>>>>,
@@ -60,7 +60,7 @@ pub struct HandlerState {
     pub listen_port: u16,
     pub metrics: MetricsStore,
     pub http_client: reqwest::Client,
-    pub poller_cursors: Arc<RwLock<HashMap<String, usize>>>,
+    pub poller_cursors: Arc<RwLock<HashMap<String, PollerCursorState>>>,
     pub provider_runtime: ProviderRuntimeStore,
     pub poller_runtime: PollerRuntimeStore,
     /// Auth token for verifying client requests.
@@ -600,6 +600,9 @@ mod tests {
                 3,
                 30,
                 20,
+                10,
+                0,
+                "target-a",
                 &[("target-a".to_string(), "目标 A".to_string(), 1)],
                 "target-a",
                 "目标 A",

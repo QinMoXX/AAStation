@@ -55,7 +55,10 @@ function PollerNode({ data, selected }: NodeProps<PollerNodeData>) {
             {MiddlewareIcon && <MiddlewareIcon style={{ width: 16, height: 16 }} />}
             <span className="flow-node-title-text">{data.label || middlewareConfig?.name || 'Poller'}</span>
           </div>
-          <div className="flow-node-subtitle">{STRATEGY_LABELS[data.strategy]}</div>
+          <div className="flow-node-subtitle">
+            {STRATEGY_LABELS[data.strategy]}
+            {(data.strategy === 'weighted' || data.strategy === 'round_robin') && ` · 每${data.cycleRequests}次切换`}
+          </div>
         </div>
         <div className="flow-node-badge accent">轮询</div>
       </div>

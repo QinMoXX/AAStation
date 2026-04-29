@@ -273,6 +273,7 @@ fn compile_poller_node(
             failure_threshold: poller_data.failure_threshold.max(1),
             cooldown_seconds: poller_data.cooldown_seconds.max(1),
             probe_interval_seconds: poller_data.probe_interval_seconds.max(5),
+            cycle_requests: poller_data.cycle_requests.max(1),
             targets,
             default_next,
         }),
@@ -675,6 +676,7 @@ mod tests {
                 failure_threshold: 3,
                 cooldown_seconds: 30,
                 probe_interval_seconds: 20,
+                cycle_requests: 10,
             })
             .unwrap(),
         }

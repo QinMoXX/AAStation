@@ -87,6 +87,7 @@ export interface PollerNodeData extends BaseNodeData {
   failureThreshold: number;
   cooldownSeconds: number;
   probeIntervalSeconds: number;
+  cycleRequests: number;
 }
 
 /** Application type discriminator. */

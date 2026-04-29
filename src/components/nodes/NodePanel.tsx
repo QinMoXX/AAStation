@@ -26,8 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { openExternalUrl } from '@/lib/tauri-api';
+import { toast } from '@/store/toast-store';
 
 const tagLabelMap: Record<NodeTag, string> = {
   [NodeTag.Any]: 'ANY',
@@ -47,6 +49,32 @@ const panelPillButtonClass =
 
 const panelDangerPillButtonClass =
   'h-5 rounded-full px-2 text-[9px] font-medium gap-1 bg-destructive/16 border-destructive/24 text-rose-200 hover:bg-destructive/24 [&_svg]:size-3';
+
+// ---------------------------------------------------------------------------
+// Preset website button
+// ---------------------------------------------------------------------------
+
+function WebsiteButton({ websiteUrl }: { websiteUrl: string }) {
+  const handleClick = useCallback(async () => {
+    try {
+      await openExternalUrl(websiteUrl);
+    } catch {
+      toast.error('无法打开网站链接，请检查 URL 配置');
+    }
+  }, [websiteUrl]);
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7 rounded-lg border border-border bg-surface/70"
+      onClick={handleClick}
+      title="访问官网"
+    >
+      <ExternalLink className="w-3.5 h-3.5" />
+    </Button>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Provider form
@@ -464,6 +492,20 @@ function PollerForm({ data, onUpdate }: { data: PollerNodeData; onUpdate: (patch
         </div>
       </div>
 
+      {(data.strategy === 'weighted' || data.strategy === 'round_robin') && (
+        <div className="space-y-1.5">
+          <Label className="text-muted text-xs">循环次数</Label>
+          <Input
+            type="number"
+            min={1}
+            value={data.cycleRequests}
+            onChange={(e) => onUpdate({ cycleRequests: Math.max(1, Number(e.target.value) || 1) })}
+            className={panelFieldClass}
+          />
+          <p className="text-[11px] text-dim">当前目标连续处理多少次请求后，再切换到下一个目标</p>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <Checkbox
           checked={data.hasDefault}
@@ -637,6 +679,16 @@ export default function NodePanel() {
   })();
   const nodeTagLabel = nodeTags.map((tag) => tagLabelMap[tag] ?? tag).join(' | ');
 
+  const websiteUrl = (() => {
+    if (data.nodeType === 'provider' && data.presetId) {
+      return PRESET_PROVIDERS.find((p) => p.id === data.presetId)?.websiteUrl;
+    }
+    if (data.nodeType === 'application') {
+      return APPLICATION_DEFAULTS[data.appType]?.websiteUrl;
+    }
+    return undefined;
+  })();
+
   return (
     <div
       className="absolute z-10 w-[360px] overflow-y-auto rounded-[22px] border border-border bg-card/92 p-3.5 shadow-[var(--color-shadow-strong)] backdrop-blur-xl"
@@ -656,14 +708,17 @@ export default function NodePanel() {
           {!HeaderIcon && data.nodeType === 'provider' && <span>☁️</span>}
           {data.label || nodeDisplayName}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 rounded-lg border border-border bg-surface/70"
-          onClick={() => setSelectedNodeId(null)}
-        >
-          <X className="w-3.5 h-3.5" />
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {websiteUrl && <WebsiteButton websiteUrl={websiteUrl} />}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-lg border border-border bg-surface/70"
+            onClick={() => setSelectedNodeId(null)}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
 
       <div className="mb-3">

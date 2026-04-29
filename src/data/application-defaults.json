@@ -11,20 +11,23 @@
     "defaultNodeLabel": "Claude Code",
     "icon": "[lobehub:ClaudeCode]",
     "helpText": "设置中配置 Claude Code 使用本地代理，API Key 由 Provider 节点提供。",
-    "tag": ["claude_code"]
+    "tag": ["claude_code"],
+    "websiteUrl": "https://claude.ai"
   },
   "open_code": {
     "displayLabel": "OpenCode",
     "defaultNodeLabel": "OpenCode",
     "icon": "[lobehub:OpenCode]",
     "helpText": "设置中配置 OpenCode 使用本地代理，API Key 由 Provider 节点提供。",
-    "tag": ["open_code"]
+    "tag": ["open_code"],
+    "websiteUrl": "https://opencode.ai"
   },
   "codex_cli": {
     "displayLabel": "Codex CLI",
     "defaultNodeLabel": "Codex CLI",
     "icon": "[lobehub:Codex]",
     "helpText": "设置中配置 Codex CLI 使用本地代理，API Key 由 Provider 节点提供。",
-    "tag": ["codex_cli"]
+    "tag": ["codex_cli"],
+    "websiteUrl": "https://github.com/openai/codex"
   }
 }

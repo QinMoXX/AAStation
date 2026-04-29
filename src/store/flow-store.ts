@@ -71,6 +71,7 @@ export function defaultPollerData(): PollerNodeData {
     failureThreshold: 3,
     cooldownSeconds: 30,
     probeIntervalSeconds: 20,
+    cycleRequests: 10,
   };
 }
 

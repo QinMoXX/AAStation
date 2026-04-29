@@ -7,6 +7,7 @@
     "anthropicBaseUrl": "https://api.deepseek.com/anthropic",
     "defaultLabel": "DeepSeek",
     "tag": ["open_code", "claude_code"],
+    "websiteUrl": "https://platform.deepseek.com/usage",
     "models": [
       { "name": "deepseek-v4-pro", "label": "DeepSeek Chat" },
       { "name": "deepseek-v4-flash", "label": "DeepSeek Reasoner" }
@@ -38,6 +39,7 @@
     "anthropicBaseUrl": "https://dashscope.aliyuncs.com/apps/anthropic",
     "defaultLabel": "阿里云百炼",
     "tag": ["any"],
+    "websiteUrl": "https://bailian.console.aliyun.com",
     "models": [
       { "name": "qwen3.6-plus", "label": "Qwen 3.6 Plus" },
       { "name": "qwen3-max", "label": "Qwen 3 Max" },
@@ -60,6 +62,7 @@
     "anthropicBaseUrl": "https://api.minimaxi.com/anthropic",
     "defaultLabel": "MiniMax",
     "tag": ["open_code", "claude_code"],
+    "websiteUrl": "https://platform.minimaxi.com/user-center/basic-information",
     "models": [
       { "name": "MiniMax-M2.7", "label": "MiniMax M2.7" },
       { "name": "MiniMax-M2.7-highspeed", "label": "MiniMax M2.7 Highspeed" },
@@ -78,6 +81,7 @@
     "anthropicBaseUrl": "https://api.moonshot.cn/anthropic",
     "defaultLabel": "Kimi",
     "tag": ["open_code", "claude_code"],
+    "websiteUrl": "https://platform.kimi.com/console/account",
     "models": [
       { "name": "kimi-k2.6", "label": "Kimi K2.6" },
       { "name": "kimi-k2.5", "label": "Kimi K2.5" },
@@ -101,6 +105,7 @@
     "anthropicBaseUrl": "https://ark.cn-beijing.volces.com/api/compatible",
     "defaultLabel": "火山方舟",
     "tag": ["open_code", "claude_code"],
+    "websiteUrl": "https://console.volcengine.com/home",
     "models": [
       { "name": "doubao-seed-2-0-pro-260215", "label": "Doubao Seed 2.0 Pro" },
       { "name": "doubao-seed-2-0-lite-260215", "label": "Doubao Seed 2.0 Lite" },
@@ -119,6 +124,7 @@
     "baseUrl": "https://openrouter.ai/api/v1",
     "defaultLabel": "OpenRouter",
     "tag": ["any"],
+    "websiteUrl": "https://openrouter.ai/workspaces",
     "models": [
       { "name": "openai/gpt-5.2", "label": "GPT-5.2" },
       { "name": "anthropic/claude-sonnet-4", "label": "Claude Sonnet 4" },
@@ -136,6 +142,7 @@
     "anthropicBaseUrl": "https://tokenhub.tencentmaas.com",
     "defaultLabel": "腾讯云",
     "tag": ["open_code", "claude_code"],
+    "websiteUrl": "https://console.cloud.tencent.com/tokenhub",
     "models": [
       { "name": "hy3-preview", "label": "Hy3 preview" },
       { "name": "hunyuan-2.0-thinking-20251109", "label": "HY 2.0 Think" },
@@ -165,6 +172,7 @@
     "anthropicBaseUrl": "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic",
     "defaultLabel": "讯飞Coding Plan",
     "tag": ["open_code", "claude_code"],
+    "websiteUrl": "https://console.xfyun.cn/app",
     "models": [
       { "name": "astron-code-latest", "label": "Astron Code Latest" }
     ]
@@ -177,6 +185,7 @@
     "anthropicBaseUrl": "https://token-plan-cn.xiaomimimo.com/anthropic",
     "defaultLabel": "MiMo Token Plan",
     "tag": ["open_code", "claude_code"],
+    "websiteUrl": "https://platform.xiaomimimo.com/docs/zh-CN/welcome",
     "models": [
       { "name": "MiMo-V2.5-Pro", "label": "mimo-v2.5-pro" },
       { "name": "MiMo-V2.5", "label": "mimo-v2.5" }

@@ -765,6 +765,9 @@ function RuntimeStatusCard({
                   <div className="grid grid-cols-2 gap-2 mt-2.5 text-xs text-muted">
                     <div>策略: {pollerStrategyLabel(poller.strategy)}</div>
                     <div>游标: {poller.cursor}</div>
+                    {poller.cycle_requests > 0 && (
+                      <div>循环: {poller.served_in_current_slot} / {poller.cycle_requests}</div>
+                    )}
                     <div>
                       阈值 / 冷却: {poller.failure_threshold} /{" "}
                       {poller.cooldown_seconds}s

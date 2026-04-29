@@ -331,6 +331,9 @@ impl PollerRuntimeStore {
         failure_threshold: u32,
         cooldown_seconds: u64,
         probe_interval_seconds: u64,
+        cycle_requests: u32,
+        served_in_current_slot: u32,
+        current_slot_target_id: &str,
         target_configs: &[(String, String, u32)],
         selected_target: &str,
         selected_target_label: &str,
@@ -348,6 +351,7 @@ impl PollerRuntimeStore {
                 failure_threshold: failure_threshold.max(1),
                 cooldown_seconds: cooldown_seconds.max(1),
                 probe_interval_seconds: probe_interval_seconds.max(5),
+                cycle_requests,
                 ..PollerRuntimeState::default()
             });
 
@@ -357,6 +361,9 @@ impl PollerRuntimeStore {
         entry.failure_threshold = failure_threshold.max(1);
         entry.cooldown_seconds = cooldown_seconds.max(1);
         entry.probe_interval_seconds = probe_interval_seconds.max(5);
+        entry.cycle_requests = cycle_requests;
+        entry.served_in_current_slot = served_in_current_slot;
+        entry.current_slot_target_id = Some(current_slot_target_id.to_string());
         entry.total_selections = entry.total_selections.saturating_add(1);
         entry.last_selected_target = Some(selected_target.to_string());
         entry.last_selected_provider_id = Some(selected_provider_id.to_string());

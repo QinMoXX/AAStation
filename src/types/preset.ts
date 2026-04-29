@@ -24,6 +24,8 @@ export interface ProviderPreset {
   tag: NodeTag[];
   /** Available models for quick selection. */
   models: PresetModel[];
+  /** Official website URL for this provider (optional). */
+  websiteUrl?: string;
 }
 
 /** A model option within a preset. */

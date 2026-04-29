@@ -263,6 +263,12 @@ pub struct PollerRuntimeState {
     pub failure_threshold: u32,
     pub cooldown_seconds: u64,
     pub probe_interval_seconds: u64,
+    #[serde(default)]
+    pub cycle_requests: u32,
+    #[serde(default)]
+    pub served_in_current_slot: u32,
+    #[serde(default)]
+    pub current_slot_target_id: Option<String>,
     pub total_selections: u64,
     pub last_selected_target: Option<String>,
     pub last_selected_provider_id: Option<String>,

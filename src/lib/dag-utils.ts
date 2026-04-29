@@ -218,6 +218,7 @@ function nodeDataToFrontend(
         failureThreshold: (camelData.failureThreshold as number | undefined) ?? 3,
         cooldownSeconds: (camelData.cooldownSeconds as number | undefined) ?? 30,
         probeIntervalSeconds: (camelData.probeIntervalSeconds as number | undefined) ?? 20,
+        cycleRequests: (camelData.cycleRequests as number | undefined) ?? 10,
         description: camelData.description as string | undefined,
       } as PollerNodeData;
     }

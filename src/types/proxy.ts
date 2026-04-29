@@ -140,6 +140,9 @@ export interface PollerRuntimeState {
   failure_threshold: number;
   cooldown_seconds: number;
   probe_interval_seconds: number;
+  cycle_requests: number;
+  served_in_current_slot: number;
+  current_slot_target_id: string | null;
   total_selections: number;
   last_selected_target: string | null;
   last_selected_provider_id: string | null;

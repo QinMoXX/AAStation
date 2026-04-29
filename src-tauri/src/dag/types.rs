@@ -273,6 +273,8 @@ pub struct PollerNodeData {
     pub cooldown_seconds: u64,
     #[serde(default = "default_probe_interval_seconds")]
     pub probe_interval_seconds: u64,
+    #[serde(default = "default_cycle_requests")]
+    pub cycle_requests: u32,
 }
 
 fn default_failure_threshold() -> u32 {
@@ -287,6 +289,10 @@ fn default_probe_interval_seconds() -> u64 {
     20
 }
 
+fn default_cycle_requests() -> u32 {
+    10
+}
+
 impl Default for PollerNodeData {
     fn default() -> Self {
         Self {
@@ -298,6 +304,7 @@ impl Default for PollerNodeData {
             failure_threshold: default_failure_threshold(),
             cooldown_seconds: default_cooldown_seconds(),
             probe_interval_seconds: default_probe_interval_seconds(),
+            cycle_requests: default_cycle_requests(),
         }
     }
 }

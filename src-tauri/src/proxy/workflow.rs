@@ -91,6 +91,8 @@ pub struct WorkflowPollerNode {
     pub cooldown_seconds: u64,
     #[serde(default = "default_probe_interval_seconds")]
     pub probe_interval_seconds: u64,
+    #[serde(default = "default_cycle_requests")]
+    pub cycle_requests: u32,
     #[serde(default)]
     pub targets: Vec<WorkflowPollerTarget>,
     #[serde(default)]
@@ -110,15 +112,22 @@ fn default_target_weight() -> u32 { 1 }
 fn default_failure_threshold() -> u32 { 3 }
 fn default_cooldown_seconds() -> u64 { 30 }
 fn default_probe_interval_seconds() -> u64 { 20 }
+fn default_cycle_requests() -> u32 { 10 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowProviderNode {
     pub route: CompiledRoute,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct PollerCursorState {
+    pub slot_index: usize,
+    pub served_count: u32,
+}
+
 pub struct WorkflowRuntime {
     pub metrics: MetricsStore,
-    pub poller_cursors: Arc<RwLock<HashMap<String, usize>>>,
+    pub poller_cursors: Arc<RwLock<HashMap<String, PollerCursorState>>>,
     pub provider_runtime: super::health::ProviderRuntimeStore,
     pub poller_runtime: super::health::PollerRuntimeStore,
 }
@@ -310,16 +319,16 @@ async fn execute_poller(
 
     let selected_next = match poller_node.strategy {
         PollerStrategy::RoundRobin => {
-            select_weighted(node_id, &candidates, &runtime.poller_cursors, peek_only).await
+            select_weighted(node_id, &candidates, &runtime.poller_cursors, poller_node.cycle_requests, peek_only).await
         }
         PollerStrategy::Weighted => {
-            select_weighted(node_id, &candidates, &runtime.poller_cursors, peek_only).await
+            select_weighted(node_id, &candidates, &runtime.poller_cursors, poller_node.cycle_requests, peek_only).await
         }
         PollerStrategy::NetworkStatus => {
             select_by_network_status(node_id, &candidates, runtime, poller_node, peek_only).await
         }
         PollerStrategy::TokenRemaining => {
-            select_by_token_remaining(node_id, &candidates, runtime, peek_only).await
+            select_by_token_remaining(node_id, &candidates, runtime, poller_node, peek_only).await
         }
     };
 
@@ -334,13 +343,13 @@ async fn execute_poller(
     .await?;
 
     if !peek_only {
-        let cursor = runtime
+        let cursor_state = runtime
             .poller_cursors
             .read()
             .await
             .get(node_id)
-            .copied()
-            .unwrap_or(0);
+            .cloned()
+            .unwrap_or_default();
         let target_configs: Vec<(String, String, u32)> = candidates
             .iter()
             .map(|(next_node_id, target_label, target_weight, _)| {
@@ -351,16 +360,30 @@ async fn execute_poller(
             .iter()
             .find(|(next_node_id, _, _, _)| next_node_id == &selected_next)
         {
+            // Find the actual target ID from the weighted slot for monitoring
+            let weighted: Vec<&(String, String, u32, CompiledRoute)> = candidates
+                .iter()
+                .flat_map(|c| std::iter::repeat_n(c, c.2.max(1) as usize))
+                .collect();
+            let current_slot_target_id = if !weighted.is_empty() {
+                weighted[cursor_state.slot_index % weighted.len()].0.clone()
+            } else {
+                selected_next.clone()
+            };
+
             runtime
             .poller_runtime
             .record_selection(
                 node_id,
                 &poller_node.label,
                 map_runtime_strategy(poller_node.strategy),
-                cursor,
+                cursor_state.slot_index,
                 poller_node.failure_threshold,
                 poller_node.cooldown_seconds,
                 poller_node.probe_interval_seconds,
+                poller_node.cycle_requests,
+                cursor_state.served_count,
+                &current_slot_target_id,
                 &target_configs,
                 &selected_next,
                 selected_target_label,
@@ -378,7 +401,8 @@ async fn execute_poller(
 async fn select_weighted(
     node_id: &str,
     candidates: &[(String, String, u32, CompiledRoute)],
-    cursors: &Arc<RwLock<HashMap<String, usize>>>,
+    cursors: &Arc<RwLock<HashMap<String, PollerCursorState>>>,
+    cycle_requests: u32,
     peek_only: bool,
 ) -> String {
     let weighted: Vec<&(String, String, u32, CompiledRoute)> = candidates
@@ -389,12 +413,26 @@ async fn select_weighted(
         return candidates[0].0.clone();
     }
 
+    let effective_cycle = cycle_requests.max(1);
+
     let next_index = {
         let mut state = cursors.write().await;
-        let cursor = state.entry(node_id.to_string()).or_insert(0);
-        let index = *cursor % weighted.len();
+        let cursor_state = state.entry(node_id.to_string()).or_default();
+        let total_slots = weighted.len();
+
+        // Reset if slot_index is out of bounds (candidate list changed)
+        if cursor_state.slot_index >= total_slots {
+            cursor_state.slot_index = 0;
+            cursor_state.served_count = 0;
+        }
+
+        let index = cursor_state.slot_index;
         if !peek_only {
-            *cursor = (index + 1) % weighted.len();
+            cursor_state.served_count += 1;
+            if cursor_state.served_count >= effective_cycle {
+                cursor_state.slot_index = (index + 1) % total_slots;
+                cursor_state.served_count = 0;
+            }
         }
         index
     };
@@ -458,13 +496,14 @@ async fn select_by_network_status(
         .filter(|(next_node_id, _, _, _)| filtered.contains(next_node_id))
         .cloned()
         .collect();
-    select_weighted(node_id, &rr_candidates, &runtime.poller_cursors, peek_only).await
+    select_weighted(node_id, &rr_candidates, &runtime.poller_cursors, poller_node.cycle_requests, peek_only).await
 }
 
 async fn select_by_token_remaining(
     node_id: &str,
     candidates: &[(String, String, u32, CompiledRoute)],
     runtime: &WorkflowRuntime,
+    poller_node: &WorkflowPollerNode,
     peek_only: bool,
 ) -> String {
     let mut best_remaining: Option<u64> = None;
@@ -498,7 +537,7 @@ async fn select_by_token_remaining(
         }
     }
 
-    select_weighted(node_id, &best, &runtime.poller_cursors, peek_only).await
+    select_weighted(node_id, &best, &runtime.poller_cursors, poller_node.cycle_requests, peek_only).await
 }
 
 fn map_runtime_strategy(strategy: PollerStrategy) -> PollerStrategyRuntime {
@@ -787,6 +826,7 @@ mod tests {
                         failure_threshold: 3,
                         cooldown_seconds: 30,
                         probe_interval_seconds: 20,
+                        cycle_requests: 1,
                         targets: vec![
                             WorkflowPollerTarget {
                                 id: "a".to_string(),
@@ -845,6 +885,7 @@ mod tests {
                         failure_threshold: 3,
                         cooldown_seconds: 30,
                         probe_interval_seconds: 20,
+                        cycle_requests: 10,
                         targets: vec![
                             WorkflowPollerTarget {
                                 id: "a".to_string(),
@@ -952,6 +993,7 @@ mod tests {
                         failure_threshold: 3,
                         cooldown_seconds: 30,
                         probe_interval_seconds: 20,
+                        cycle_requests: 10,
                         targets: vec![
                             WorkflowPollerTarget {
                                 id: "a".to_string(),
@@ -1037,6 +1079,7 @@ mod tests {
                         failure_threshold: 3,
                         cooldown_seconds: 30,
                         probe_interval_seconds: 20,
+                        cycle_requests: 1,
                         targets: vec![
                             WorkflowPollerTarget {
                                 id: "a".to_string(),
@@ -1092,6 +1135,7 @@ mod tests {
                         failure_threshold: 3,
                         cooldown_seconds: 30,
                         probe_interval_seconds: 20,
+                        cycle_requests: 1,
                         targets: vec![
                             WorkflowPollerTarget {
                                 id: "a".to_string(),
@@ -1160,6 +1204,7 @@ mod tests {
             failure_threshold: 3,
             cooldown_seconds: 1,
             probe_interval_seconds: 20,
+            cycle_requests: 10,
             targets: vec![],
             default_next: None,
         };

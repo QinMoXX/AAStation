@@ -392,3 +392,26 @@ export async function unconfigureCodexCli(): Promise<void> {
 export async function restoreCodexCliConfig(): Promise<void> {
   return invoke<void>('restore_codex_cli_config');
 }
+
+// ---------------------------------------------------------------------------
+// External URL opener
+// ---------------------------------------------------------------------------
+
+function isValidHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Open a URL in the system default browser via Tauri opener plugin.
+ * Silently returns on empty/invalid URLs; throws on runtime open failure.
+ */
+export async function openExternalUrl(url: string): Promise<void> {
+  if (!url || !isValidHttpUrl(url)) return;
+  const { openUrl } = await import('@tauri-apps/plugin-opener');
+  return openUrl(url);
+}
