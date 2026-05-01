@@ -107,33 +107,59 @@ pub fn remove_tool(tool_id: &str) -> Result<SkillsConfig, AppError> {
 
 // ---------- Directory copy helper ----------
 
-/// Recursively copy a directory tree using OS-native commands for reliability.
+/// Recursively copy a directory tree.
+///
+/// - **Windows**: `xcopy /E /I /Q /Y`
+/// - **macOS**: `cp -a`
+/// - **Linux**: `cp -a`
 fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), AppError> {
     fs::create_dir_all(to)?;
 
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     {
-        let output = process::Command::new("cmd")
-            .args([
-                "/c",
-                "xcopy",
-                &from.to_string_lossy(),
-                &format!("{}\\", to.to_string_lossy()),
-                "/E",
-                "/I",
-                "/Q",
-                "/Y",
-            ])
+        let from_arg = format!("\"{}\"", from.to_string_lossy().replace('/', "\\"));
+        let to_arg = format!("\"{}\\\"", to.to_string_lossy().replace('/', "\\"));
+        tracing::info!("[skills] Copying directory: xcopy {} {} /E /I /Q /Y", from_arg, to_arg);
+        let output = process::Command::new("xcopy")
+            .args([&from_arg, &to_arg, "/E", "/I", "/Q", "/Y"])
             .output()
             .map_err(|e| AppError::Skills(format!("Failed to run xcopy: {e}")))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AppError::Skills(format!("xcopy failed: {}", stderr.trim())));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let msg = if stderr.trim().is_empty() {
+                stdout.trim().to_string()
+            } else {
+                stderr.trim().to_string()
+            };
+            return Err(AppError::Skills(format!("xcopy failed: {}", msg)));
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     {
+        tracing::info!(
+            "[skills] Copying directory: cp -a \"{}\" \"{}\"",
+            from.display(),
+            to.display()
+        );
+        let output = process::Command::new("cp")
+            .args(["-a", &from.to_string_lossy(), &to.to_string_lossy()])
+            .output()
+            .map_err(|e| AppError::Skills(format!("Failed to run cp: {e}")))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AppError::Skills(format!("cp failed: {}", stderr.trim())));
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        tracing::info!(
+            "[skills] Copying directory: cp -a \"{}\" \"{}\"",
+            from.display(),
+            to.display()
+        );
         let output = process::Command::new("cp")
             .args(["-a", &from.to_string_lossy(), &to.to_string_lossy()])
             .output()

@@ -71,6 +71,7 @@ pub struct ExportContext {
 
 pub struct ExportFileSpec {
     pub archive_name: &'static str,
+    #[allow(dead_code)]
     pub kind: &'static str,
     pub loader: fn(&AppHandle, &ExportContext) -> Result<Vec<u8>, AppError>,
 }

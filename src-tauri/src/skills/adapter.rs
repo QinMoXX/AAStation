@@ -124,13 +124,19 @@ impl SkillAdapter {
 
 /// Create a filesystem link from `source` to `link_path`.
 ///
-/// On Windows, uses `mklink /J` (directory junction) which does not require
-/// elevated privileges or developer mode. On Unix, uses `std::os::unix::fs::symlink`.
+/// - **Windows**: `mklink /J` (directory junction, no elevation needed)
+/// - **macOS**: `ln -s` (symlink)
+/// - **Linux**: `ln -s` (symlink)
 pub fn create_link(source: &Path, link_path: &Path) -> Result<(), AppError> {
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     {
-        let source_str = source.to_string_lossy();
-        let link_str = link_path.to_string_lossy();
+        let source_str = source.to_string_lossy().replace('/', "\\");
+        let link_str = link_path.to_string_lossy().replace('/', "\\");
+        tracing::info!(
+            "[skills] Creating junction: mklink /J \"{}\" \"{}\"",
+            link_str,
+            source_str
+        );
         let output = process::Command::new("cmd")
             .args(["/c", "mklink", "/J", &link_str, &source_str])
             .output()
@@ -145,13 +151,32 @@ pub fn create_link(source: &Path, link_path: &Path) -> Result<(), AppError> {
                 stdout.trim()
             )));
         }
-        Ok(())
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     {
-        std::os::unix::fs::symlink(source, link_path)?;
-        Ok(())
+        tracing::info!(
+            "[skills] Creating symlink: ln -s \"{}\" \"{}\"",
+            source.display(),
+            link_path.display()
+        );
+        process::Command::new("ln")
+            .args(["-s", &source.to_string_lossy(), &link_path.to_string_lossy()])
+            .status()
+            .map_err(|e| AppError::Skills(format!("Failed to run ln: {e}")))?;
     }
+    #[cfg(target_os = "linux")]
+    {
+        tracing::info!(
+            "[skills] Creating symlink: ln -s \"{}\" \"{}\"",
+            source.display(),
+            link_path.display()
+        );
+        process::Command::new("ln")
+            .args(["-s", &source.to_string_lossy(), &link_path.to_string_lossy()])
+            .status()
+            .map_err(|e| AppError::Skills(format!("Failed to run ln: {e}")))?;
+    }
+    Ok(())
 }
 
 /// Check whether a path is a symlink (or junction on Windows).
