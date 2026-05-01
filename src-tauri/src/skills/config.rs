@@ -203,13 +203,16 @@ pub fn list_all_skills(config: &SkillsConfig) -> Result<Vec<SkillInfo>, AppError
             continue;
         }
         let name = entry.file_name().to_string_lossy().to_string();
-        let skill_md_path = entry.path().join("SKILL.md");
+        let skill_dir = entry.path();
+        let skill_md_path = skill_dir.join("SKILL.md");
         let (has_skill_md, description) = if skill_md_path.exists() {
             let content = fs::read_to_string(&skill_md_path).unwrap_or_default();
             let desc = extract_description_from_skill_md(&content);
             (true, desc)
         } else {
-            (false, String::new())
+            // No SKILL.md — try the first .md file in the directory
+            let desc = extract_description_from_any_md(&skill_dir);
+            (false, desc)
         };
 
         let enabled_in_tools = find_tools_with_skill(config, &name);
@@ -226,11 +229,33 @@ pub fn list_all_skills(config: &SkillsConfig) -> Result<Vec<SkillInfo>, AppError
     Ok(skills)
 }
 
-/// Extract the first paragraph after the heading from a SKILL.md file as a description.
+/// Extract the first meaningful paragraph from a SKILL.md file as a description.
+///
+/// Tries in order:
+/// 1. First non-empty line after a `# heading` (skipping YAML frontmatter)
+/// 2. First non-empty, non-heading line of the file
 fn extract_description_from_skill_md(content: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut in_frontmatter = false;
+    let mut frontmatter_done = false;
+
+    // Pass 1: look for the first non-empty line after a top-level heading
     let mut found_heading = false;
-    for line in content.lines() {
+    for &line in &lines {
         let trimmed = line.trim();
+
+        // Skip YAML frontmatter (--- ... ---)
+        if !frontmatter_done {
+            if trimmed == "---" {
+                in_frontmatter = !in_frontmatter;
+                continue;
+            }
+            if in_frontmatter {
+                continue;
+            }
+            frontmatter_done = true;
+        }
+
         if !found_heading {
             if trimmed.starts_with("# ") {
                 found_heading = true;
@@ -240,8 +265,49 @@ fn extract_description_from_skill_md(content: &str) -> String {
         if trimmed.is_empty() {
             continue;
         }
-        // First non-empty line after heading is the description
         return trimmed.to_string();
+    }
+
+    // Pass 2: no heading found — use the first non-empty, non-heading line
+    in_frontmatter = false;
+    frontmatter_done = false;
+    for &line in &lines {
+        let trimmed = line.trim();
+
+        if !frontmatter_done {
+            if trimmed == "---" {
+                in_frontmatter = !in_frontmatter;
+                continue;
+            }
+            if in_frontmatter {
+                continue;
+            }
+            frontmatter_done = true;
+        }
+
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        return trimmed.to_string();
+    }
+
+    String::new()
+}
+
+/// Try to extract a description from the first `.md` file found in a skill directory.
+fn extract_description_from_any_md(dir: &Path) -> String {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return String::new();
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            let content = fs::read_to_string(&path).unwrap_or_default();
+            let desc = extract_description_from_skill_md(&content);
+            if !desc.is_empty() {
+                return desc;
+            }
+        }
     }
     String::new()
 }

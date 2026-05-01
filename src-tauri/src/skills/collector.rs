@@ -1,10 +1,11 @@
 use std::path::Path;
-use std::{fs, process};
+use std::fs;
 
 use serde::Serialize;
 
 use crate::error::AppError;
-use crate::skills::config::{expand_tilde, load_or_init_config, save_config, SkillsConfig, ToolConfig};
+use crate::skills::adapter::{is_link, SkillAdapter};
+use crate::skills::config::{expand_tilde, load_or_init_config, save_config, skills_dir, SkillsConfig, ToolConfig};
 
 /// Result of scanning a single tool's skills directory.
 #[derive(Debug, Clone, Serialize)]
@@ -22,26 +23,28 @@ pub struct ToolScanResult {
 /// Scan all configured tools' skills directories and collect them into
 /// `~/.aastation/skills/`.
 ///
-/// Returns scan results for each tool. Skills that already exist in the
-/// central directory are not overwritten; only new skills are copied.
+/// Each discovered skill is **moved** (not copied) to the central directory,
+/// then a symlink/junction is created from the original location back to
+/// central so the tool continues to work. The skill is also marked as
+/// enabled for the source tool in the config.
 pub fn collect_skills() -> Result<(SkillsConfig, Vec<ToolScanResult>), AppError> {
-    let config = load_or_init_config()?;
-    let central_skills = crate::skills::config::skills_dir()?;
-    fs::create_dir_all(&central_skills)?;
+    let mut config = load_or_init_config()?;
+    let central = skills_dir()?;
+    fs::create_dir_all(&central)?;
 
     let mut results = Vec::new();
-
-    // Clone tool keys to avoid borrowing `config` while iterating.
     let tool_ids: Vec<String> = config.tools.keys().cloned().collect();
 
     for tool_id in &tool_ids {
-        let tool_config = &config.tools[tool_id];
-        let tool_skills_dir = expand_tilde(&tool_config.skills_path);
+        let (tool_name, tool_skills_dir) = {
+            let tc = &config.tools[tool_id];
+            (tc.name.clone(), expand_tilde(&tc.skills_path))
+        };
 
         if !tool_skills_dir.exists() {
             results.push(ToolScanResult {
                 tool_id: tool_id.clone(),
-                tool_name: tool_config.name.clone(),
+                tool_name,
                 skills_found: 0,
                 skill_names: Vec::new(),
                 status: "not_found".to_string(),
@@ -49,17 +52,47 @@ pub fn collect_skills() -> Result<(SkillsConfig, Vec<ToolScanResult>), AppError>
             continue;
         }
 
+        let adapter = SkillAdapter::from_config(tool_id, &config.tools[tool_id]);
         let mut skill_names = Vec::new();
+
         for entry in fs::read_dir(&tool_skills_dir)? {
             let entry = entry?;
             if !entry.file_type()?.is_dir() {
                 continue;
             }
             let name = entry.file_name().to_string_lossy().to_string();
-            let dest = central_skills.join(&name);
-            if !dest.exists() {
-                copy_dir_recursive(&entry.path(), &dest)?;
+            let src = entry.path();
+
+            // Already a link to central — already collected previously
+            if is_link(&src) {
+                skill_names.push(name);
+                continue;
             }
+
+            let dest = central.join(&name);
+
+            if dest.exists() {
+                // Central already has a skill with this name — skip, leave as-is
+                tracing::warn!(
+                    "[skills] Skill '{}' already exists in central directory, skipping move",
+                    name
+                );
+                skill_names.push(name);
+                continue;
+            }
+
+            // Move skill directory to central
+            move_dir(&src, &dest)?;
+
+            // Create link from tool's dir back to central
+            adapter.enable_skill(&name)?;
+
+            // Mark skill as enabled in config
+            let cfg_entry = config.tools.get_mut(tool_id).unwrap();
+            if !cfg_entry.enabled_skills.contains(&name) {
+                cfg_entry.enabled_skills.push(name.clone());
+            }
+
             skill_names.push(name);
         }
 
@@ -67,13 +100,15 @@ pub fn collect_skills() -> Result<(SkillsConfig, Vec<ToolScanResult>), AppError>
         let count = skill_names.len();
         results.push(ToolScanResult {
             tool_id: tool_id.clone(),
-            tool_name: tool_config.name.clone(),
+            tool_name,
             skills_found: count,
             skill_names,
             status: "found".to_string(),
         });
     }
 
+    // Persist updated config (new enabled_skills entries)
+    save_config(&config)?;
     Ok((config, results))
 }
 
@@ -105,71 +140,32 @@ pub fn remove_tool(tool_id: &str) -> Result<SkillsConfig, AppError> {
     Ok(config)
 }
 
-// ---------- Directory copy helper ----------
+// ---------- Directory move/copy helpers ----------
 
-/// Recursively copy a directory tree.
-///
-/// - **Windows**: `xcopy /E /I /Q /Y`
-/// - **macOS**: `cp -a`
-/// - **Linux**: `cp -a`
+/// Move a directory. Tries `fs::rename` first (fast, same filesystem);
+/// falls back to copy-then-delete for cross-device moves.
+fn move_dir(from: &Path, to: &Path) -> Result<(), AppError> {
+    if fs::rename(from, to).is_ok() {
+        return Ok(());
+    }
+    // Cross-device: copy then remove source
+    copy_dir_recursive(from, to)?;
+    fs::remove_dir_all(from)?;
+    Ok(())
+}
+
+/// Recursively copy a directory tree using native Rust I/O.
 fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), AppError> {
     fs::create_dir_all(to)?;
-
-    #[cfg(target_os = "windows")]
-    {
-        let from_arg = format!("\"{}\"", from.to_string_lossy().replace('/', "\\"));
-        let to_arg = format!("\"{}\\\"", to.to_string_lossy().replace('/', "\\"));
-        tracing::info!("[skills] Copying directory: xcopy {} {} /E /I /Q /Y", from_arg, to_arg);
-        let output = process::Command::new("xcopy")
-            .args([&from_arg, &to_arg, "/E", "/I", "/Q", "/Y"])
-            .output()
-            .map_err(|e| AppError::Skills(format!("Failed to run xcopy: {e}")))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let msg = if stderr.trim().is_empty() {
-                stdout.trim().to_string()
-            } else {
-                stderr.trim().to_string()
-            };
-            return Err(AppError::Skills(format!("xcopy failed: {}", msg)));
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let src = entry.path();
+        let dst = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_recursive(&src, &dst)?;
+        } else {
+            fs::copy(&src, &dst)?;
         }
     }
-    #[cfg(target_os = "macos")]
-    {
-        tracing::info!(
-            "[skills] Copying directory: cp -a \"{}\" \"{}\"",
-            from.display(),
-            to.display()
-        );
-        let output = process::Command::new("cp")
-            .args(["-a", &from.to_string_lossy(), &to.to_string_lossy()])
-            .output()
-            .map_err(|e| AppError::Skills(format!("Failed to run cp: {e}")))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AppError::Skills(format!("cp failed: {}", stderr.trim())));
-        }
-    }
-    #[cfg(target_os = "linux")]
-    {
-        tracing::info!(
-            "[skills] Copying directory: cp -a \"{}\" \"{}\"",
-            from.display(),
-            to.display()
-        );
-        let output = process::Command::new("cp")
-            .args(["-a", &from.to_string_lossy(), &to.to_string_lossy()])
-            .output()
-            .map_err(|e| AppError::Skills(format!("Failed to run cp: {e}")))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AppError::Skills(format!("cp failed: {}", stderr.trim())));
-        }
-    }
-
     Ok(())
 }

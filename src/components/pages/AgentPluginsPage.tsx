@@ -219,20 +219,13 @@ export default function AgentPluginsPage() {
                     key={skill.name}
                     className="rounded-xl border border-border bg-surface/55 p-3.5"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">{skill.name}</span>
-                          {skill.hasSkillMd && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                              SKILL.md
-                            </Badge>
-                          )}
-                        </div>
-                        {skill.description && (
-                          <p className="text-xs text-muted mt-1 leading-relaxed line-clamp-2">
-                            {skill.description}
-                          </p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-semibold text-foreground">{skill.name}</span>
+                        {skill.hasSkillMd && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            SKILL.md
+                          </Badge>
                         )}
                       </div>
                       <div className="flex gap-1.5 flex-wrap shrink-0">
@@ -262,6 +255,11 @@ export default function AgentPluginsPage() {
                         })}
                       </div>
                     </div>
+                    {skill.description && (
+                      <p className="text-xs text-muted mt-1 truncate">
+                        {skill.description}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
