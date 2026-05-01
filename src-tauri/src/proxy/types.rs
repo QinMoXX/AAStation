@@ -305,6 +305,11 @@ impl Default for ProxyConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyStatus {
     pub running: bool,
+    /// True when the proxy has received a graceful stop signal and is
+    /// waiting for in-flight requests to drain.  `running` is still true
+    /// during this phase so the UI can distinguish "stopping" from "stopped".
+    #[serde(default)]
+    pub stopping: bool,
     /// The first (primary) port. For full list, use `listen_ports`.
     pub port: u16,
     /// All ports currently being listened on.
@@ -321,6 +326,7 @@ impl Default for ProxyStatus {
     fn default() -> Self {
         Self {
             running: false,
+            stopping: false,
             port: 0,
             listen_ports: Vec::new(),
             published_at: None,

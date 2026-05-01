@@ -6,6 +6,7 @@ const POLL_INTERVAL_MS = 2000;
 
 const DEFAULT_STATUS: ProxyStatus = {
   running: false,
+  stopping: false,
   port: 0,
   listen_ports: [],
   published_at: null,

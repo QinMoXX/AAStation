@@ -34,9 +34,11 @@ export default function StopProxyConfirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[460px] border-border bg-card/95 shadow-[var(--color-shadow-strong)]">
         <DialogHeader>
-          <DialogTitle>当前有请求等待结束...</DialogTitle>
+          <DialogTitle>代理正在等待请求结束...</DialogTitle>
           <DialogDescription className="leading-relaxed">
-            当前仍有 {activeRequests} 个请求正在通过代理处理，可能包含长连接或 SSE 流式响应。
+            {activeRequests > 0
+              ? `当前仍有 ${activeRequests} 个请求正在通过代理处理，可能包含长连接或 SSE 流式响应。`
+              : '代理正在等待所有请求处理完成，可能包含长连接或 SSE 流式响应。'}
           </DialogDescription>
         </DialogHeader>
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { exit } from '@tauri-apps/plugin-process';
 import { getProxyStatus, stopProxy } from '@/lib/tauri-api';
@@ -20,6 +20,26 @@ export default function StopProxyDialogController() {
   const openStopProxyDialog = useAppStore((s) => s.openStopProxyDialog);
   const closeStopProxyDialog = useAppStore((s) => s.closeStopProxyDialog);
   const [forcing, setForcing] = useState(false);
+
+  // Track whether the auto-open has been triggered for the current
+  // stopping session so we don't re-open the dialog on every poll tick.
+  const stoppingDialogShown = useRef(false);
+
+  // Auto-open the force-close dialog when the backend enters the
+  // "stopping" (draining) state and the dialog is not already open.
+  useEffect(() => {
+    if (proxyStatus.stopping && !stopProxyDialog.open && !stoppingDialogShown.current) {
+      stoppingDialogShown.current = true;
+      openStopProxyDialog({
+        activeRequests: proxyStatus.active_requests,
+        intent: 'stop',
+      });
+    }
+    // Reset the ref when the proxy is no longer stopping
+    if (!proxyStatus.stopping) {
+      stoppingDialogShown.current = false;
+    }
+  }, [proxyStatus.stopping, proxyStatus.active_requests, stopProxyDialog.open, openStopProxyDialog]);
 
   useEffect(() => {
     let disposed = false;

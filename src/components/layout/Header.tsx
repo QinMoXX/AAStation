@@ -36,6 +36,14 @@ export default function Header() {
     setError(null);
 
     if (proxyStatus.running) {
+      // If already in the stopping (draining) phase, re-open the force-close dialog
+      if (proxyStatus.stopping) {
+        openStopProxyDialog({
+          activeRequests: proxyStatus.active_requests,
+          intent: 'stop',
+        });
+        return;
+      }
       setToggling(true);
       try {
         const currentStatus = await getProxyStatus();
@@ -152,16 +160,16 @@ export default function Header() {
           variant={proxyStatus.running ? 'danger' : 'secondary'}
           size="sm"
           onClick={handleToggleProxy}
-          disabled={toggling}
+          disabled={toggling && !proxyStatus.stopping}
           className="gap-1.5"
         >
           <Circle
             className={cn(
               "w-2 h-2 fill-current",
-              proxyStatus.running ? "text-green-400" : "text-muted-foreground"
+              proxyStatus.stopping ? "text-yellow-400" : proxyStatus.running ? "text-green-400" : "text-muted-foreground"
             )}
           />
-          {toggling ? '处理中...' : proxyStatus.running ? '关闭代理' : '开启代理'}
+          {toggling ? '处理中...' : proxyStatus.stopping ? '等待结束...' : proxyStatus.running ? '关闭代理' : '开启代理'}
         </Button>
         <Button
           variant="accent"

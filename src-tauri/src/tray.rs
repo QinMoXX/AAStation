@@ -124,9 +124,10 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
                             return;
                         }
 
-                        // Stop proxy before exiting to release bound ports
+                        // Force-stop proxy before exiting to release bound ports
+                        // immediately (graceful stop may hang on long-lived streams).
                         if running {
-                            let _ = state.proxy.read().await.stop(false).await;
+                            let _ = state.proxy.read().await.stop(true).await;
                         }
                     }
 

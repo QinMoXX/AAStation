@@ -40,6 +40,14 @@ export default function SidebarNav() {
   const handleToggleProxy = useCallback(async () => {
     if (toggling) return;
     if (proxyStatus.running) {
+      // If already in the stopping (draining) phase, re-open the force-close dialog
+      if (proxyStatus.stopping) {
+        openStopProxyDialog({
+          activeRequests: proxyStatus.active_requests,
+          intent: 'stop',
+        });
+        return;
+      }
       setToggling(true);
       try {
         const currentStatus = await getProxyStatus();
@@ -155,13 +163,13 @@ export default function SidebarNav() {
               type="button"
               className="h-11 w-11 flex items-center justify-center rounded-[14px] border border-border/70 bg-card/35 text-muted transition-all duration-200 cursor-pointer hover:border-border hover:bg-surface hover:text-foreground disabled:opacity-36 disabled:cursor-not-allowed"
               onClick={handleToggleProxy}
-              disabled={toggling}
+              disabled={toggling && !proxyStatus.stopping}
               style={{ color: proxyStatus.running ? 'var(--color-success)' : 'var(--color-muted)' }}
             >
               <Power size={20} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">{toggling ? '处理中...' : proxyStatus.running ? '关闭代理' : '开启代理'}</TooltipContent>
+          <TooltipContent side="right">{toggling ? '处理中...' : proxyStatus.stopping ? '等待结束...' : proxyStatus.running ? '关闭代理' : '开启代理'}</TooltipContent>
         </Tooltip>
 
       </nav>

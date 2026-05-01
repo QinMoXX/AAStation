@@ -1,6 +1,8 @@
 /** Runtime status of the proxy server. */
 export interface ProxyStatus {
   running: boolean;
+  /** True when graceful stop is in progress, waiting for in-flight requests to drain. */
+  stopping: boolean;
   /** The first (primary) port. For full list, use `listen_ports`. */
   port: number;
   /** All ports currently being listened on. */

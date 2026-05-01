@@ -196,50 +196,133 @@ impl ProxyServer {
     }
 
     /// Stop all proxy listeners gracefully, or abort long-lived streams when forced.
+    ///
+    /// **Graceful stop** (`force = false`): sets `stopping = true`, sends the
+    /// graceful-shutdown signal to every axum listener (so they stop accepting
+    /// new connections), and returns immediately.  The actual cleanup (waiting
+    /// for in-flight requests, clearing listeners, resetting status) is
+    /// performed lazily inside `get_status()` once all server tasks finish.
+    ///
+    /// **Force stop** (`force = true`): aborts every server task immediately,
+    /// cleans up, and resets status before returning.
     pub async fn stop(&self, force: bool) -> Result<(), ProxyError> {
-        if !self.is_running().await {
-            return Err(ProxyError::NotRunning);
+        {
+            let status = self.state.status.read().await;
+            if !status.running {
+                return Err(ProxyError::NotRunning);
+            }
         }
 
+        if force {
+            self.force_stop().await;
+        } else {
+            // Idempotent: if already stopping, just return
+            {
+                let status = self.state.status.read().await;
+                if status.stopping {
+                    return Ok(());
+                }
+            }
+
+            // Mark as stopping so the UI can show the force-close dialog
+            self.state.status.write().await.stopping = true;
+
+            // Send graceful-shutdown signals (stops accepting new connections)
+            let mut listeners = self.state.listeners.write().await;
+            for listener in listeners.values_mut() {
+                if let Some(tx) = listener.shutdown_tx.take() {
+                    let _ = tx.send(());
+                }
+            }
+            // Do NOT await server handles — return immediately so the Tauri
+            // command is not blocked.  Cleanup happens in finish_graceful_stop()
+            // which is called from get_status().
+        }
+
+        Ok(())
+    }
+
+    /// Force-abort all running tasks and reset state immediately.
+    async fn force_stop(&self) {
         let mut listeners = self.state.listeners.write().await;
 
-        // Send shutdown signals and wait for all servers
-        for (_, listener) in listeners.iter_mut() {
+        for listener in listeners.values_mut() {
             if let Some(tx) = listener.shutdown_tx.take() {
                 let _ = tx.send(());
             }
-        }
-
-        for (_, listener) in listeners.iter_mut() {
             if let Some(handle) = listener.server_handle.take() {
-                if force {
-                    handle.abort();
-                }
+                handle.abort();
                 let _ = handle.await;
             }
         }
-
         listeners.clear();
 
         if let Some(tx) = self.state.health_probe_shutdown.write().await.take() {
             let _ = tx.send(());
         }
         if let Some(handle) = self.state.health_probe_handle.write().await.take() {
-            if force {
-                handle.abort();
-            }
+            handle.abort();
             let _ = handle.await;
         }
 
-        // Reset status
         let mut status = self.state.status.write().await;
         status.running = false;
+        status.stopping = false;
         status.port = 0;
         drop(status);
 
         *self.state.start_time.write().await = None;
+    }
 
-        Ok(())
+    /// Called from `get_status()`: if the proxy is in the `stopping` state and
+    /// all server tasks have finished, perform the final cleanup.
+    async fn try_finish_graceful_stop(&self) {
+        let stopping = {
+            let status = self.state.status.read().await;
+            status.stopping
+        };
+        if !stopping {
+            return;
+        }
+
+        let all_finished = {
+            let listeners = self.state.listeners.read().await;
+            listeners.values().all(|l| {
+                l.server_handle
+                    .as_ref()
+                    .map(|h| h.is_finished())
+                    .unwrap_or(true)
+            })
+        };
+
+        if !all_finished {
+            return;
+        }
+
+        // All server tasks are done — perform final cleanup
+        let mut listeners = self.state.listeners.write().await;
+        for listener in listeners.values_mut() {
+            if let Some(handle) = listener.server_handle.take() {
+                let _ = handle.await;
+            }
+        }
+        listeners.clear();
+        drop(listeners);
+
+        if let Some(tx) = self.state.health_probe_shutdown.write().await.take() {
+            let _ = tx.send(());
+        }
+        if let Some(handle) = self.state.health_probe_handle.write().await.take() {
+            let _ = handle.await;
+        }
+
+        let mut status = self.state.status.write().await;
+        status.running = false;
+        status.stopping = false;
+        status.port = 0;
+        drop(status);
+
+        *self.state.start_time.write().await = None;
     }
 
     /// Hot-reload the route table set: atomic swap for each port, in-flight requests are not interrupted.
@@ -329,6 +412,10 @@ impl ProxyServer {
 
     /// Get a snapshot of the current proxy status.
     pub async fn get_status(&self) -> ProxyStatus {
+        // Lazy cleanup: if we're in graceful-stop mode and all server tasks
+        // have finished, perform the final cleanup now.
+        self.try_finish_graceful_stop().await;
+
         let status = self.state.status.read().await;
         let uptime = if let Some(start) = *self.state.start_time.read().await {
             start.elapsed().as_secs()
@@ -348,6 +435,7 @@ impl ProxyServer {
 
         ProxyStatus {
             running: status.running,
+            stopping: status.stopping,
             port: status.port,
             listen_ports: self.listen_ports().await,
             published_at: status.published_at.clone(),
