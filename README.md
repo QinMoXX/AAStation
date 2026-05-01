@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://github.com/QinMoXX/AAStation/releases">
-    <img src="https://img.shields.io/badge/version-0.7.6-blue" alt="Version" />
+    <img src="https://img.shields.io/badge/version-0.7.7-blue" alt="Version" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows-green" alt="Platform" />
   <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License" />
