@@ -7,12 +7,13 @@ import { dismissAppConfigGuide, hasApplicationNodes, shouldShowAppConfigGuide } 
 import { toast } from '../../store/toast-store';
 import AppConfigGuideDialog from '../common/AppConfigGuideDialog';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Home, Activity, Settings, Power, Upload } from 'lucide-react';
+import { Home, Activity, Settings, Power, Upload, Puzzle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems: { id: NavTab; icon: typeof Home; label: string }[] = [
   { id: 'home', icon: Home, label: '主页' },
   { id: 'monitor', icon: Activity, label: '监控' },
+  { id: 'plugins', icon: Puzzle, label: '插件管理' },
   { id: 'settings', icon: Settings, label: '设置' },
 ];
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /** 一级导航项 */
-export type NavTab = 'home' | 'monitor' | 'settings';
+export type NavTab = 'home' | 'monitor' | 'plugins' | 'settings';
 
 /** 二级导航项（仅主页使用） */
 export type HomeSubTab = 'provider' | 'middleware' | 'application';
