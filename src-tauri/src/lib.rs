@@ -10,6 +10,7 @@ mod logger;
 mod opencode_config;
 mod proxy;
 mod settings;
+mod skills;
 mod startup;
 mod store;
 mod tray;
@@ -97,6 +98,15 @@ pub fn run() {
             commands::app_commands::restore_codex_cli_config,
             commands::config_commands::export_config_archive,
             commands::config_commands::import_config_archive,
+            commands::skills_commands::collect_skills,
+            commands::skills_commands::get_skills_tool_config,
+            commands::skills_commands::list_skills,
+            commands::skills_commands::enable_skill,
+            commands::skills_commands::disable_skill,
+            commands::skills_commands::enable_all_skills,
+            commands::skills_commands::disable_all_skills,
+            commands::skills_commands::add_skills_tool,
+            commands::skills_commands::remove_skills_tool,
         ])
         .setup(move |app| {
             // Setup system tray

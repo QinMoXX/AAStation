@@ -12,7 +12,9 @@
       "Bash(cargo search *)",
       "Bash(mkdir -p /d/Project/AAStation/.claude/skills)",
       "Bash(mv .agents/skills/create-readme /d/Project/AAStation/.claude/skills/)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(crate::error::AppError)",
+      "Bash(grep -B 5 \"unused import: `crate::error::AppError`\")"
     ]
   }
 }

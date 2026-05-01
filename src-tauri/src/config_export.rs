@@ -10,6 +10,7 @@ use tauri::AppHandle;
 use zip::write::SimpleFileOptions;
 
 use crate::error::AppError;
+use crate::skills::config::SKILLS_DIR_NAME;
 
 pub const EXPORT_ARCHIVE_NAME: &str = "AAStationConfig.zip";
 
@@ -21,6 +22,7 @@ const MANIFEST_FILE: &str = "manifest.json";
 const MANIFEST_KIND: &str = "manifest";
 const SETTINGS_FILE: &str = "settings.json";
 const PIPELINE_FILE: &str = "pipeline.json";
+const SKILLS_CONFIG_FILE: &str = "skills_config.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigExportManifest {
@@ -92,7 +94,11 @@ pub fn export_config_archive(
 
     let file_specs = export_file_specs();
     let mut artifacts = build_export_artifacts(app, &context, &file_specs)?;
-    let manifest = build_manifest(app, &context, &file_specs);
+
+    // Collect skills directory files into artifacts (for hash computation).
+    collect_skills_dir_artifacts(&mut artifacts)?;
+
+    let manifest = build_manifest(app, &context, &artifacts);
     artifacts.push(ExportArtifact {
         archive_name: MANIFEST_FILE.to_string(),
         bytes: serde_json::to_vec_pretty(&manifest)?,
@@ -122,7 +128,7 @@ pub fn export_config_archive(
 fn build_manifest(
     app: &AppHandle,
     context: &ExportContext,
-    file_specs: &[ExportFileSpec],
+    artifacts: &[ExportArtifact],
 ) -> ConfigExportManifest {
     let package_info = app.package_info();
 
@@ -137,11 +143,26 @@ fn build_manifest(
         export_options: ManifestExportOptions {
             include_sensitive_values: context.include_sensitive_values,
         },
-        files: file_specs
+        files: artifacts
             .iter()
-            .map(|spec| ManifestFileRecord {
-                name: spec.archive_name.to_string(),
-                kind: spec.kind.to_string(),
+            .map(|a| {
+                let kind = if a.archive_name.starts_with(&format!("{SKILLS_DIR_NAME}/")) {
+                    "skill_file"
+                } else if a.archive_name == SKILLS_CONFIG_FILE {
+                    "skills_config"
+                } else {
+                    // Infer kind from archive_name for legacy file specs.
+                    match a.archive_name.as_str() {
+                        "metrics.json" => "proxy_metrics",
+                        "pipeline.json" => "pipeline",
+                        "settings.json" => "settings",
+                        _ => "unknown",
+                    }
+                };
+                ManifestFileRecord {
+                    name: a.archive_name.clone(),
+                    kind: kind.to_string(),
+                }
             })
             .chain([
                 ManifestFileRecord {
@@ -190,6 +211,11 @@ fn export_file_specs() -> Vec<ExportFileSpec> {
             kind: "settings",
             loader: load_settings_bytes,
         },
+        ExportFileSpec {
+            archive_name: SKILLS_CONFIG_FILE,
+            kind: "skills_config",
+            loader: load_skills_config_bytes,
+        },
     ]
 }
 
@@ -208,6 +234,60 @@ fn load_pipeline_bytes(_app: &AppHandle, context: &ExportContext) -> Result<Vec<
 fn load_settings_bytes(_app: &AppHandle, _context: &ExportContext) -> Result<Vec<u8>, AppError> {
     let value = read_json_from_app_dir(SETTINGS_FILE)?.unwrap_or_else(default_settings_json);
     Ok(serde_json::to_vec_pretty(&value)?)
+}
+
+fn load_skills_config_bytes(_app: &AppHandle, _ctx: &ExportContext) -> Result<Vec<u8>, AppError> {
+    let config = crate::skills::config::load_skills_config_json()?;
+    Ok(serde_json::to_vec_pretty(&config)?)
+}
+
+/// Walk `~/.aastation/skills/` and collect each file into `artifacts`
+/// for hash computation. Files will be written to the ZIP in the main loop.
+fn collect_skills_dir_artifacts(
+    artifacts: &mut Vec<ExportArtifact>,
+) -> Result<(), AppError> {
+    let skills_dir = app_dir_path()?.join(SKILLS_DIR_NAME);
+    if !skills_dir.exists() {
+        return Ok(());
+    }
+
+    fn walk(
+        dir: &Path,
+        base: &Path,
+        artifacts: &mut Vec<ExportArtifact>,
+    ) -> Result<(), AppError> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let rel = path
+                .strip_prefix(base)
+                .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Path computation failed: {e}"))))?;
+
+            // Use forward slashes for cross-platform compatibility
+            let archive_name = format!(
+                "{SKILLS_DIR_NAME}/{}",
+                rel.to_string_lossy().replace('\\', "/")
+            );
+
+            if path.is_dir() {
+                // Directory marker — empty bytes, but included so the hash covers the structure.
+                artifacts.push(ExportArtifact {
+                    archive_name,
+                    bytes: Vec::new(),
+                });
+                walk(&path, base, artifacts)?;
+            } else {
+                let content = fs::read(&path)?;
+                artifacts.push(ExportArtifact {
+                    archive_name,
+                    bytes: content,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    walk(&skills_dir, &skills_dir, artifacts)
 }
 
 fn build_hash_file_bytes(artifacts: &[ExportArtifact]) -> Vec<u8> {

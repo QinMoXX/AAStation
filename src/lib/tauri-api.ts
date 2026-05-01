@@ -47,6 +47,79 @@ export interface ImportConfigArchiveResult {
 }
 
 // ---------------------------------------------------------------------------
+// Skills management commands
+// ---------------------------------------------------------------------------
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  hasSkillMd: boolean;
+  enabledInTools: string[];
+}
+
+export interface ToolScanResult {
+  tool_id: string;
+  tool_name: string;
+  skills_found: number;
+  skill_names: string[];
+  status: string;
+}
+
+export interface CollectSkillsResult {
+  tools: ToolScanResult[];
+  skills: SkillInfo[];
+}
+
+/** Scan all configured tools' skills directories and collect them into the central skills directory. */
+export async function collectSkills(): Promise<CollectSkillsResult> {
+  return invoke<CollectSkillsResult>('collect_skills');
+}
+
+/** Return the tools field from skills_config.json. */
+export async function getSkillsToolConfig(): Promise<Record<string, unknown>> {
+  return invoke<Record<string, unknown>>('get_skills_tool_config');
+}
+
+/** List all skills in the central directory with per-tool enabled status. */
+export async function listSkills(): Promise<SkillInfo[]> {
+  return invoke<SkillInfo[]>('list_skills');
+}
+
+/** Enable a skill for a specific tool. */
+export async function enableSkill(skillName: string, tool: string): Promise<void> {
+  return invoke<void>('enable_skill', { skillName, tool });
+}
+
+/** Disable a skill for a specific tool. */
+export async function disableSkill(skillName: string, tool: string): Promise<void> {
+  return invoke<void>('disable_skill', { skillName, tool });
+}
+
+/** Enable all skills for a specific tool. */
+export async function enableAllSkills(tool: string): Promise<void> {
+  return invoke<void>('enable_all_skills', { tool });
+}
+
+/** Disable all skills for a specific tool. */
+export async function disableAllSkills(tool: string): Promise<void> {
+  return invoke<void>('disable_all_skills', { tool });
+}
+
+/** Add a custom tool entry to skills_config.json. */
+export async function addSkillsTool(
+  toolId: string,
+  name: string,
+  skillsPath: string,
+): Promise<Record<string, unknown>> {
+  return invoke<Record<string, unknown>>('add_skills_tool', { toolId, name, skillsPath });
+}
+
+/** Remove a tool entry from skills_config.json. */
+export async function removeSkillsTool(toolId: string): Promise<Record<string, unknown>> {
+  return invoke<Record<string, unknown>>('remove_skills_tool', { toolId });
+}
+
+// ---------------------------------------------------------------------------
 // DAG commands
 // ---------------------------------------------------------------------------
 

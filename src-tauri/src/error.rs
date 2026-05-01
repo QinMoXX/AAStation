@@ -16,6 +16,9 @@ pub enum AppError {
 
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
+
+    #[error("Skills error: {0}")]
+    Skills(String),
 }
 
 impl From<AppError> for String {

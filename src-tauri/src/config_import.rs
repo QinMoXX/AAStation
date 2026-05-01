@@ -21,6 +21,8 @@ const MANIFEST_FILE: &str = "manifest.json";
 const METRICS_FILE: &str = "metrics.json";
 const PIPELINE_FILE: &str = "pipeline.json";
 const SETTINGS_FILE: &str = "settings.json";
+const SKILLS_CONFIG_FILE: &str = "skills_config.json";
+const SKILLS_DIR_PREFIX: &str = "skills/";
 const HASH_ALGORITHM: &str = "SHA-256";
 
 #[derive(Debug, Clone)]
@@ -86,6 +88,17 @@ pub async fn import_config_archive(
             format!("导入失败，已回退原数据。请检查文件内容。原始错误：{import_err}")
         };
         return Err(failure_message);
+    }
+
+    // Import skills directory and config.
+    let skills_result = import_skills_from_archive(&archive_entries)?;
+    let mut manifest_warnings = manifest_warnings;
+    if skills_result.imported_count > 0 {
+        manifest_warnings.push(format!(
+            "已导入 {} 个技能：{}",
+            skills_result.imported_count,
+            skills_result.skill_names.join("、")
+        ));
     }
 
     Ok(ConfigImportResult { manifest_warnings })
@@ -190,19 +203,29 @@ fn read_archive_entries(archive_path: &Path) -> Result<HashMap<String, Vec<u8>>,
             continue;
         }
 
-        let entry_name = Path::new(entry.name())
-            .file_name()
-            .and_then(|name| name.to_str())
-            .ok_or_else(|| "导入包内存在无效文件名。".to_string())?
-            .to_string();
+        let raw_name = entry.name().to_string();
+
+        // Normalize entry name: preserve full relative path for skills/ entries,
+        // use filename only for top-level files (backward compatibility).
+        let normalized_name = if raw_name.starts_with(SKILLS_DIR_PREFIX) && raw_name.len() > SKILLS_DIR_PREFIX.len() {
+            // Use forward-slash path as-is (already normalized in export).
+            raw_name.clone()
+        } else {
+            // Top-level file — use filename only.
+            Path::new(&raw_name)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| "导入包内存在无效文件名。".to_string())?
+                .to_string()
+        };
 
         let mut bytes = Vec::new();
         entry
             .read_to_end(&mut bytes)
             .map_err(|e| format!("读取 ZIP 文件内容失败：{e}"))?;
 
-        if entries.insert(entry_name.clone(), bytes).is_some() {
-            return Err(format!("导入包内存在重复文件：{entry_name}"));
+        if entries.insert(normalized_name.clone(), bytes).is_some() {
+            return Err(format!("导入包内存在重复文件：{normalized_name}"));
         }
     }
 
@@ -236,6 +259,18 @@ fn verify_archive_hash(entries: &HashMap<String, Vec<u8>>) -> Result<(), String>
     }
 
     Ok(())
+}
+
+/// Look up an entry by name. Supports both flat names (`settings.json`)
+/// and nested paths (`skills/pdf-tools/SKILL.md`).
+fn required_entry<'a>(
+    entries: &'a HashMap<String, Vec<u8>>,
+    file_name: &str,
+) -> Result<&'a [u8], String> {
+    entries
+        .get(file_name)
+        .map(Vec::as_slice)
+        .ok_or_else(|| format!("导入包缺少必要文件：{file_name}"))
 }
 
 fn parse_hash_file(bytes: &[u8]) -> Result<HashFileRecord, String> {
@@ -454,16 +489,6 @@ fn parse_imported_metrics(bytes: &[u8]) -> Result<ProxyMetricsSnapshot, String> 
     serde_json::from_slice(bytes).map_err(|e| format!("metrics.json 无法解析：{e}"))
 }
 
-fn required_entry<'a>(
-    entries: &'a HashMap<String, Vec<u8>>,
-    file_name: &str,
-) -> Result<&'a [u8], String> {
-    entries
-        .get(file_name)
-        .map(Vec::as_slice)
-        .ok_or_else(|| format!("导入包缺少必要文件：{file_name}"))
-}
-
 fn compute_hash_hex(files: &[(&str, &[u8])]) -> String {
     let mut hasher = Sha256::new();
 
@@ -477,4 +502,153 @@ fn compute_hash_hex(files: &[(&str, &[u8])]) -> String {
     }
 
     format!("{:x}", hasher.finalize())
+}
+
+// ---------------------------------------------------------------------------
+// Skills import
+// ---------------------------------------------------------------------------
+
+/// Result of importing skills from the archive.
+struct SkillsImportResult {
+    imported_count: usize,
+    skill_names: Vec<String>,
+}
+
+impl SkillsImportResult {
+    fn skipped() -> Self {
+        Self {
+            imported_count: 0,
+            skill_names: Vec::new(),
+        }
+    }
+}
+
+/// Import skills directory tree and `skills_config.json` from the archive.
+fn import_skills_from_archive(
+    entries: &HashMap<String, Vec<u8>>,
+) -> Result<SkillsImportResult, String> {
+    let skills_dir = crate::skills::skills_dir().map_err(|e| e.to_string())?;
+
+    // Collect all entries that start with "skills/" (excluding the directory marker itself).
+    let skill_file_entries: Vec<_> = entries
+        .iter()
+        .filter(|(name, _)| name.starts_with(SKILLS_DIR_PREFIX) && name.len() > SKILLS_DIR_PREFIX.len())
+        .collect();
+
+    if skill_file_entries.is_empty() {
+        // Old version package with no skills directory — skip (backward compatible).
+        return Ok(SkillsImportResult::skipped());
+    }
+
+    // Clear existing skills directory (full overwrite).
+    if skills_dir.exists() {
+        std::fs::remove_dir_all(&skills_dir)
+            .map_err(|e| format!("清理旧 skills 目录失败：{e}"))?;
+    }
+
+    let mut imported_names = Vec::new();
+    for (archive_name, content) in &skill_file_entries {
+        // archive_name = "skills/pdf-tools/SKILL.md"
+        let rel_path = match archive_name.strip_prefix(SKILLS_DIR_PREFIX) {
+            Some(p) => p,
+            None => continue,
+        };
+        if rel_path.is_empty() {
+            continue;
+        }
+
+        let dest = skills_dir.join(rel_path);
+
+        // Ensure parent directories exist.
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("创建目录 {} 失败：{e}", parent.display()))?;
+        }
+
+        std::fs::write(&dest, content)
+            .map_err(|e| format!("写入文件 {} 失败：{e}", archive_name))?;
+
+        // Collect top-level skill directory name (deduplicated).
+        let top_dir = rel_path.split('/').next().unwrap_or("");
+        if !top_dir.is_empty() && !imported_names.contains(&top_dir.to_string()) {
+            imported_names.push(top_dir.to_string());
+        }
+    }
+
+    // Restore skills_config.json.
+    if let Some(config_bytes) = entries.get(SKILLS_CONFIG_FILE) {
+        let config_path = crate::skills::aastation_data_dir()
+            .map_err(|e| e.to_string())?
+            .join(SKILLS_CONFIG_FILE);
+        std::fs::write(&config_path, config_bytes)
+            .map_err(|e| format!("写入 skills_config.json 失败：{e}"))?;
+    }
+
+    // Rebuild tool symlinks from skills_config.json.
+    rebuild_tool_symlinks()?;
+
+    Ok(SkillsImportResult {
+        imported_count: imported_names.len(),
+        skill_names: imported_names,
+    })
+}
+
+/// Rebuild symlinks/junctions for each tool based on `skills_config.json`.
+fn rebuild_tool_symlinks() -> Result<(), String> {
+    let config_path = crate::skills::aastation_data_dir()
+        .map_err(|e| e.to_string())?
+        .join(SKILLS_CONFIG_FILE);
+    if !config_path.exists() {
+        return Ok(());
+    }
+
+    let content = std::fs::read_to_string(&config_path)
+        .map_err(|e| format!("读取 skills_config.json 失败：{e}"))?;
+    let config: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("解析 skills_config.json 失败：{e}"))?;
+
+    let tools = match config.get("tools").and_then(|v| v.as_object()) {
+        Some(t) => t,
+        None => return Ok(()),
+    };
+
+    for (tool_name, tool_config) in tools {
+        let enabled = match tool_config.get("enabled_skills").and_then(|v| v.as_array()) {
+            Some(arr) => arr,
+            None => continue,
+        };
+
+        let tc = crate::skills::ToolConfig {
+            name: tool_config
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            skills_path: tool_config
+                .get("skills_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            mode: tool_config
+                .get("mode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("selective")
+                .to_string(),
+            enabled_skills: Vec::new(),
+        };
+
+        let adapter = crate::skills::SkillAdapter::from_config(tool_name, &tc);
+
+        for skill_value in enabled {
+            let skill_name = match skill_value.as_str() {
+                Some(s) if !s.is_empty() => s,
+                _ => continue,
+            };
+            if let Err(e) = adapter.enable_skill(skill_name) {
+                tracing::warn!("Failed to enable skill '{}' for tool '{}': {e}", skill_name, tool_name);
+            }
+        }
+    }
+
+    Ok(())
 }
