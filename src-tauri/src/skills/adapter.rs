@@ -130,6 +130,7 @@ impl SkillAdapter {
 pub fn create_link(source: &Path, link_path: &Path) -> Result<(), AppError> {
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         let source_str = source.to_string_lossy().replace('/', "\\");
         let link_str = link_path.to_string_lossy().replace('/', "\\");
         tracing::info!(
@@ -138,6 +139,7 @@ pub fn create_link(source: &Path, link_path: &Path) -> Result<(), AppError> {
             source_str
         );
         let output = process::Command::new("cmd")
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .args(["/c", "mklink", "/J", &link_str, &source_str])
             .output()
             .map_err(|e| AppError::Skills(format!("Failed to run mklink: {e}")))?;
