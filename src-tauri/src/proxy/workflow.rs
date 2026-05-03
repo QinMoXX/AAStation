@@ -237,7 +237,10 @@ async fn execute_node(
                     depth + 1,
                 ))
                 .await;
-                if !matches!(branch_result, Err(ProxyError::NoMatch)) {
+                if !matches!(
+                    branch_result,
+                    Err(ProxyError::NoMatch) | Err(ProxyError::TokenBudgetExceeded(_))
+                ) {
                     return branch_result;
                 }
             }
@@ -261,7 +264,9 @@ async fn execute_node(
         }
         WorkflowNodeKind::Provider(provider_node) => {
             if provider_over_token_limit(runtime, &provider_node.route).await {
-                return Err(ProxyError::NoMatch);
+                return Err(ProxyError::TokenBudgetExceeded(
+                    provider_node.route.provider_label.clone(),
+                ));
             }
             Ok(provider_node.route.clone())
         }
@@ -291,7 +296,7 @@ async fn execute_poller(
         .await;
         let route = match route_result {
             Ok(route) => route,
-            Err(ProxyError::NoMatch) => continue,
+            Err(ProxyError::NoMatch) | Err(ProxyError::TokenBudgetExceeded(_)) => continue,
             Err(other) => return Err(other),
         };
         candidates.push((
@@ -936,7 +941,7 @@ mod tests {
         record_provider_usage(&runtime, "provider-a", 100).await;
         let headers = HeaderMap::new();
         let result = execute_workflow(&plan, &runtime, "/", &headers, None).await;
-        assert!(matches!(result, Err(ProxyError::NoMatch)));
+        assert!(matches!(result, Err(ProxyError::TokenBudgetExceeded(_))));
     }
 
     #[tokio::test]

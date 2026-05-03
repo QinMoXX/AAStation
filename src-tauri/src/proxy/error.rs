@@ -17,6 +17,9 @@ pub enum ProxyError {
     #[error("Route match failed: no matching route and no default")]
     NoMatch,
 
+    #[error("Token budget exceeded: provider '{0}' has reached its configured token limit")]
+    TokenBudgetExceeded(String),
+
     #[error("Upstream request failed: {0}")]
     UpstreamError(String),
 
@@ -40,6 +43,7 @@ impl IntoResponse for ProxyError {
             ProxyError::NotRunning => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
             ProxyError::NoRouteTable => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
             ProxyError::NoMatch => (StatusCode::BAD_GATEWAY, self.to_string()),
+            ProxyError::TokenBudgetExceeded(_) => (StatusCode::BAD_GATEWAY, self.to_string()),
             ProxyError::UpstreamError(_) => (StatusCode::BAD_GATEWAY, self.to_string()),
             ProxyError::InvalidConfig(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
             ProxyError::BindFailed(_, _) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
