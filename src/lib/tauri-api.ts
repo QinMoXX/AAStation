@@ -119,6 +119,35 @@ export async function removeSkillsTool(toolId: string): Promise<Record<string, u
   return invoke<Record<string, unknown>>('remove_skills_tool', { toolId });
 }
 
+// ---------- Project-level skills ----------
+
+export interface ProjectToolScanResult {
+  tool_id: string;
+  tool_name: string;
+  skills_found: number;
+  skill_names: string[];
+  status: string;
+  error?: string;
+}
+
+export interface ProjectSkillsResult {
+  project_path: string;
+  central_path: string;
+  tools: ProjectToolScanResult[];
+  total_skills: number;
+}
+
+/** Open folder picker dialog, then collect project skills into .agents/skills/. */
+export async function pickAndCollectProjectSkills(): Promise<ProjectSkillsResult | null> {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: '选择项目根目录',
+  });
+  if (!selected || typeof selected !== 'string') return null;
+  return invoke<ProjectSkillsResult>('collect_project_skills', { projectPath: selected });
+}
+
 // ---------------------------------------------------------------------------
 // DAG commands
 // ---------------------------------------------------------------------------

@@ -107,6 +107,7 @@ pub fn run() {
             commands::skills_commands::disable_all_skills,
             commands::skills_commands::add_skills_tool,
             commands::skills_commands::remove_skills_tool,
+            commands::skills_commands::collect_project_skills,
         ])
         .setup(move |app| {
             // Setup system tray

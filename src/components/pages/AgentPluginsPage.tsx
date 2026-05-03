@@ -8,7 +8,9 @@ import {
   disableSkill,
   enableAllSkills,
   disableAllSkills,
+  pickAndCollectProjectSkills,
   type SkillInfo,
+  type ProjectSkillsResult,
 } from '../../lib/tauri-api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -47,6 +49,10 @@ export default function AgentPluginsPage() {
     >
   >({});
   const [expandedSkillTool, setExpandedSkillTool] = useState<string | null>(null);
+
+  // Project-level skills
+  const [projectSkillsResult, setProjectSkillsResult] = useState<ProjectSkillsResult | null>(null);
+  const [projectSkillsCollecting, setProjectSkillsCollecting] = useState(false);
 
   const loadSkills = useCallback(async () => {
     setSkillsLoading(true);
@@ -98,6 +104,25 @@ export default function AgentPluginsPage() {
       toast.error(`扫描技能失败：${msg}`);
     } finally {
       setSkillsCollecting(false);
+    }
+  };
+
+  const handleCollectProjectSkills = async () => {
+    if (projectSkillsCollecting) return;
+    setProjectSkillsCollecting(true);
+    try {
+      const result = await pickAndCollectProjectSkills();
+      if (result === null) return; // user cancelled folder picker
+      setProjectSkillsResult(result);
+      const collectedCount = result.tools.filter((t) => t.status === 'collected').length;
+      toast.success(
+        `项目技能收集完成，${collectedCount} 个工具共 ${result.total_skills} 个技能`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`项目技能收集失败：${msg}`);
+    } finally {
+      setProjectSkillsCollecting(false);
     }
   };
 
@@ -198,6 +223,71 @@ export default function AgentPluginsPage() {
                 <div className="text-foreground">~/.aastation/skills/</div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Project-level skills management */}
+        <Card className="border-border bg-card/92 shadow-[var(--color-shadow-soft)]">
+          <CardHeader>
+            <CardTitle>项目级技能管理</CardTitle>
+            <CardDescription>
+              将项目中各 AI 工具的技能集中到 .agents/skills/ 统一管理
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="accent"
+              size="sm"
+              onClick={handleCollectProjectSkills}
+              disabled={projectSkillsCollecting}
+              className="gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {projectSkillsCollecting ? '收集中...' : '选择项目目录并统一技能'}
+            </Button>
+            {projectSkillsResult && (
+              <div className="mt-3 space-y-2">
+                <div className="text-xs text-muted">
+                  项目路径: {projectSkillsResult.project_path}
+                  <br />
+                  汇聚目录: {projectSkillsResult.central_path}
+                  <br />
+                  收集技能总数: {projectSkillsResult.total_skills}
+                </div>
+                <div className="space-y-1">
+                  {projectSkillsResult.tools.map((tool) => (
+                    <div key={tool.tool_id} className="flex items-center gap-2 text-xs">
+                      <Badge
+                        variant={
+                          tool.status === 'collected'
+                            ? 'success'
+                            : tool.status === 'already_linked'
+                              ? 'outline'
+                              : tool.status === 'error'
+                                ? 'destructive'
+                                : 'secondary'
+                        }
+                      >
+                        {tool.status === 'collected'
+                          ? '已收集'
+                          : tool.status === 'already_linked'
+                            ? '已链接'
+                            : tool.status === 'error'
+                              ? '错误'
+                              : '未找到'}
+                      </Badge>
+                      <span>{tool.tool_name}</span>
+                      {tool.skills_found > 0 && (
+                        <span className="text-dim">({tool.skills_found} skills)</span>
+                      )}
+                      {tool.error && (
+                        <span className="text-red-400 truncate">{tool.error}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

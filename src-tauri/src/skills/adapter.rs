@@ -181,6 +181,60 @@ pub fn create_link(source: &Path, link_path: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Create a relative-path symlink (unix) or junction (windows) for project-level
+/// skills management. On Unix, uses relative paths so the project can be moved.
+pub fn create_relative_link(target: &Path, link_path: &Path) -> Result<(), AppError> {
+    #[cfg(windows)]
+    {
+        // Windows junctions need absolute paths — use existing create_link
+        create_link(target, link_path)
+    }
+    #[cfg(not(windows))]
+    {
+        let link_parent = link_path.parent().unwrap_or(Path::new("."));
+        let relative = compute_relative_path(link_parent, target);
+
+        tracing::info!(
+            "[project_skills] Creating relative symlink: ln -s \"{}\" \"{}\"",
+            relative.display(),
+            link_path.display()
+        );
+        std::process::Command::new("ln")
+            .args(["-s", &relative.to_string_lossy(), &link_path.to_string_lossy()])
+            .status()
+            .map_err(|e| AppError::Skills(format!("Failed to run ln: {e}")))?;
+        Ok(())
+    }
+}
+
+/// Compute a relative path from `base` to `target` by stripping common prefix.
+#[cfg(not(windows))]
+fn compute_relative_path(base: &Path, target: &Path) -> PathBuf {
+    let base = std::fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
+    let target = std::fs::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
+
+    let base_components: Vec<_> = base.components().collect();
+    let target_components: Vec<_> = target.components().collect();
+
+    let mut common = 0;
+    while common < base_components.len()
+        && common < target_components.len()
+        && base_components[common] == target_components[common]
+    {
+        common += 1;
+    }
+
+    let up_count = base_components.len() - common;
+    let mut result = PathBuf::new();
+    for _ in 0..up_count {
+        result.push("..");
+    }
+    for comp in &target_components[common..] {
+        result.push(comp);
+    }
+    result
+}
+
 /// Check whether a path is a symlink (or junction on Windows).
 pub fn is_link(path: &Path) -> bool {
     #[cfg(windows)]

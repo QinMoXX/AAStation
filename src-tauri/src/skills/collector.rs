@@ -169,3 +169,169 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), AppError> {
     }
     Ok(())
 }
+
+// ---------- Project-level skills management ----------
+
+/// Tool definitions for project-level skill scanning.
+/// Each entry maps a tool identifier to its skills directory relative to the project root.
+const PROJECT_TOOL_SKILLS_PATHS: &[(&str, &str)] = &[
+    ("claude", ".claude/skills"),
+    ("codex", ".codex/skills"),
+    ("opencode", ".opencode/skills"),
+    ("cursor", ".cursor/skills"),
+    ("windsurf", ".windsurf/skills"),
+    ("cline", ".cline/skills"),
+];
+
+/// Result of scanning a single tool's skills directory in a project.
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectToolScanResult {
+    pub tool_id: String,
+    pub tool_name: String,
+    pub skills_found: usize,
+    pub skill_names: Vec<String>,
+    /// `"collected"` | `"already_linked"` | `"not_found"` | `"error"`
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Overall result of project-level skills collection.
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectSkillsResult {
+    pub project_path: String,
+    pub central_path: String,
+    pub tools: Vec<ProjectToolScanResult>,
+    pub total_skills: usize,
+}
+
+/// Scan a project directory for tool-specific skills directories and collect
+/// them into `<project>/.agents/skills/`. Each tool's original skills directory
+/// is replaced with a link (junction on Windows, relative symlink on Unix)
+/// pointing back to `.agents/skills/`.
+pub fn collect_project_skills(project_path: &Path) -> Result<ProjectSkillsResult, AppError> {
+    let central = project_path.join(".agents").join("skills");
+    fs::create_dir_all(&central)?;
+
+    let mut tools_results = Vec::new();
+
+    for (tool_id, tool_rel_path) in PROJECT_TOOL_SKILLS_PATHS {
+        let tool_skills_dir = project_path.join(tool_rel_path);
+
+        let mut result = ProjectToolScanResult {
+            tool_id: tool_id.to_string(),
+            tool_name: tool_id.to_string(),
+            skills_found: 0,
+            skill_names: Vec::new(),
+            status: "not_found".to_string(),
+            error: None,
+        };
+
+        if !tool_skills_dir.exists() {
+            tools_results.push(result);
+            continue;
+        }
+
+        // Already a link pointing to .agents/skills — skip processing
+        // but still read skill names from central for accurate reporting
+        if is_link(&tool_skills_dir) {
+            if let Ok(target) = fs::read_link(&tool_skills_dir) {
+                if target == central || target.ends_with(".agents/skills") {
+                    result.status = "already_linked".to_string();
+                    // Populate skills from the central directory
+                    if let Ok(entries) = fs::read_dir(&central) {
+                        for entry in entries.flatten() {
+                            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                                result.skill_names.push(
+                                    entry.file_name().to_string_lossy().to_string(),
+                                );
+                            }
+                        }
+                        result.skill_names.sort();
+                        result.skills_found = result.skill_names.len();
+                    }
+                    tools_results.push(result);
+                    continue;
+                }
+            }
+        }
+
+        // Process directory: move skill subdirs into central, then replace with link
+        match process_project_tool_dir(&tool_skills_dir, &central, &mut result) {
+            Ok(()) => {
+                fs::remove_dir_all(&tool_skills_dir)?;
+                crate::skills::adapter::create_relative_link(&central, &tool_skills_dir)?;
+            }
+            Err(e) => {
+                result.status = "error".to_string();
+                result.error = Some(e.to_string());
+            }
+        }
+
+        tools_results.push(result);
+    }
+
+    let total_skills = count_skills_in_dir(&central);
+    Ok(ProjectSkillsResult {
+        project_path: project_path.display().to_string(),
+        central_path: central.display().to_string(),
+        tools: tools_results,
+        total_skills,
+    })
+}
+
+/// Move skill subdirectories from a tool's skills directory into the central directory.
+fn process_project_tool_dir(
+    tool_dir: &Path,
+    central: &Path,
+    result: &mut ProjectToolScanResult,
+) -> Result<(), AppError> {
+    let mut skill_names = Vec::new();
+
+    for entry in fs::read_dir(tool_dir)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let src = entry.path();
+
+        // If the entry is already a symlink/junction, just record it — no need to move
+        if is_link(&src) {
+            skill_names.push(name);
+            continue;
+        }
+
+        let dest = central.join(&name);
+
+        if dest.exists() {
+            tracing::warn!(
+                "[project_skills] Skill '{}' already exists in .agents/skills, skipping",
+                name
+            );
+            skill_names.push(name);
+            continue;
+        }
+
+        move_dir(&src, &dest)?;
+        skill_names.push(name);
+    }
+
+    skill_names.sort();
+    result.skills_found = skill_names.len();
+    result.skill_names = skill_names;
+    result.status = "collected".to_string();
+    Ok(())
+}
+
+/// Count the number of subdirectories (skills) in a directory.
+fn count_skills_in_dir(dir: &Path) -> usize {
+    fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                .count()
+        })
+        .unwrap_or(0)
+}

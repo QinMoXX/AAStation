@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::AppHandle;
 
-use crate::skills::{self, adapter::SkillAdapter, SkillInfo, ToolScanResult};
+use crate::skills::{self, adapter::SkillAdapter, ProjectSkillsResult, SkillInfo, ToolScanResult};
 
 /// Result of the `collect_skills` command.
 #[derive(Debug, Clone, Serialize)]
@@ -163,4 +163,19 @@ pub async fn add_skills_tool(
 pub async fn remove_skills_tool(tool_id: String) -> Result<serde_json::Value, String> {
     let config = skills::collector::remove_tool(&tool_id).map_err(|e| e.to_string())?;
     serde_json::to_value(&config).map_err(|e| e.to_string())
+}
+
+/// Collect project-level skills: scan a project directory for tool-specific
+/// skills directories, move them into `<project>/.agents/skills/`, and replace
+/// the original directories with links (junctions on Windows, relative symlinks
+/// on Unix).
+#[tauri::command]
+pub async fn collect_project_skills(
+    project_path: String,
+) -> Result<ProjectSkillsResult, String> {
+    let path = std::path::Path::new(&project_path);
+    if !path.is_dir() {
+        return Err("所选路径不是有效目录".to_string());
+    }
+    skills::collect_project_skills(path).map_err(|e| e.to_string())
 }
