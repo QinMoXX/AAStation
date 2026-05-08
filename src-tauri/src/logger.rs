@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 use std::sync::Mutex;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 /// Default maximum total size of all log files in the log directory (500 MB).
@@ -122,24 +123,23 @@ pub fn init(max_log_dir_bytes: u64) -> Result<LogGuard, String> {
     let file_appender = tracing_appender::rolling::never(log_dir, &file_name);
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
-    let file_layer = tracing_subscriber::fmt::layer()
-        .with_writer(non_blocking)
+    // Format each event only once, then write the exact same bytes to both
+    // console and file so the runtime log preview matches terminal output.
+    let combined_writer = std::io::stdout.and(non_blocking);
+    let combined_layer = tracing_subscriber::fmt::layer()
+        .with_writer(combined_writer)
         .with_ansi(false)
         .with_target(true)
         .with_thread_ids(false)
         .with_file(false)
         .with_line_number(false);
 
-    let console_layer = tracing_subscriber::fmt::layer()
-        .with_ansi(true);
-
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"));
 
     tracing_subscriber::registry()
         .with(env_filter)
-        .with(console_layer)
-        .with(file_layer)
+        .with(combined_layer)
         .init();
 
     // Store the guard globally so the panic handler can drop it to flush

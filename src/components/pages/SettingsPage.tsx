@@ -1176,8 +1176,8 @@ export default function SettingsPage() {
   };
 
   const renderLogsPanel = () => (
-    <Card className="border-border bg-card/92 shadow-[var(--color-shadow-soft)]">
-      <CardContent className="p-5 flex flex-col gap-3.5">
+    <Card className="min-w-0 border-border bg-card/92 shadow-[var(--color-shadow-soft)]">
+      <CardContent className="flex min-w-0 flex-col gap-3.5 p-5">
         {/* Header row */}
         <div className="flex justify-between gap-3 flex-wrap">
           <h2 className="text-xl font-bold text-foreground m-0">日志</h2>
@@ -1263,15 +1263,24 @@ export default function SettingsPage() {
         <div
           ref={logScrollerRef}
           onScroll={handleLogScroll}
-          className="mt-1 h-[calc(100vh-360px)] min-h-[300px] overflow-auto rounded-xl border border-border bg-surface/35 p-2.5 font-mono text-xs leading-relaxed text-muted whitespace-pre-wrap break-words"
+          className="mt-1 box-border h-[calc(100vh-360px)] min-h-[300px] w-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-surface/35 p-2.5 font-mono text-xs leading-relaxed text-muted"
+          style={{ scrollbarGutter: 'stable' }}
         >
-          {logLines.length === 0 ? (
-            <div className="text-dim">暂无日志输出...</div>
-          ) : (
-            logLines.map((line, idx) => (
-              <div key={`${idx}-${line.slice(0, 24)}`}>{line}</div>
-            ))
-          )}
+          <div className="w-full min-w-0">
+            {logLines.length === 0 ? (
+              <div className="text-dim">暂无日志输出...</div>
+            ) : (
+              logLines.map((line, idx) => (
+                <div
+                  key={`${idx}-${line.slice(0, 24)}`}
+                  className="w-full min-w-0 whitespace-pre-wrap break-words"
+                  style={{ overflowWrap: 'anywhere' }}
+                >
+                  {line}
+                </div>
+              ))
+            )}
+          </div>
         </div>
         <p className="text-[11px] text-dim">
           当前始终显示日志文件末尾窗口，共 {logLines.length} 行（上限 {LOG_MAX_LINES} 行），轮询间隔 {LOG_POLL_INTERVAL_MS}ms。
