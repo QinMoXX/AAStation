@@ -556,7 +556,7 @@ export default function SettingsPage() {
   const [logPaused, setLogPaused] = useState(false);
   const [autoFollow, setAutoFollow] = useState(true);
   const logScrollerRef = useRef<HTMLDivElement | null>(null);
-  const logCursorRef = useRef<{ fileName?: string; offset: number }>({ offset: 0 });
+  const logCursorRef = useRef<{ fileName?: string }>({});
 
   const pollLogs = useCallback(async () => {
     if (subTab !== 'logs' || logPaused) return;
@@ -564,13 +564,11 @@ export default function SettingsPage() {
       setLogPolling(true);
       const result = await pollRuntimeLogs({
         file_name: logCursorRef.current.fileName,
-        offset: logCursorRef.current.offset,
         max_bytes: 64 * 1024,
       });
 
       logCursorRef.current = {
         fileName: result.file_name ?? undefined,
-        offset: result.next_offset,
       };
       setLogFileName(result.file_name);
 
@@ -579,12 +577,10 @@ export default function SettingsPage() {
         extraLines.push(`[系统] 检测到日志文件切换：${result.file_name}`);
       }
       if (result.truncated) {
-        extraLines.push('[系统] 日志量较大，已按增量窗口截断读取。');
+        extraLines.push('[系统] 日志量较大，当前仅显示文件末尾窗口内容。');
       }
 
-      if (result.lines.length > 0 || extraLines.length > 0) {
-        setLogLines((prev) => [...prev, ...extraLines, ...result.lines].slice(-LOG_MAX_LINES));
-      }
+      setLogLines([...extraLines, ...result.lines].slice(-LOG_MAX_LINES));
       setLogError(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -636,7 +632,7 @@ export default function SettingsPage() {
   };
 
   const handleReloadLogs = () => {
-    logCursorRef.current = { offset: 0 };
+    logCursorRef.current = {};
     setLogLines([]);
     setLogFileName(null);
     setAutoFollow(true);
@@ -1278,7 +1274,7 @@ export default function SettingsPage() {
           )}
         </div>
         <p className="text-[11px] text-dim">
-          已缓存最近 {logLines.length} 行（上限 {LOG_MAX_LINES} 行），轮询间隔 {LOG_POLL_INTERVAL_MS}ms。
+          当前始终显示日志文件末尾窗口，共 {logLines.length} 行（上限 {LOG_MAX_LINES} 行），轮询间隔 {LOG_POLL_INTERVAL_MS}ms。
           {autoFollow ? ' 当前自动跟随滚动。' : ' 已关闭自动跟随，滚动到底部会自动恢复。'}
           {runtimeStatus?.log_dir ? ` 日志目录：${runtimeStatus.log_dir}` : ''}
         </p>

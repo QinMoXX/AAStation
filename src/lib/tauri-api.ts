@@ -392,7 +392,6 @@ export interface LogRuntimeStatus {
 
 export interface LogPollRequest {
   file_name?: string;
-  offset?: number;
   max_bytes?: number;
 }
 
@@ -411,7 +410,7 @@ export async function getLogRuntimeStatus(): Promise<LogRuntimeStatus> {
   return invoke<LogRuntimeStatus>('get_log_runtime_status');
 }
 
-/** Incrementally poll runtime log lines from the active log file. */
+/** Poll the current tail window of the active runtime log file. */
 export async function pollRuntimeLogs(request?: LogPollRequest): Promise<LogPollResponse> {
   return invoke<LogPollResponse>('poll_runtime_logs', { request });
 }

@@ -25,7 +25,6 @@ pub struct LogRuntimeStatus {
 #[derive(Debug, Deserialize)]
 pub struct LogPollRequest {
     pub file_name: Option<String>,
-    pub offset: Option<u64>,
     pub max_bytes: Option<usize>,
 }
 
@@ -134,7 +133,7 @@ pub async fn get_log_runtime_status() -> Result<LogRuntimeStatus, String> {
         mode: "backend_local".to_string(),
         log_dir: log_dir.to_string_lossy().to_string(),
         active_file: latest.map(|f| f.name),
-        note: "日志写入与读取均由后端本地文件系统完成，前端仅通过 IPC 拉取增量内容。".to_string(),
+        note: "日志写入与读取均由后端本地文件系统完成，前端仅通过 IPC 拉取当前日志文件末尾窗口内容。".to_string(),
         dir_size_bytes,
         dir_max_bytes,
     })
@@ -159,7 +158,6 @@ pub async fn poll_runtime_logs(request: Option<LogPollRequest>) -> Result<LogPol
 
     let req = request.unwrap_or(LogPollRequest {
         file_name: None,
-        offset: None,
         max_bytes: None,
     });
     let max_bytes = req
@@ -178,17 +176,10 @@ pub async fn poll_runtime_logs(request: Option<LogPollRequest>) -> Result<LogPol
         .map(|name| name != &latest_file.name)
         .unwrap_or(false);
 
-    let mut start_offset = if rotated {
-        file_size.saturating_sub(max_bytes as u64)
-    } else {
-        req.offset.unwrap_or(0)
-    };
-
-    let mut truncated = false;
-    if start_offset > file_size {
-        start_offset = file_size.saturating_sub(max_bytes as u64);
-        truncated = true;
-    }
+    // The runtime log viewer always tracks the tail of the active file so the
+    // UI consistently shows the newest content instead of accumulating history.
+    let start_offset = file_size.saturating_sub(max_bytes as u64);
+    let truncated = start_offset > 0;
 
     let mut file = File::open(&latest_file.path)
         .map_err(|e| format!("Failed to open log file: {}", e))?;
@@ -202,9 +193,6 @@ pub async fn poll_runtime_logs(request: Option<LogPollRequest>) -> Result<LogPol
     buffer.truncate(read_bytes);
 
     let next_offset = start_offset + read_bytes as u64;
-    if next_offset < file_size {
-        truncated = true;
-    }
 
     let text = String::from_utf8_lossy(&buffer);
     let mut lines: Vec<String> = text.lines().map(|line| line.to_string()).collect();
