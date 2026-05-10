@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ReactFlowProvider } from 'reactflow';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import FlowCanvas from './components/canvas/FlowCanvas';
 import CanvasToolbar from './components/canvas/CanvasToolbar';
 import NodePanel from './components/nodes/NodePanel';
@@ -24,9 +25,18 @@ function AppInner() {
   const clearAvailableUpdate = useAppStore((s) => s.clearAvailableUpdate);
   const checkedUpdateRef = useRef(false);
 
+  const shownRef = useRef(false);
+
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    if (loaded && !shownRef.current) {
+      shownRef.current = true;
+      getCurrentWindow().show();
+    }
+  }, [loaded]);
 
   useEffect(() => {
     if (import.meta.env.DEV) return;
