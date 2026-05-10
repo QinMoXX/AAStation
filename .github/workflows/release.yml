@@ -142,9 +142,20 @@ jobs:
         with:
           ref: main
 
-      - name: Install Arch packaging tools
+      - name: Install Arch packaging tools and dependencies
         run: |
-          pacman -Sy --noconfirm --needed curl jq
+          pacman -Sy --noconfirm --needed \
+            curl jq \
+            cairo \
+            desktop-file-utils \
+            gdk-pixbuf2 \
+            glib2 \
+            gtk3 \
+            hicolor-icon-theme \
+            libayatana-appindicator \
+            libsoup3 \
+            pango \
+            webkit2gtk-4.1
 
       - name: Build Arch package from release Debian bundle
         id: build_arch
@@ -170,7 +181,7 @@ jobs:
           test -n "$DEB_ASSET_NAME"
           test -n "$DEB_ASSET_URL"
 
-          useradd -m builder
+          id builder 2>/dev/null || useradd -m builder
           mkdir -p "${GITHUB_WORKSPACE}/arch-package"
 
           curl -fsSL \
@@ -179,7 +190,7 @@ jobs:
             "$DEB_ASSET_URL" \
             -o "${GITHUB_WORKSPACE}/arch-package/${DEB_ASSET_NAME}"
 
-          cat > "${GITHUB_WORKSPACE}/arch-package/PKGBUILD" <<EOF
+          cat > "${GITHUB_WORKSPACE}/arch-package/PKGBUILD" <<'PKGBUILD_EOF'
           pkgname=${PACKAGE_NAME}
           pkgver=${VERSION}
           pkgrel=1
@@ -194,20 +205,20 @@ jobs:
           sha256sums=('SKIP' 'SKIP')
 
           package() {
-            local extract_dir="\$srcdir/extract"
+            local extract_dir="$srcdir/extract"
             local data_archive
 
-            mkdir -p "\$extract_dir"
-            bsdtar -xf "\$srcdir/${DEB_ASSET_NAME}" -C "\$extract_dir"
-            data_archive="\$(find "\$extract_dir" -maxdepth 1 \( -name 'data.tar.*' -o -name 'data.tar' \) | head -n 1)"
-            test -n "\$data_archive"
-            bsdtar -xf "\$data_archive" -C "\$pkgdir"
+            mkdir -p "$extract_dir"
+            bsdtar -xf "$srcdir/${DEB_ASSET_NAME}" -C "$extract_dir"
+            data_archive="$(find "$extract_dir" -maxdepth 1 \( -name 'data.tar.*' -o -name 'data.tar' \) | head -n 1)"
+            test -n "$data_archive"
+            bsdtar -xf "$data_archive" -C "$pkgdir"
 
-            install -Dm644 "\$srcdir/LICENSE" "\$pkgdir/usr/share/licenses/${PACKAGE_NAME}/LICENSE"
+            install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/${PACKAGE_NAME}/LICENSE"
           }
-          EOF
+          PKGBUILD_EOF
 
-          cat > "${GITHUB_WORKSPACE}/arch-package/${PACKAGE_NAME}.install" <<EOF
+          cat > "${GITHUB_WORKSPACE}/arch-package/${PACKAGE_NAME}.install" <<'INSTALL_EOF'
           post_install() {
             gtk-update-icon-cache -q -t -f usr/share/icons/hicolor || true
             update-desktop-database -q || true
@@ -221,11 +232,11 @@ jobs:
             gtk-update-icon-cache -q -t -f usr/share/icons/hicolor || true
             update-desktop-database -q || true
           }
-          EOF
+          INSTALL_EOF
 
           cp "$LICENSE_PATH" "${GITHUB_WORKSPACE}/arch-package/LICENSE"
-          chown -R builder:builder "${GITHUB_WORKSPACE}"
-          runuser -u builder -- bash -lc "cd '${GITHUB_WORKSPACE}/arch-package' && makepkg --noconfirm -f"
+          chown -R builder:builder "${GITHUB_WORKSPACE}/arch-package"
+          su builder -c "cd '${GITHUB_WORKSPACE}/arch-package' && makepkg --noconfirm -f --nodeps"
 
           ARCH_PACKAGE_PATH="$(find "${GITHUB_WORKSPACE}/arch-package" -maxdepth 1 -name '*.pkg.tar.zst' | head -n 1)"
           test -n "$ARCH_PACKAGE_PATH"

@@ -15,7 +15,8 @@
       "Bash(npm run:*)",
       "Bash(crate::error::AppError)",
       "Bash(grep -B 5 \"unused import: `crate::error::AppError`\")",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(git remote *)"
     ]
   }
 }
