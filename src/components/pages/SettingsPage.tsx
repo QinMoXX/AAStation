@@ -24,7 +24,9 @@ import {
   restoreClaudeConfig,
   restoreCodexCliConfig,
   restoreOpenCodeConfig,
+  getPlatformInfo,
   type LogRuntimeStatus,
+  type PlatformInfo,
   unconfigureClaudeCode,
   unconfigureCodexCli,
   unconfigureOpenCode,
@@ -92,12 +94,16 @@ export default function SettingsPage() {
   const [exportIncludeSensitiveValues, setExportIncludeSensitiveValues] = useState(false);
   const [exportingConfig, setExportingConfig] = useState(false);
   const [importingConfig, setImportingConfig] = useState(false);
+  const [platformInfo, setPlatformInfo] = useState<PlatformInfo | null>(null);
+  const [platformInfoError, setPlatformInfoError] = useState<string | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importSteps, setImportSteps] = useState<
     Array<{ label: string; status: 'pending' | 'active' | 'done' | 'error' }>
   >([]);
   const [importDialogResult, setImportDialogResult] = useState<'success' | 'error' | null>(null);
   const [importDialogMessage, setImportDialogMessage] = useState('');
+
+  const launchAtStartupSupported = platformInfo?.capabilities.launchAtStartupSupported !== false;
 
   useEffect(() => {
     setPortRange(settings.listenPortRange);
@@ -106,6 +112,27 @@ export default function SettingsPage() {
     setLaunchAtStartup(settings.launchAtStartup);
     setAutoCheckUpdate(settings.autoCheckUpdate);
   }, [settings]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPlatformInfo()
+      .then((info) => {
+        if (cancelled) return;
+        setPlatformInfo(info);
+        setPlatformInfoError(null);
+        if (!info.capabilities.launchAtStartupSupported) {
+          setLaunchAtStartup(false);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        setPlatformInfoError(msg);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSaveGeneral = async () => {
     setSaving(true);
@@ -121,7 +148,7 @@ export default function SettingsPage() {
         listenAddress: address,
         proxyAuthToken: settings.proxyAuthToken,
         logDirMaxMb: parsedMb,
-        launchAtStartup,
+        launchAtStartup: launchAtStartupSupported ? launchAtStartup : false,
         autoCheckUpdate,
         autoInstallUpdate: settings.autoInstallUpdate,
       });
@@ -823,10 +850,59 @@ export default function SettingsPage() {
               <Switch
                 checked={launchAtStartup}
                 onCheckedChange={setLaunchAtStartup}
+                disabled={!launchAtStartupSupported}
               />
               <span className="text-sm text-foreground">开机自启动</span>
             </div>
             <p className="text-xs text-dim">勾选后会在系统启动时自动启动 AAStation。</p>
+            {!launchAtStartupSupported && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-warning-border bg-warning/8 px-3.5 py-2.5 text-xs leading-relaxed text-warning-foreground">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>当前平台不支持开机自启动，该选项将保持关闭。</span>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-muted text-xs">运行时路径</Label>
+            {platformInfoError ? (
+              <p className="text-xs text-destructive">路径信息加载失败：{platformInfoError}</p>
+            ) : !platformInfo ? (
+              <p className="text-xs text-dim">路径信息加载中...</p>
+            ) : (
+              <div className="space-y-2">
+                {[
+                  { label: '配置目录（config）', value: platformInfo.paths.configDir },
+                  { label: '数据目录（data）', value: platformInfo.paths.dataDir },
+                  { label: '状态目录（state）', value: platformInfo.paths.stateDir },
+                  { label: '日志目录（logs）', value: platformInfo.paths.logsDir },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-2">
+                    <div className="min-w-[130px] text-[11px] text-dim">{item.label}</div>
+                    <Input value={item.value} readOnly className="min-w-0 flex-1" />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(item.value);
+                        toast.success('路径已复制');
+                      }}
+                      className="gap-1.5"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      复制
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!!platformInfo && (
+              <p className="text-xs text-dim">
+                用于定位 settings/pipeline/skills/logs 等文件的真实落盘目录（平台可能使用 XDG 目录或旧目录回退）。
+              </p>
+            )}
           </div>
 
           <Separator />

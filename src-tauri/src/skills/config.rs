@@ -102,19 +102,20 @@ fn home_dir() -> Result<PathBuf, AppError> {
     )))
 }
 
-/// Returns `~/.aastation/` directory path.
-pub fn aastation_data_dir() -> Result<PathBuf, AppError> {
-    Ok(home_dir()?.join(".aastation"))
-}
-
 /// Returns `~/.aastation/skills/` directory path.
 pub fn skills_dir() -> Result<PathBuf, AppError> {
-    Ok(aastation_data_dir()?.join(SKILLS_DIR_NAME))
+    let paths = crate::paths::init()?;
+    Ok(paths.data_dir.join(SKILLS_DIR_NAME))
+}
+
+pub fn skills_config_path() -> Result<PathBuf, AppError> {
+    let paths = crate::paths::init()?;
+    Ok(paths.config_dir.join(SKILLS_CONFIG_FILE))
 }
 
 /// Returns the full path to `skills_config.json`.
 fn config_path() -> Result<PathBuf, AppError> {
-    Ok(aastation_data_dir()?.join(SKILLS_CONFIG_FILE))
+    skills_config_path()
 }
 
 /// Expand a leading `~` to the user's home directory.

@@ -12,28 +12,12 @@ pub const LOG_DIR_DEFAULT_MAX_BYTES: u64 = 500 * 1024 * 1024;
 /// Directory for log files under the app data directory.
 const LOG_DIR: &str = "logs";
 
-/// Returns the path to the log directory: `~/.aastation/logs/`
 fn log_dir_path() -> Result<PathBuf, String> {
-    let home = dirs_home_dir()?;
-    let dir = home.join(".aastation").join(LOG_DIR);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create log directory: {}", e))?;
+    let paths = crate::paths::init().map_err(|e| e.to_string())?;
+    let dir = paths.state_dir.join(LOG_DIR);
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Failed to create log directory: {}", e))?;
     Ok(dir)
-}
-
-/// Cross-platform home directory resolution.
-fn dirs_home_dir() -> Result<PathBuf, String> {
-    if let Some(p) = std::env::var_os("HOME") {
-        return Ok(PathBuf::from(p));
-    }
-    if let Some(p) = std::env::var_os("USERPROFILE") {
-        return Ok(PathBuf::from(p));
-    }
-    if let (Some(drive), Some(path)) = (std::env::var_os("HOMEDRIVE"), std::env::var_os("HOMEPATH")) {
-        let mut buf = PathBuf::from(drive);
-        buf.push(path);
-        return Ok(buf);
-    }
-    Err("Cannot determine home directory".to_string())
 }
 
 /// Generates a log file name based on the current time.

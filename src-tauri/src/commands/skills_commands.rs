@@ -25,9 +25,8 @@ pub async fn collect_skills() -> Result<CollectSkillsResult, String> {
 /// Return the `tools` field from `skills_config.json` for frontend dynamic rendering.
 #[tauri::command]
 pub async fn get_skills_tool_config(_app: AppHandle) -> Result<serde_json::Value, String> {
-    let config_path = skills::aastation_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("skills_config.json");
+    let config_path =
+        skills::config::skills_config_path().map_err(|e| e.to_string())?;
 
     if !config_path.exists() {
         return Ok(serde_json::json!({}));

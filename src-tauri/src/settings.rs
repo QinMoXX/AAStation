@@ -3,8 +3,6 @@ use std::path::PathBuf;
 
 use crate::error::AppError;
 
-/// Default directory name under the home directory.
-const APP_DIR: &str = ".aastation";
 /// Settings file name.
 const SETTINGS_FILE: &str = "settings.json";
 
@@ -136,32 +134,9 @@ impl Default for AppSettings {
     }
 }
 
-/// Cross-platform home directory resolution (same as dag_store).
-fn dirs_home_dir() -> Result<PathBuf, AppError> {
-    if let Some(p) = std::env::var_os("HOME") {
-        return Ok(PathBuf::from(p));
-    }
-    if let Some(p) = std::env::var_os("USERPROFILE") {
-        return Ok(PathBuf::from(p));
-    }
-    if let (Some(drive), Some(path)) = (
-        std::env::var_os("HOMEDRIVE"),
-        std::env::var_os("HOMEPATH"),
-    ) {
-        let mut buf = PathBuf::from(drive);
-        buf.push(path);
-        return Ok(buf);
-    }
-    Err(AppError::Io(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "Cannot determine home directory",
-    )))
-}
-
-/// Get the path to the settings file: ~/.aastation/settings.json
 fn settings_path() -> Result<PathBuf, AppError> {
-    let home = dirs_home_dir()?;
-    Ok(home.join(APP_DIR).join(SETTINGS_FILE))
+    let paths = crate::paths::init()?;
+    Ok(paths.config_dir.join(SETTINGS_FILE))
 }
 
 /// Load settings from disk. Returns default settings if file doesn't exist.

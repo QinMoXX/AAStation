@@ -8,6 +8,7 @@ mod dag_store;
 mod error;
 mod logger;
 mod opencode_config;
+mod paths;
 mod proxy;
 mod settings;
 mod skills;
@@ -52,6 +53,10 @@ pub fn run() {
         }
     };
 
+    if let Err(err) = crate::paths::init() {
+        tracing::warn!(error = %err, "初始化路径解析失败");
+    }
+
     let state = AppState::new();
 
     // Shutdown notifier shared between the setup() closure and the run() event
@@ -81,6 +86,7 @@ pub fn run() {
             commands::proxy_commands::reload_routes,
             commands::settings_commands::load_settings,
             commands::settings_commands::save_settings,
+            commands::platform_commands::get_platform_info,
             commands::log_commands::get_log_runtime_status,
             commands::log_commands::poll_runtime_logs,
             commands::log_commands::open_log_dir,

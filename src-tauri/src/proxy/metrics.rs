@@ -15,7 +15,6 @@ use super::types::{
 };
 
 const MAX_RECENT_REQUESTS: usize = 5000;
-const APP_DIR: &str = ".aastation";
 const METRICS_FILE: &str = "metrics.json";
 const TMP_SUFFIX: &str = ".tmp";
 /// Minimum seconds between successive disk persists. Hot-path requests are
@@ -310,23 +309,8 @@ fn extract_request_sequence(request_id: &str) -> Option<u64> {
 }
 
 fn metrics_path() -> Result<PathBuf, String> {
-    let home = dirs_home_dir()?;
-    Ok(home.join(APP_DIR).join(METRICS_FILE))
-}
-
-fn dirs_home_dir() -> Result<PathBuf, String> {
-    if let Some(p) = std::env::var_os("HOME") {
-        return Ok(PathBuf::from(p));
-    }
-    if let Some(p) = std::env::var_os("USERPROFILE") {
-        return Ok(PathBuf::from(p));
-    }
-    if let (Some(drive), Some(path)) = (std::env::var_os("HOMEDRIVE"), std::env::var_os("HOMEPATH")) {
-        let mut buf = PathBuf::from(drive);
-        buf.push(path);
-        return Ok(buf);
-    }
-    Err("Cannot determine home directory".to_string())
+    let paths = crate::paths::init().map_err(|e| e.to_string())?;
+    Ok(paths.state_dir.join(METRICS_FILE))
 }
 
 fn load_persisted_metrics() -> Result<PersistedMetrics, String> {

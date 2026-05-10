@@ -577,9 +577,7 @@ fn import_skills_from_archive(
 
     // Restore skills_config.json.
     if let Some(config_bytes) = entries.get(SKILLS_CONFIG_FILE) {
-        let config_path = crate::skills::aastation_data_dir()
-            .map_err(|e| e.to_string())?
-            .join(SKILLS_CONFIG_FILE);
+        let config_path = crate::skills::config::skills_config_path().map_err(|e| e.to_string())?;
         std::fs::write(&config_path, config_bytes)
             .map_err(|e| format!("写入 skills_config.json 失败：{e}"))?;
     }
@@ -595,9 +593,7 @@ fn import_skills_from_archive(
 
 /// Rebuild symlinks/junctions for each tool based on `skills_config.json`.
 fn rebuild_tool_symlinks() -> Result<(), String> {
-    let config_path = crate::skills::aastation_data_dir()
-        .map_err(|e| e.to_string())?
-        .join(SKILLS_CONFIG_FILE);
+    let config_path = crate::skills::config::skills_config_path().map_err(|e| e.to_string())?;
     if !config_path.exists() {
         return Ok(());
     }

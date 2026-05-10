@@ -46,6 +46,51 @@ export interface ImportConfigArchiveResult {
   manifestWarnings: string[];
 }
 
+export interface PlatformCapabilities {
+  launchAtStartupSupported: boolean;
+}
+
+export interface RuntimePaths {
+  configDir: string;
+  dataDir: string;
+  stateDir: string;
+  logsDir: string;
+}
+
+export interface PlatformInfo {
+  platform: string;
+  capabilities: PlatformCapabilities;
+  paths: RuntimePaths;
+}
+
+export async function getPlatformInfo(): Promise<PlatformInfo> {
+  const raw = await invoke<{
+    platform: string;
+    capabilities: {
+      launch_at_startup_supported: boolean;
+    };
+    paths: {
+      config_dir: string;
+      data_dir: string;
+      state_dir: string;
+      logs_dir: string;
+    };
+  }>('get_platform_info');
+
+  return {
+    platform: raw.platform,
+    capabilities: {
+      launchAtStartupSupported: raw.capabilities.launch_at_startup_supported,
+    },
+    paths: {
+      configDir: raw.paths.config_dir,
+      dataDir: raw.paths.data_dir,
+      stateDir: raw.paths.state_dir,
+      logsDir: raw.paths.logs_dir,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Skills management commands
 // ---------------------------------------------------------------------------

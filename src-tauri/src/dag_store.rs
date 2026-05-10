@@ -5,42 +5,14 @@ use crate::error::AppError;
 use std::fs;
 use std::path::PathBuf;
 
-/// Default directory name under the home directory.
-const APP_DIR: &str = ".aastation";
 /// Default file name for the pipeline document.
 const PIPELINE_FILE: &str = "pipeline.json";
 /// Temporary file suffix used for atomic writes.
 const TMP_SUFFIX: &str = ".tmp";
 
-/// Returns the path to the DAG pipeline file: `~/.aastation/pipeline.json`
 fn pipeline_path() -> Result<PathBuf, AppError> {
-    let home = dirs_home_dir()?;
-    Ok(home.join(APP_DIR).join(PIPELINE_FILE))
-}
-
-/// Cross-platform home directory resolution.
-fn dirs_home_dir() -> Result<PathBuf, AppError> {
-    // Try standard HOME / USERPROFILE / HOMEPATH env vars
-    if let Some(p) = std::env::var_os("HOME") {
-        return Ok(PathBuf::from(p));
-    }
-    // Windows: USERPROFILE
-    if let Some(p) = std::env::var_os("USERPROFILE") {
-        return Ok(PathBuf::from(p));
-    }
-    // Windows fallback: HOMEDRIVE + HOMEPATH
-    if let (Some(drive), Some(path)) = (
-        std::env::var_os("HOMEDRIVE"),
-        std::env::var_os("HOMEPATH"),
-    ) {
-        let mut buf = PathBuf::from(drive);
-        buf.push(path);
-        return Ok(buf);
-    }
-    Err(AppError::Io(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "Cannot determine home directory",
-    )))
+    let paths = crate::paths::init()?;
+    Ok(paths.config_dir.join(PIPELINE_FILE))
 }
 
 /// Load the DAG document from disk.
@@ -91,17 +63,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_home_dir_found() {
-        // On any dev machine, home dir should be resolvable
-        let home = dirs_home_dir();
-        assert!(home.is_ok(), "Home directory should be found");
-        assert!(home.unwrap().exists(), "Home directory should exist");
-    }
-
-    #[test]
     fn test_pipeline_path_format() {
         let path = pipeline_path().unwrap();
-        assert!(path.to_string_lossy().contains(APP_DIR));
         assert!(path.to_string_lossy().ends_with(PIPELINE_FILE));
     }
 

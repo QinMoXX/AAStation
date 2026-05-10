@@ -7,9 +7,17 @@ pub(crate) async fn apply_settings(
     state: &AppState,
     mut settings: AppSettings,
 ) -> Result<AppSettings, String> {
-    crate::startup::set_launch_at_startup_enabled(app, settings.launch_at_startup)?;
-    if let Ok(actual_enabled) = crate::startup::is_launch_at_startup_enabled(app) {
-        settings.launch_at_startup = actual_enabled;
+    match crate::startup::set_launch_at_startup_enabled(app, settings.launch_at_startup) {
+        Ok(()) => {
+            if let Ok(actual_enabled) = crate::startup::is_launch_at_startup_enabled(app) {
+                settings.launch_at_startup = actual_enabled;
+            }
+        }
+        Err(err) => {
+            if err != crate::startup::LAUNCH_AT_STARTUP_UNSUPPORTED_MESSAGE {
+                return Err(err);
+            }
+        }
     }
 
     crate::settings::save_settings(&settings).map_err(|e| e.to_string())?;

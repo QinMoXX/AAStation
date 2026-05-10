@@ -14,7 +14,6 @@ use crate::skills::config::SKILLS_DIR_NAME;
 
 pub const EXPORT_ARCHIVE_NAME: &str = "AAStationConfig.zip";
 
-const APP_DIR: &str = ".aastation";
 const HASH_FILE: &str = "hash.txt";
 const HASH_KIND: &str = "hash";
 const HASH_ALGORITHM: &str = "SHA-256";
@@ -225,7 +224,8 @@ fn load_metrics_bytes(_app: &AppHandle, context: &ExportContext) -> Result<Vec<u
 }
 
 fn load_pipeline_bytes(_app: &AppHandle, context: &ExportContext) -> Result<Vec<u8>, AppError> {
-    let mut value = read_json_from_app_dir(PIPELINE_FILE)?.unwrap_or_else(default_pipeline_json);
+    let mut value =
+        read_json_from_config_dir(PIPELINE_FILE)?.unwrap_or_else(default_pipeline_json);
     if !context.include_sensitive_values {
         redact_pipeline_api_keys(&mut value);
     }
@@ -233,7 +233,7 @@ fn load_pipeline_bytes(_app: &AppHandle, context: &ExportContext) -> Result<Vec<
 }
 
 fn load_settings_bytes(_app: &AppHandle, _context: &ExportContext) -> Result<Vec<u8>, AppError> {
-    let value = read_json_from_app_dir(SETTINGS_FILE)?.unwrap_or_else(default_settings_json);
+    let value = read_json_from_config_dir(SETTINGS_FILE)?.unwrap_or_else(default_settings_json);
     Ok(serde_json::to_vec_pretty(&value)?)
 }
 
@@ -247,7 +247,7 @@ fn load_skills_config_bytes(_app: &AppHandle, _ctx: &ExportContext) -> Result<Ve
 fn collect_skills_dir_artifacts(
     artifacts: &mut Vec<ExportArtifact>,
 ) -> Result<(), AppError> {
-    let skills_dir = app_dir_path()?.join(SKILLS_DIR_NAME);
+    let skills_dir = crate::paths::init()?.data_dir.join(SKILLS_DIR_NAME);
     if !skills_dir.exists() {
         return Ok(());
     }
@@ -343,8 +343,8 @@ fn redact_pipeline_api_keys(value: &mut Value) {
     }
 }
 
-fn read_json_from_app_dir(file_name: &str) -> Result<Option<Value>, AppError> {
-    let path = app_dir_path()?.join(file_name);
+fn read_json_from_config_dir(file_name: &str) -> Result<Option<Value>, AppError> {
+    let path = crate::paths::init()?.config_dir.join(file_name);
     read_optional_json(&path)
 }
 
@@ -356,32 +356,6 @@ fn read_optional_json(path: &Path) -> Result<Option<Value>, AppError> {
     let content = fs::read_to_string(path)?;
     let value = serde_json::from_str(&content)?;
     Ok(Some(value))
-}
-
-fn app_dir_path() -> Result<PathBuf, AppError> {
-    let home = dirs_home_dir()?;
-    Ok(home.join(APP_DIR))
-}
-
-fn dirs_home_dir() -> Result<PathBuf, AppError> {
-    if let Some(path) = std::env::var_os("HOME") {
-        return Ok(PathBuf::from(path));
-    }
-    if let Some(path) = std::env::var_os("USERPROFILE") {
-        return Ok(PathBuf::from(path));
-    }
-    if let (Some(drive), Some(path)) = (
-        std::env::var_os("HOMEDRIVE"),
-        std::env::var_os("HOMEPATH"),
-    ) {
-        let mut buf = PathBuf::from(drive);
-        buf.push(path);
-        return Ok(buf);
-    }
-    Err(AppError::Io(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "Cannot determine home directory",
-    )))
 }
 
 fn default_pipeline_json() -> Value {

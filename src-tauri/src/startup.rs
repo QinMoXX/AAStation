@@ -42,29 +42,77 @@ mod platform {
 
 #[cfg(target_os = "macos")]
 mod platform {
+    use super::LAUNCH_AT_STARTUP_UNSUPPORTED_MESSAGE;
+
     pub fn is_enabled() -> Result<bool, String> {
-        tracing::info!("macOS 开机自启动功能尚未实现");
-        Ok(false)
+        Err(LAUNCH_AT_STARTUP_UNSUPPORTED_MESSAGE.to_string())
     }
 
     pub fn set_enabled(_enabled: bool) -> Result<(), String> {
-        tracing::info!("macOS 开机自启动功能尚未实现，忽略设置请求");
-        Ok(())
+        Err(LAUNCH_AT_STARTUP_UNSUPPORTED_MESSAGE.to_string())
     }
 }
 
 #[cfg(target_os = "linux")]
 mod platform {
-    pub fn is_enabled() -> Result<bool, String> {
-        tracing::info!("Linux 开机自启动功能尚未实现");
-        Ok(false)
+    use std::path::PathBuf;
+
+    fn config_home() -> Result<PathBuf, String> {
+        match std::env::var("XDG_CONFIG_HOME") {
+            Ok(value) if !value.trim().is_empty() => Ok(PathBuf::from(value)),
+            _ => {
+                let home = std::env::var("HOME")
+                    .map_err(|_| "读取 HOME 失败，无法确定 Linux 配置目录".to_string())?;
+                Ok(PathBuf::from(home).join(".config"))
+            }
+        }
     }
 
-    pub fn set_enabled(_enabled: bool) -> Result<(), String> {
-        tracing::info!("Linux 开机自启动功能尚未实现，忽略设置请求");
+    fn desktop_file_path() -> Result<PathBuf, String> {
+        Ok(config_home()?.join("autostart").join("AAStation.desktop"))
+    }
+
+    fn startup_exec() -> Result<String, String> {
+        let exe_path = std::env::current_exe().map_err(|e| format!("读取当前程序路径失败: {}", e))?;
+        let exe = exe_path.to_string_lossy().to_string();
+        Ok(if exe.contains(' ') { format!("\"{}\"", exe) } else { exe })
+    }
+
+    fn desktop_entry_content() -> Result<String, String> {
+        let exec = startup_exec()?;
+        Ok(format!(
+            "[Desktop Entry]\nType=Application\nVersion=1.0\nName=AAStation\nComment=AAStation - API 代理\nExec={}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+            exec
+        ))
+    }
+
+    pub fn is_enabled() -> Result<bool, String> {
+        Ok(desktop_file_path()?.exists())
+    }
+
+    pub fn set_enabled(enabled: bool) -> Result<(), String> {
+        let desktop_path = desktop_file_path()?;
+        if enabled {
+            if let Some(parent) = desktop_path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("创建 autostart 目录失败: {}", e))?;
+            }
+            let content = desktop_entry_content()?;
+            std::fs::write(&desktop_path, content)
+                .map_err(|e| format!("写入 autostart 文件失败: {}", e))?;
+            return Ok(());
+        }
+
+        if let Err(e) = std::fs::remove_file(&desktop_path) {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                return Err(format!("移除 autostart 文件失败: {}", e));
+            }
+        }
         Ok(())
     }
 }
+
+pub const LAUNCH_AT_STARTUP_UNSUPPORTED_MESSAGE: &str = "当前平台不支持开机自启动";
 
 pub fn is_launch_at_startup_enabled(_app: &tauri::AppHandle) -> Result<bool, String> {
     platform::is_enabled()

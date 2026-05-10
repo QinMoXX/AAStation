@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 const LOG_DIR: &str = "logs";
-const APP_DIR: &str = ".aastation";
 const DEFAULT_MAX_BYTES: usize = 64 * 1024;
 const MAX_ALLOWED_BYTES: usize = 256 * 1024;
 
@@ -45,24 +44,9 @@ struct LatestLogFile {
     name: String,
 }
 
-fn dirs_home_dir() -> Result<PathBuf, String> {
-    if let Some(p) = std::env::var_os("HOME") {
-        return Ok(PathBuf::from(p));
-    }
-    if let Some(p) = std::env::var_os("USERPROFILE") {
-        return Ok(PathBuf::from(p));
-    }
-    if let (Some(drive), Some(path)) = (std::env::var_os("HOMEDRIVE"), std::env::var_os("HOMEPATH")) {
-        let mut buf = PathBuf::from(drive);
-        buf.push(path);
-        return Ok(buf);
-    }
-    Err("Cannot determine home directory".to_string())
-}
-
 fn log_dir_path() -> Result<PathBuf, String> {
-    let home = dirs_home_dir()?;
-    let dir = home.join(APP_DIR).join(LOG_DIR);
+    let paths = crate::paths::init().map_err(|e| e.to_string())?;
+    let dir = paths.state_dir.join(LOG_DIR);
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create log directory: {}", e))?;
     Ok(dir)
 }
