@@ -44,7 +44,7 @@ jobs:
           git commit -am "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
           git push origin main
 
-  publish-tauri:
+  publish-windows:
     needs: bump-version
     runs-on: windows-latest
 
@@ -75,6 +75,163 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "AAStation ${{ github.ref_name }}"
-          releaseBody: "Automated release for ${{ github.ref_name }}"
+          releaseBody: "Automated release for ${{ github.ref_name }} with Windows, Linux and Arch packages."
           releaseDraft: false
           prerelease: false
+
+  publish-linux:
+    needs:
+      - bump-version
+      - publish-windows
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and publish Linux bundles
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "AAStation ${{ github.ref_name }}"
+          releaseBody: "Automated release for ${{ github.ref_name }} with Windows, Linux and Arch packages."
+          releaseDraft: false
+          prerelease: false
+          args: --bundles deb,rpm
+
+  publish-arch:
+    needs:
+      - bump-version
+      - publish-linux
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install Arch packaging tools
+        run: |
+          pacman -Sy --noconfirm --needed curl jq
+
+      - name: Build Arch package from release Debian bundle
+        id: build_arch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+
+          PRODUCT_NAME="$(jq -r '.productName' src-tauri/tauri.conf.json)"
+          PACKAGE_NAME="$(printf '%s' "$PRODUCT_NAME" | tr '[:upper:]' '[:lower:]')"
+          VERSION="${GITHUB_REF_NAME#v}"
+          REPO_URL="https://github.com/${GITHUB_REPOSITORY}"
+          LICENSE_PATH="${GITHUB_WORKSPACE}/LICENSE"
+
+          RELEASE_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}")"
+
+          DEB_ASSET_NAME="$(printf '%s' "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".deb")) | .name' | head -n 1)"
+          DEB_ASSET_URL="$(printf '%s' "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".deb")) | .url' | head -n 1)"
+
+          test -n "$DEB_ASSET_NAME"
+          test -n "$DEB_ASSET_URL"
+
+          useradd -m builder
+          mkdir -p "${GITHUB_WORKSPACE}/arch-package"
+
+          curl -fsSL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/octet-stream" \
+            "$DEB_ASSET_URL" \
+            -o "${GITHUB_WORKSPACE}/arch-package/${DEB_ASSET_NAME}"
+
+          cat > "${GITHUB_WORKSPACE}/arch-package/PKGBUILD" <<EOF
+          pkgname=${PACKAGE_NAME}
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="Desktop app for building AI API routing pipelines"
+          arch=('x86_64')
+          url="${REPO_URL}"
+          license=('MIT')
+          depends=('cairo' 'desktop-file-utils' 'gdk-pixbuf2' 'glib2' 'gtk3' 'hicolor-icon-theme' 'libayatana-appindicator' 'libsoup3' 'pango' 'webkit2gtk-4.1')
+          options=('!strip' '!debug')
+          install=${PACKAGE_NAME}.install
+          source=('${DEB_ASSET_NAME}' 'LICENSE')
+          sha256sums=('SKIP' 'SKIP')
+
+          package() {
+            local extract_dir="\$srcdir/extract"
+            local data_archive
+
+            mkdir -p "\$extract_dir"
+            bsdtar -xf "\$srcdir/${DEB_ASSET_NAME}" -C "\$extract_dir"
+            data_archive="\$(find "\$extract_dir" -maxdepth 1 \( -name 'data.tar.*' -o -name 'data.tar' \) | head -n 1)"
+            test -n "\$data_archive"
+            bsdtar -xf "\$data_archive" -C "\$pkgdir"
+
+            install -Dm644 "\$srcdir/LICENSE" "\$pkgdir/usr/share/licenses/${PACKAGE_NAME}/LICENSE"
+          }
+          EOF
+
+          cat > "${GITHUB_WORKSPACE}/arch-package/${PACKAGE_NAME}.install" <<EOF
+          post_install() {
+            gtk-update-icon-cache -q -t -f usr/share/icons/hicolor || true
+            update-desktop-database -q || true
+          }
+
+          post_upgrade() {
+            post_install
+          }
+
+          post_remove() {
+            gtk-update-icon-cache -q -t -f usr/share/icons/hicolor || true
+            update-desktop-database -q || true
+          }
+          EOF
+
+          cp "$LICENSE_PATH" "${GITHUB_WORKSPACE}/arch-package/LICENSE"
+          chown -R builder:builder "${GITHUB_WORKSPACE}"
+          runuser -u builder -- bash -lc "cd '${GITHUB_WORKSPACE}/arch-package' && makepkg --noconfirm -f"
+
+          ARCH_PACKAGE_PATH="$(find "${GITHUB_WORKSPACE}/arch-package" -maxdepth 1 -name '*.pkg.tar.zst' | head -n 1)"
+          test -n "$ARCH_PACKAGE_PATH"
+          echo "arch_package_path=$ARCH_PACKAGE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Arch package to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ${{ steps.build_arch.outputs.arch_package_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
