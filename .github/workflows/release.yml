@@ -190,7 +190,7 @@ jobs:
             "$DEB_ASSET_URL" \
             -o "${GITHUB_WORKSPACE}/arch-package/${DEB_ASSET_NAME}"
 
-          cat > "${GITHUB_WORKSPACE}/arch-package/PKGBUILD" <<'PKGBUILD_EOF'
+          cat > "${GITHUB_WORKSPACE}/arch-package/PKGBUILD" <<PKGBUILD_EOF
           pkgname=${PACKAGE_NAME}
           pkgver=${VERSION}
           pkgrel=1
@@ -200,21 +200,21 @@ jobs:
           license=('MIT')
           depends=('cairo' 'desktop-file-utils' 'gdk-pixbuf2' 'glib2' 'gtk3' 'hicolor-icon-theme' 'libayatana-appindicator' 'libsoup3' 'pango' 'webkit2gtk-4.1')
           options=('!strip' '!debug')
-          install=${PACKAGE_NAME}.install
+          install=${pkgname}.install
           source=('${DEB_ASSET_NAME}' 'LICENSE')
           sha256sums=('SKIP' 'SKIP')
 
           package() {
-            local extract_dir="$srcdir/extract"
+            local extract_dir="\$srcdir/extract"
             local data_archive
 
-            mkdir -p "$extract_dir"
-            bsdtar -xf "$srcdir/${DEB_ASSET_NAME}" -C "$extract_dir"
-            data_archive="$(find "$extract_dir" -maxdepth 1 \( -name 'data.tar.*' -o -name 'data.tar' \) | head -n 1)"
-            test -n "$data_archive"
-            bsdtar -xf "$data_archive" -C "$pkgdir"
+            mkdir -p "\$extract_dir"
+            bsdtar -xf "\$srcdir/${DEB_ASSET_NAME}" -C "\$extract_dir"
+            data_archive="\$(find "\$extract_dir" -maxdepth 1 \( -name 'data.tar.*' -o -name 'data.tar' \) | head -n 1)"
+            test -n "\$data_archive"
+            bsdtar -xf "\$data_archive" -C "\$pkgdir"
 
-            install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/${PACKAGE_NAME}/LICENSE"
+            install -Dm644 "\$srcdir/LICENSE" "\$pkgdir/usr/share/licenses/${PACKAGE_NAME}/LICENSE"
           }
           PKGBUILD_EOF
 
