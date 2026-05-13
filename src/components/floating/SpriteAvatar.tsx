@@ -1,8 +1,5 @@
 import { cn } from '../../lib/utils';
 import { Bot } from 'lucide-react';
-
-// Use dynamic imports for lobehub icons to avoid bundling them in the main chunk.
-// These icons are already in the vendor chunk via code splitting.
 import { ClaudeCode, Codex, OpenCode } from '@lobehub/icons';
 
 interface SpriteAvatarProps {
@@ -13,22 +10,16 @@ interface SpriteAvatarProps {
 }
 
 function AppIcon({ appType }: { appType: string | null }) {
-  const size = 48;
-
   switch (appType) {
     case 'claude_code':
-      return <ClaudeCode.Color size={size} />;
+      return <ClaudeCode.Color size={36} />;
     case 'codex_cli':
-      return <Codex.Color size={size} />;
+      return <Codex.Color size={36} />;
     case 'open_code':
-      return <OpenCode size={size} />;
+      return <OpenCode size={36} />;
     case 'listener':
     default:
-      return (
-        <div className="w-12 h-12 rounded-2xl bg-[rgba(52,211,153,0.15)] border border-[rgba(52,211,153,0.3)] flex items-center justify-center">
-          <Bot className="w-7 h-7 text-emerald-400" />
-        </div>
-      );
+      return <Bot className="w-7 h-7 text-primary" />;
   }
 }
 
@@ -38,8 +29,11 @@ export default function SpriteAvatar({ appType, appLabel, hasMessage, onPointerD
       <div
         onPointerDown={onPointerDown}
         className={cn(
+          'w-14 h-14 rounded-full flex items-center justify-center',
+          'bg-[rgba(15,23,42,0.9)] border border-border',
+          'shadow-[var(--color-shadow-soft)]',
           'cursor-grab transition-all duration-500',
-          hasMessage && 'animate-pulse'
+          hasMessage && 'animate-pulse shadow-[0_0_16px_rgba(59,130,246,0.4)]'
         )}
       >
         <AppIcon appType={appType} />
@@ -49,12 +43,6 @@ export default function SpriteAvatar({ appType, appLabel, hasMessage, onPointerD
           {appLabel}
         </span>
       )}
-      <div
-        className={cn(
-          'w-1.5 h-1.5 rounded-full transition-colors duration-300',
-          hasMessage ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-slate-600'
-        )}
-      />
     </div>
   );
 }
