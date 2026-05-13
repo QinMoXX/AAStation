@@ -17,6 +17,13 @@ export default function FloatingWindow() {
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draggingRef = useRef(false);
 
+  // Disable right-click context menu
+  useEffect(() => {
+    const handler = (e: Event) => e.preventDefault();
+    window.addEventListener('contextmenu', handler);
+    return () => window.removeEventListener('contextmenu', handler);
+  }, []);
+
   // Listen for proxy message events
   useEffect(() => {
     const unlisten = listen<ProxyMessageEvent>('proxy-message', (event) => {
