@@ -32,6 +32,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   launchAtStartup: false,
   autoCheckUpdate: true,
   autoInstallUpdate: false,
+  showFloatingWindow: false,
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({

@@ -280,6 +280,7 @@ export async function loadSettings(): Promise<AppSettings> {
     launch_at_startup?: boolean;
     auto_check_update?: boolean;
     auto_install_update?: boolean;
+    show_floating_window?: boolean;
   }>('load_settings');
   return {
     listenPortRange: raw.listen_port_range,
@@ -289,6 +290,7 @@ export async function loadSettings(): Promise<AppSettings> {
     launchAtStartup: raw.launch_at_startup ?? false,
     autoCheckUpdate: raw.auto_check_update ?? true,
     autoInstallUpdate: raw.auto_install_update ?? false,
+    showFloatingWindow: raw.show_floating_window ?? false,
   };
 }
 
@@ -303,8 +305,14 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
       launch_at_startup: settings.launchAtStartup,
       auto_check_update: settings.autoCheckUpdate,
       auto_install_update: settings.autoInstallUpdate,
+      show_floating_window: settings.showFloatingWindow,
     },
   });
+}
+
+/** Toggle the floating message monitor window. */
+export async function toggleFloatingWindow(show: boolean): Promise<void> {
+  return invoke<void>('toggle_floating_window', { show });
 }
 
 export async function pickExportDirectory(): Promise<string | null> {

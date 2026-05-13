@@ -26,6 +26,13 @@ pub(crate) async fn apply_settings(
     let proxy = state.proxy.read().await;
     proxy.update_auth_token(settings.proxy_auth_token.clone()).await;
 
+    // Show or hide the floating monitor window based on the setting.
+    crate::commands::floating_window_commands::toggle_floating_window(
+        app.clone(),
+        settings.show_floating_window,
+    )
+    .await?;
+
     Ok(settings)
 }
 

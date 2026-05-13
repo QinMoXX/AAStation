@@ -77,6 +77,13 @@
   }
 }
 
+/* ---- Floating window transparent background ---- */
+
+html[data-window="floating"],
+html[data-window="floating"] body {
+  background: transparent;
+}
+
 /* ---- Base styles ---- */
 
 html, body {

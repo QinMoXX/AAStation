@@ -1,6 +1,7 @@
 pub mod app_commands;
 pub mod config_commands;
 pub mod dag_commands;
+pub mod floating_window_commands;
 pub mod log_commands;
 pub mod platform_commands;
 pub mod proxy_commands;

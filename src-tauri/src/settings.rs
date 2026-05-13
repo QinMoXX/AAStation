@@ -34,6 +34,9 @@ pub struct AppSettings {
     /// Whether to download and install updates automatically when found.
     #[serde(default)]
     pub auto_install_update: bool,
+    /// Whether to show the floating message monitor window (sprite-style).
+    #[serde(default)]
+    pub show_floating_window: bool,
 }
 
 fn default_port_range() -> String {
@@ -130,6 +133,7 @@ impl Default for AppSettings {
             launch_at_startup: false,
             auto_check_update: default_auto_check_update(),
             auto_install_update: false,
+            show_floating_window: false,
         }
     }
 }

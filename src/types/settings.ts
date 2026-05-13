@@ -14,4 +14,6 @@ export interface AppSettings {
   autoCheckUpdate: boolean;
   /** Automatically download and install updates when available. */
   autoInstallUpdate: boolean;
+  /** Whether to show the floating message monitor window. */
+  showFloatingWindow: boolean;
 }

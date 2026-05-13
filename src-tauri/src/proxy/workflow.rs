@@ -720,6 +720,7 @@ mod tests {
         RouteTable {
             app_id: "app-1".to_string(),
             app_label: "App 1".to_string(),
+            app_type: String::new(),
             listen_port: 9527,
             listen_address: "127.0.0.1".to_string(),
             routes: vec![

@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::proxy::message_event::ProxyMessageEvent;
 use crate::proxy::ProxyServer;
 
 /// Application state managed by Tauri via `app.manage()`.
@@ -12,6 +13,9 @@ pub struct AppState {
     /// The proxy auth token for verifying client requests.
     /// Updated when settings are saved.
     pub proxy_auth_token: Arc<RwLock<String>>,
+    /// Broadcast sender for proxy message events consumed by the floating window.
+    /// Created when the floating window is shown, cleared when hidden.
+    pub message_sender: Arc<RwLock<Option<tokio::sync::broadcast::Sender<ProxyMessageEvent>>>>,
 }
 
 impl AppState {
@@ -28,6 +32,7 @@ impl AppState {
         Self {
             proxy: Arc::new(RwLock::new(proxy)),
             proxy_auth_token: Arc::new(RwLock::new(auth_token)),
+            message_sender: Arc::new(RwLock::new(None)),
         }
     }
 

@@ -9,6 +9,7 @@ use tokio::time::MissedTickBehavior;
 
 use super::error::ProxyError;
 use super::health::{probe_interval, PollerRuntimeStore, ProviderRuntimeStore};
+use super::message_event::ProxyMessageEvent;
 use super::metrics::MetricsStore;
 use super::handler::proxy_handler;
 use super::types::{CompiledRoute, ProxyConfig, ProxyStatus, RouteTable, RouteTableSet};
@@ -40,6 +41,8 @@ pub struct ProxyState {
     pub poller_runtime: PollerRuntimeStore,
     pub health_probe_shutdown: Arc<RwLock<Option<oneshot::Sender<()>>>>,
     pub health_probe_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
+    /// Broadcast sender for proxy message events consumed by the floating window.
+    pub message_sender: Arc<RwLock<Option<tokio::sync::broadcast::Sender<ProxyMessageEvent>>>>,
 }
 
 /// Manages the axum proxy server lifecycle and holds runtime state.
@@ -66,6 +69,8 @@ pub struct HandlerState {
     /// Auth token for verifying client requests.
     /// Updated when settings are saved (via ProxyServer::update_auth_token).
     pub proxy_auth_token: Arc<RwLock<String>>,
+    /// Broadcast sender for proxy message events consumed by the floating window.
+    pub message_sender: Arc<RwLock<Option<tokio::sync::broadcast::Sender<crate::proxy::message_event::ProxyMessageEvent>>>>,
 }
 
 impl ProxyServer {
@@ -84,6 +89,7 @@ impl ProxyServer {
                 poller_runtime: PollerRuntimeStore::new(),
                 health_probe_shutdown: Arc::new(RwLock::new(None)),
                 health_probe_handle: Arc::new(RwLock::new(None)),
+                message_sender: Arc::new(RwLock::new(None)),
             },
             proxy_auth_token: Arc::new(RwLock::new(String::new())),
         }
@@ -93,6 +99,14 @@ impl ProxyServer {
     pub async fn update_auth_token(&self, new_token: String) {
         let mut token = self.proxy_auth_token.write().await;
         *token = new_token;
+    }
+
+    /// Update the broadcast message sender (called when floating window is toggled).
+    pub async fn set_message_sender(
+        &self,
+        sender: Option<tokio::sync::broadcast::Sender<crate::proxy::message_event::ProxyMessageEvent>>,
+    ) {
+        *self.state.message_sender.write().await = sender;
     }
 
     /// Start proxy listeners for all Application nodes.
@@ -151,6 +165,7 @@ impl ProxyServer {
                 provider_runtime: self.state.provider_runtime.clone(),
                 poller_runtime: self.state.poller_runtime.clone(),
                 proxy_auth_token: Arc::clone(&self.proxy_auth_token),
+                message_sender: Arc::clone(&self.state.message_sender),
             };
 
             // Build axum router with catch-all handler
@@ -621,6 +636,7 @@ mod tests {
         RouteTable {
             app_id: "app-1".to_string(),
             app_label: "App 1".to_string(),
+            app_type: String::new(),
             listen_port: port,
             listen_address: "127.0.0.1".to_string(),
             routes: vec![make_route(route_id, provider_label)],

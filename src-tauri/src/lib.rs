@@ -114,6 +114,7 @@ pub fn run() {
             commands::skills_commands::add_skills_tool,
             commands::skills_commands::remove_skills_tool,
             commands::skills_commands::collect_project_skills,
+            commands::floating_window_commands::toggle_floating_window,
         ])
         .setup(move |app| {
             // Setup system tray

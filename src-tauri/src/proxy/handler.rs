@@ -12,6 +12,7 @@ use tokio::sync::oneshot;
 use super::body_parser::{detect_request_protocol, extract_model};
 use super::error::ProxyError;
 use super::forwarder::forward_request;
+use super::message_event::ProxyMessageEvent;
 use super::server::HandlerState;
 use super::sse_patch::AnthropicSsePatchStream;
 use super::stream::{is_sse_response, LoggedStream, MeteredStream};
@@ -46,6 +47,7 @@ struct RequestMetricContext {
     protocol: RequestProtocol,
     app_id: String,
     app_label: String,
+    app_type: String,
     provider_id: String,
     provider_label: String,
     token_limit: Option<u64>,
@@ -194,6 +196,7 @@ pub async fn proxy_handler(
         protocol: source_protocol,
         app_id: route_table.app_id.clone(),
         app_label: route_table.app_label.clone(),
+        app_type: route_table.app_type.clone(),
         provider_id: matched_route.provider_id.clone(),
         provider_label: matched_route.provider_label.clone(),
         token_limit: matched_route.token_limit,
@@ -208,6 +211,18 @@ pub async fn proxy_handler(
     };
 
     drop(route_table);
+
+    // Emit incoming message event for the floating monitor window.
+    emit_message_event(
+        &state,
+        &metric_ctx,
+        model.as_deref().unwrap_or(""),
+        &body_bytes,
+        "incoming",
+        None,
+        None,
+    )
+    .await;
 
     // Forward the request to upstream
     let upstream_resp = match forward_request(
@@ -239,6 +254,20 @@ pub async fn proxy_handler(
             return e.into_response();
         }
     };
+
+    // Emit outgoing message event for the floating monitor window.
+    let upstream_status = upstream_resp.status();
+    let elapsed_ms = request_started_instant.elapsed().as_millis() as u64;
+    emit_message_event(
+        &state,
+        &metric_ctx,
+        metric_ctx.request_model.as_deref().unwrap_or(""),
+        &[],
+        "outgoing",
+        Some(upstream_status.as_u16()),
+        Some(elapsed_ms),
+    )
+    .await;
 
     // Build the downstream response from upstream response
     build_response(upstream_resp, source_protocol, metric_ctx, &state, Some(request_guard)).await
@@ -681,4 +710,52 @@ async fn record_metric(
             error,
         )
         .await;
+}
+
+/// Emit a proxy-message event to the floating monitor window via the broadcast channel.
+async fn emit_message_event(
+    state: &HandlerState,
+    ctx: &RequestMetricContext,
+    model: &str,
+    body_bytes: &[u8],
+    direction: &str,
+    status_code: Option<u16>,
+    duration_ms: Option<u64>,
+) {
+    let sender = state.message_sender.read().await;
+    if let Some(tx) = sender.as_ref() {
+        let request_id = ctx.started_at.replace(['-', ':', '.', 'T'], "")[..20].to_string()
+            + "-"
+            + &ctx.listen_port.to_string();
+        let _ = tx.send(ProxyMessageEvent {
+            app_id: ctx.app_id.clone(),
+            app_label: ctx.app_label.clone(),
+            app_type: ctx.app_type.clone(),
+            direction: direction.to_string(),
+            model: model.to_string(),
+            content_preview: truncate_preview(body_bytes, 200),
+            timestamp: chrono::Utc::now().timestamp_millis() as u64,
+            request_id,
+            status_code,
+            duration_ms,
+        });
+    }
+}
+
+/// Truncate a byte slice to a string preview of at most `max_len` characters.
+fn truncate_preview(data: &[u8], max_len: usize) -> String {
+    if data.is_empty() {
+        return String::new();
+    }
+    match std::str::from_utf8(data) {
+        Ok(s) => {
+            let trimmed = s.trim();
+            if trimmed.len() <= max_len {
+                trimmed.to_string()
+            } else {
+                trimmed[..trimmed.floor_char_boundary(max_len)].to_string() + "…"
+            }
+        }
+        Err(_) => format!("[{} bytes binary]", data.len()),
+    }
 }

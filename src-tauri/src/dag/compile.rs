@@ -87,6 +87,7 @@ pub fn compile(doc: &DAGDocument, settings: &AppSettings) -> Result<RouteTableSe
         tables.push(RouteTable {
             app_id: app_node.id.clone(),
             app_label: app_data.label.clone(),
+            app_type: app_data.app_type.clone(),
             listen_port: app_data.listen_port,
             listen_address: settings.listen_address.clone(),
             routes,
@@ -609,6 +610,7 @@ mod tests {
             launch_at_startup: false,
             auto_check_update: true,
             auto_install_update: false,
+            show_floating_window: false,
         }
     }
 

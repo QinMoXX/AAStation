@@ -24,6 +24,9 @@ pub struct RouteTable {
     /// Human-friendly label for the application node.
     #[serde(default)]
     pub app_label: String,
+    /// Application type for icon selection ("listener" / "claude_code" / "open_code" / "codex_cli").
+    #[serde(default)]
+    pub app_type: String,
     /// The port this application's proxy listens on.
     pub listen_port: u16,
     /// The address the proxy binds to.

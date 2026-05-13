@@ -189,3 +189,17 @@ export interface CompiledRoute {
   token_limit?: number | null;
   fuzzy_match: boolean;
 }
+
+/** Event emitted by the proxy handler for the floating message monitor window. */
+export interface ProxyMessageEvent {
+  app_id: string;
+  app_label: string;
+  app_type: string;
+  direction: 'incoming' | 'outgoing';
+  model: string;
+  content_preview: string;
+  timestamp: number;
+  request_id: string;
+  status_code?: number;
+  duration_ms?: number;
+}

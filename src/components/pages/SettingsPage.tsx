@@ -86,6 +86,7 @@ export default function SettingsPage() {
   const [logDirMaxMb, setLogDirMaxMb] = useState(String(settings.logDirMaxMb ?? 500));
   const [launchAtStartup, setLaunchAtStartup] = useState(settings.launchAtStartup);
   const [autoCheckUpdate, setAutoCheckUpdate] = useState(settings.autoCheckUpdate);
+  const [showFloatingWindow, setShowFloatingWindow] = useState(settings.showFloatingWindow ?? false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(false);
@@ -111,6 +112,7 @@ export default function SettingsPage() {
     setLogDirMaxMb(String(settings.logDirMaxMb ?? 500));
     setLaunchAtStartup(settings.launchAtStartup);
     setAutoCheckUpdate(settings.autoCheckUpdate);
+    setShowFloatingWindow(settings.showFloatingWindow ?? false);
   }, [settings]);
 
   useEffect(() => {
@@ -151,6 +153,7 @@ export default function SettingsPage() {
         launchAtStartup: launchAtStartupSupported ? launchAtStartup : false,
         autoCheckUpdate,
         autoInstallUpdate: settings.autoInstallUpdate,
+        showFloatingWindow,
       });
       toast.success('常规设置已保存');
     } catch (err) {
@@ -861,6 +864,20 @@ export default function SettingsPage() {
                 <span>当前平台不支持开机自启动，该选项将保持关闭。</span>
               </div>
             )}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-muted text-xs">消息监控</Label>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showFloatingWindow}
+                onCheckedChange={setShowFloatingWindow}
+              />
+              <span className="text-sm text-foreground">消息悬浮窗</span>
+            </div>
+            <p className="text-xs text-dim">开启后在桌面显示一个小精灵浮窗，实时展示应用节点的收发消息。</p>
           </div>
 
           <Separator />

@@ -3,6 +3,7 @@ pub mod error;
 pub mod forwarder;
 pub mod health;
 pub mod handler;
+pub mod message_event;
 pub mod metrics;
 pub mod router;
 pub mod server;
