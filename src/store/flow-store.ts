@@ -169,7 +169,7 @@ interface FlowState {
   onConnect: OnConnect;
 
   // CRUD
-  addNode: (type: NodeType, position?: { x: number; y: number }, appType?: AppType) => string;
+  addNode: (type: NodeType, position?: { x: number; y: number }, appType?: AppType) => string | null;
   addMiddlewareNode: (middlewareType: MiddlewareType, position?: { x: number; y: number }) => string;
   /** Add a preset Provider node by preset ID. */
   addPresetProviderNode: (presetId: string, position?: { x: number; y: number }) => string;
@@ -268,6 +268,13 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   // -----------------------------------------------------------------------
 
   addNode: (type: NodeType, position?: { x: number; y: number }, appType?: AppType) => {
+    // Non-custom application nodes (claude_code, open_code, codex_cli) are limited to one instance
+    if (type === 'application' && appType && appType !== 'listener') {
+      const duplicate = get().nodes.find(
+        (n) => n.data.nodeType === 'application' && (n.data as ApplicationNodeData).appType === appType,
+      );
+      if (duplicate) return null;
+    }
     const id = nextNodeId();
     const baseData = type === 'application' && appType
       ? defaultApplicationData(appType)

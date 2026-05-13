@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useFlowStore, PRESET_PROVIDERS, APPLICATION_DEFAULTS, MIDDLEWARE_CONFIG } from '../../store/flow-store';
+import { toast } from '../../store/toast-store';
 import { getProviderIcon } from '../icons/ProviderIcons';
 import { NodeTag, type AppType, type MiddlewareType } from '../../types';
 import { Badge } from '@/components/ui/badge';
@@ -197,7 +198,15 @@ export default function HomeSubNav() {
                               key={appType}
                               type="button"
                               className="w-full min-w-0 max-w-full box-border overflow-hidden flex flex-wrap items-start gap-x-2.5 gap-y-1 mt-1 px-3 py-2.5 pl-6 rounded-[14px] border border-transparent bg-transparent text-muted cursor-pointer text-left transition-all duration-200 hover:border-border hover:bg-surface/70 hover:text-foreground"
-                              onClick={() => addNode('application', undefined, appType === 'listener' ? undefined : appType)}
+                              onClick={() => {
+                                const resolvedAppType = appType === 'listener' ? undefined : appType;
+                                const result = addNode('application', undefined, resolvedAppType);
+                                if (result === null) {
+                                  toast.warning(`${
+                                    APPLICATION_DEFAULTS[appType]?.displayLabel || appType
+                                  } 应用节点已存在，只允许创建一个`);
+                                }
+                              }}
                             >
                               <span className="w-4 h-4 flex items-center justify-center shrink-0">
                                 {Icon && <Icon className="w-3.5 h-3.5" />}
