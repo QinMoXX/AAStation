@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { PhysicalPosition } from '@tauri-apps/api/dpi';
+import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi';
 import type { ProxyMessageEvent } from '../../types/proxy';
 import ChatBubble from './ChatBubble';
 import SpriteAvatar from './SpriteAvatar';
 
 const AUTO_DISMISS_MS = 4000;
-const WINDOW_W = 280;
-const WINDOW_H = 340;
+const ACTIVE_W = 280;
+const ACTIVE_H = 340;
+const IDLE_W = 88;
+const IDLE_H = 112;
 const SNAP_THRESHOLD = 60;
 const SNAP_GAP = 8;
 
@@ -61,6 +63,7 @@ export default function FloatingWindow() {
         if (!monitor) return;
 
         const pos = await win.outerPosition();
+        const size = await win.innerSize();
         const scale = monitor.scaleFactor;
 
         // Convert physical pixels to logical
@@ -68,11 +71,13 @@ export default function FloatingWindow() {
         const wy = pos.y / scale;
         const sw = monitor.size.width / scale;
         const sh = monitor.size.height / scale;
+        const winW = size.width / scale;
+        const winH = size.height / scale;
 
         const distLeft = wx;
-        const distRight = sw - (wx + WINDOW_W);
+        const distRight = sw - (wx + winW);
         const distTop = wy;
-        const distBottom = sh - (wy + WINDOW_H);
+        const distBottom = sh - (wy + winH);
 
         const minDist = Math.min(distLeft, distRight, distTop, distBottom);
 
@@ -81,9 +86,9 @@ export default function FloatingWindow() {
           let newY = wy;
 
           if (minDist === distLeft) newX = SNAP_GAP;
-          else if (minDist === distRight) newX = sw - WINDOW_W - SNAP_GAP;
+          else if (minDist === distRight) newX = sw - winW - SNAP_GAP;
           else if (minDist === distTop) newY = SNAP_GAP;
-          else if (minDist === distBottom) newY = sh - WINDOW_H - SNAP_GAP;
+          else if (minDist === distBottom) newY = sh - winH - SNAP_GAP;
 
           await win.setPosition(new PhysicalPosition(newX, newY));
         }
@@ -99,6 +104,14 @@ export default function FloatingWindow() {
   const hasMessage = currentMessage !== null;
   const appType = currentMessage?.app_type ?? null;
   const appLabel = currentMessage?.app_label ?? null;
+
+  // Resize window to match content: compact when idle, larger when showing a message
+  useEffect(() => {
+    const size = hasMessage
+      ? new LogicalSize(ACTIVE_W, ACTIVE_H)
+      : new LogicalSize(IDLE_W, IDLE_H);
+    getCurrentWindow().setSize(size).catch(() => {});
+  }, [hasMessage]);
 
   const handleDragStart = async () => {
     draggingRef.current = true;
