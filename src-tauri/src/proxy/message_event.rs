@@ -14,4 +14,8 @@ pub struct ProxyMessageEvent {
     pub request_id: String,
     pub status_code: Option<u16>,
     pub duration_ms: Option<u64>,
+    /// Whether the response is still streaming. Currently always false
+    /// (events are emitted after the full response is received),
+    /// reserved for future incremental streaming support.
+    pub is_streaming: bool,
 }

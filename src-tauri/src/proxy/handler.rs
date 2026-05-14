@@ -221,6 +221,7 @@ pub async fn proxy_handler(
         "incoming",
         None,
         None,
+        false, // is_streaming
     )
     .await;
 
@@ -255,21 +256,8 @@ pub async fn proxy_handler(
         }
     };
 
-    // Emit outgoing message event for the floating monitor window.
-    let upstream_status = upstream_resp.status();
-    let elapsed_ms = request_started_instant.elapsed().as_millis() as u64;
-    emit_message_event(
-        &state,
-        &metric_ctx,
-        metric_ctx.request_model.as_deref().unwrap_or(""),
-        &[],
-        "outgoing",
-        Some(upstream_status.as_u16()),
-        Some(elapsed_ms),
-    )
-    .await;
-
-    // Build the downstream response from upstream response
+    // Build the downstream response from upstream response.
+    // The outgoing message event is emitted inside build_response after the body is available.
     build_response(upstream_resp, source_protocol, metric_ctx, &state, Some(request_guard)).await
 }
 
@@ -468,6 +456,20 @@ async fn build_response(
             )
             .await;
         });
+
+        // Emit outgoing event — SSE streaming, body content not yet available
+        emit_message_event(
+            state,
+            &metric_ctx,
+            metric_ctx.request_model.as_deref().unwrap_or(""),
+            &[],
+            "outgoing",
+            Some(status.as_u16()),
+            Some(metric_ctx.start_instant.elapsed().as_millis() as u64),
+            true, // is_streaming
+        )
+        .await;
+
         return (status, response_headers, body).into_response();
     }
 
@@ -536,6 +538,19 @@ async fn build_response(
     } else {
         tracing::info!("← Upstream response body (status: {}): [{} bytes, non-UTF8]", status, body_bytes.len());
     }
+
+    // Emit outgoing event with the full buffered body content
+    emit_message_event(
+        state,
+        &metric_ctx,
+        metric_ctx.request_model.as_deref().unwrap_or(""),
+        &body_bytes,
+        "outgoing",
+        Some(status.as_u16()),
+        Some(metric_ctx.start_instant.elapsed().as_millis() as u64),
+        false, // is_streaming
+    )
+    .await;
 
     (status, response_headers, body_bytes.to_vec()).into_response()
 }
@@ -721,6 +736,7 @@ async fn emit_message_event(
     direction: &str,
     status_code: Option<u16>,
     duration_ms: Option<u64>,
+    is_streaming: bool,
 ) {
     let sender = state.message_sender.read().await;
     if let Some(tx) = sender.as_ref() {
@@ -738,6 +754,7 @@ async fn emit_message_event(
             request_id,
             status_code,
             duration_ms,
+            is_streaming,
         });
     }
 }

@@ -3,20 +3,47 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi';
 import type { ProxyMessageEvent } from '../../types/proxy';
-import ChatBubble from './ChatBubble';
+import ChatMessageList from './ChatMessageList';
 import SpriteAvatar from './SpriteAvatar';
+import { createChatMessage, type ChatMessage } from './ChatBubble';
 
-const AUTO_DISMISS_MS = 4000;
-const ACTIVE_W = 280;
-const ACTIVE_H = 340;
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const MAX_MESSAGES = 10;
 const IDLE_W = 88;
 const IDLE_H = 112;
+const ACTIVE_W = 300;
 const SNAP_THRESHOLD = 60;
 const SNAP_GAP = 8;
+/** Duration to show the streaming indicator when the response body is empty (SSE). */
+const STREAMING_INDICATOR_MS = 5000;
+/** Typewriter characters per tick at ~20 ticks/sec (50ms interval). */
+const TYPEWRITER_CHARS_PER_TICK = 3;
+const TYPEWRITER_INTERVAL_MS = 50;
+const EXPIRY_CHECK_INTERVAL_MS = 500;
+/** Messages stay visible for this long after content finishes displaying. */
+const COMPLETE_TTL_MS = 10000;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function computeActiveHeight(count: number): number {
+  // ~65px per bubble + padding
+  const h = 120 + count * 62;
+  return Math.min(Math.max(h, 220), 420);
+}
+
+// ---------------------------------------------------------------------------
+// FloatingWindow
+// ---------------------------------------------------------------------------
 
 export default function FloatingWindow() {
-  const [currentMessage, setCurrentMessage] = useState<ProxyMessageEvent | null>(null);
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const expiryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const draggingRef = useRef(false);
 
   // Disable right-click context menu
@@ -26,35 +53,117 @@ export default function FloatingWindow() {
     return () => window.removeEventListener('contextmenu', handler);
   }, []);
 
-  // Listen for proxy message events
+  // ── Listen for proxy-message events ────────────────────────────────
   useEffect(() => {
     const unlisten = listen<ProxyMessageEvent>('proxy-message', (event) => {
-      setCurrentMessage(event.payload);
-
-      if (dismissTimerRef.current) {
-        clearTimeout(dismissTimerRef.current);
-      }
-      dismissTimerRef.current = setTimeout(() => {
-        setCurrentMessage(null);
-        dismissTimerRef.current = null;
-      }, AUTO_DISMISS_MS);
+      const msg = createChatMessage(event.payload);
+      setMessages((prev) => {
+        const next = [...prev, msg];
+        return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
+      });
     });
 
     return () => {
       unlisten.then((fn) => fn());
-      if (dismissTimerRef.current) {
-        clearTimeout(dismissTimerRef.current);
+    };
+  }, []);
+
+  // ── Typewriter animation loop ──────────────────────────────────────
+  useEffect(() => {
+    typewriterTimerRef.current = setInterval(() => {
+      setMessages((prev) => {
+        let changed = false;
+        const now = Date.now();
+
+        const next = prev.map((msg) => {
+          if (msg.phase !== 'streaming') return msg;
+
+          // Empty content = SSE streaming indicator. Keep showing for a bit.
+          if (!msg.fullContent) {
+            if (now - msg.createdAt > STREAMING_INDICATOR_MS) {
+              changed = true;
+              return { ...msg, phase: 'complete' as const, completedAt: now };
+            }
+            return msg;
+          }
+
+          // Typewriter: reveal characters progressively
+          const remaining = msg.fullContent.length - msg.displayedContent.length;
+          if (remaining <= 0) {
+            changed = true;
+            return { ...msg, phase: 'complete' as const, completedAt: now };
+          }
+
+          const charsToAdd = Math.min(remaining, TYPEWRITER_CHARS_PER_TICK);
+          changed = true;
+          return {
+            ...msg,
+            displayedContent: msg.fullContent.slice(
+              0,
+              msg.displayedContent.length + charsToAdd,
+            ),
+          };
+        });
+
+        return changed ? next : prev;
+      });
+    }, TYPEWRITER_INTERVAL_MS);
+
+    return () => {
+      if (typewriterTimerRef.current) {
+        clearInterval(typewriterTimerRef.current);
+        typewriterTimerRef.current = null;
       }
     };
   }, []);
 
-  // Edge snapping on drag end
+  // ── Expiry checker ─────────────────────────────────────────────────
+  useEffect(() => {
+    expiryTimerRef.current = setInterval(() => {
+      setMessages((prev) => {
+        const now = Date.now();
+        let changed = false;
+
+        const next = prev.map((msg) => {
+          if (msg.phase === 'complete' && msg.completedAt && now - msg.completedAt >= COMPLETE_TTL_MS) {
+            changed = true;
+            return { ...msg, phase: 'expiring' as const };
+          }
+          return msg;
+        });
+
+        if (!changed) return prev;
+
+        // Remove expired messages
+        const filtered = next.filter((msg) => msg.phase !== 'expiring');
+        return filtered;
+      });
+    }, EXPIRY_CHECK_INTERVAL_MS);
+
+    return () => {
+      if (expiryTimerRef.current) {
+        clearInterval(expiryTimerRef.current);
+        expiryTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // ── Window resize ──────────────────────────────────────────────────
+  const hasMessages = messages.length > 0;
+
+  useEffect(() => {
+    const size = hasMessages
+      ? new LogicalSize(ACTIVE_W, computeActiveHeight(messages.length))
+      : new LogicalSize(IDLE_W, IDLE_H);
+    getCurrentWindow().setSize(size).catch(() => {});
+  }, [hasMessages, messages.length]);
+
+  // ── Edge snapping on drag end ──────────────────────────────────────
   useEffect(() => {
     const handlePointerUp = async () => {
       if (!draggingRef.current) return;
       draggingRef.current = false;
 
-      // Debounce: wait for position to settle after drag
       await new Promise((r) => setTimeout(r, 300));
 
       try {
@@ -66,7 +175,6 @@ export default function FloatingWindow() {
         const size = await win.innerSize();
         const scale = monitor.scaleFactor;
 
-        // Convert physical pixels to logical
         const wx = pos.x / scale;
         const wy = pos.y / scale;
         const sw = monitor.size.width / scale;
@@ -101,18 +209,7 @@ export default function FloatingWindow() {
     return () => window.removeEventListener('pointerup', handlePointerUp);
   }, []);
 
-  const hasMessage = currentMessage !== null;
-  const appType = currentMessage?.app_type ?? null;
-  const appLabel = currentMessage?.app_label ?? null;
-
-  // Resize window to match content: compact when idle, larger when showing a message
-  useEffect(() => {
-    const size = hasMessage
-      ? new LogicalSize(ACTIVE_W, ACTIVE_H)
-      : new LogicalSize(IDLE_W, IDLE_H);
-    getCurrentWindow().setSize(size).catch(() => {});
-  }, [hasMessage]);
-
+  // ── Drag ───────────────────────────────────────────────────────────
   const handleDragStart = async () => {
     draggingRef.current = true;
     try {
@@ -122,16 +219,22 @@ export default function FloatingWindow() {
     }
   };
 
+  // ── Derive app info from latest message ────────────────────────────
+  const latestMsg = messages[messages.length - 1] ?? null;
+
+  // ── Render ─────────────────────────────────────────────────────────
   return (
     <div className="w-screen h-screen bg-transparent overflow-hidden select-none">
-      <div className="flex flex-col items-center justify-end h-full pb-6 px-3 gap-3">
-        <ChatBubble event={currentMessage} />
-        <SpriteAvatar
-          appType={appType}
-          appLabel={appLabel}
-          hasMessage={hasMessage}
-          onPointerDown={handleDragStart}
-        />
+      <div className="flex flex-col items-center h-full pb-4">
+        {hasMessages && <ChatMessageList messages={messages} />}
+        <div className={hasMessages ? 'shrink-0' : 'flex-1 flex items-end justify-center pb-6'}>
+          <SpriteAvatar
+            appType={latestMsg?.appType ?? null}
+            appLabel={latestMsg?.appLabel ?? null}
+            hasMessage={hasMessages}
+            onPointerDown={handleDragStart}
+          />
+        </div>
       </div>
     </div>
   );
