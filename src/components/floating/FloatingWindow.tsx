@@ -14,7 +14,7 @@ import { createChatMessage, type ChatMessage } from './ChatBubble';
 const MAX_MESSAGES = 10;
 const IDLE_W = 88;
 const IDLE_H = 112;
-const ACTIVE_W = 300;
+const ACTIVE_W = 320;
 const SNAP_THRESHOLD = 60;
 const SNAP_GAP = 8;
 /** Duration to show the streaming indicator when the response body is empty (SSE). */
@@ -25,15 +25,17 @@ const TYPEWRITER_INTERVAL_MS = 50;
 const EXPIRY_CHECK_INTERVAL_MS = 500;
 /** Messages stay visible for this long after content finishes displaying. */
 const COMPLETE_TTL_MS = 10000;
+/** Shorter TTL for messages with empty content (SSE responses). */
+const EMPTY_CONTENT_TTL_MS = 2000;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function computeActiveHeight(count: number): number {
-  // ~65px per bubble + padding
-  const h = 120 + count * 62;
-  return Math.min(Math.max(h, 220), 420);
+  // Keep the floating chat compact while leaving room for WeChat-style bubbles.
+  const h = 126 + count * 68;
+  return Math.min(Math.max(h, 236), 460);
 }
 
 // ---------------------------------------------------------------------------
@@ -125,9 +127,12 @@ export default function FloatingWindow() {
         let changed = false;
 
         const next = prev.map((msg) => {
-          if (msg.phase === 'complete' && msg.completedAt && now - msg.completedAt >= COMPLETE_TTL_MS) {
-            changed = true;
-            return { ...msg, phase: 'expiring' as const };
+          if (msg.phase === 'complete' && msg.completedAt) {
+            const ttl = msg.fullContent ? COMPLETE_TTL_MS : EMPTY_CONTENT_TTL_MS;
+            if (now - msg.completedAt >= ttl) {
+              changed = true;
+              return { ...msg, phase: 'expiring' as const };
+            }
           }
           return msg;
         });
@@ -225,9 +230,9 @@ export default function FloatingWindow() {
   // ── Render ─────────────────────────────────────────────────────────
   return (
     <div className="w-screen h-screen bg-transparent overflow-hidden select-none">
-      <div className="flex flex-col items-center h-full pb-4">
+      <div className="flex h-full flex-col items-center justify-end gap-2 px-2 pb-5">
         {hasMessages && <ChatMessageList messages={messages} />}
-        <div className={hasMessages ? 'shrink-0' : 'flex-1 flex items-end justify-center pb-6'}>
+        <div className={hasMessages ? 'shrink-0' : 'flex flex-1 items-end justify-center pb-4'}>
           <SpriteAvatar
             appType={latestMsg?.appType ?? null}
             appLabel={latestMsg?.appLabel ?? null}

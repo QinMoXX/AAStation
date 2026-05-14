@@ -749,7 +749,7 @@ async fn emit_message_event(
             app_type: ctx.app_type.clone(),
             direction: direction.to_string(),
             model: model.to_string(),
-            content_preview: truncate_preview(body_bytes, 200),
+            content_preview: extract_content_preview(body_bytes, direction, 200),
             timestamp: chrono::Utc::now().timestamp_millis() as u64,
             request_id,
             status_code,
@@ -759,14 +759,46 @@ async fn emit_message_event(
     }
 }
 
-/// Truncate a byte slice to a string preview of at most `max_len` characters.
-fn truncate_preview(data: &[u8], max_len: usize) -> String {
+/// Extract a human-readable content preview from a request or response body.
+///
+/// For JSON bodies, extracts the semantically relevant content:
+/// - **incoming**: the last user message from the `messages` array.
+/// - **outgoing**: the AI's text response from Anthropic-format (`content[].text`)
+///   or OpenAI-format (`choices[0].message.content`) JSON.
+///
+/// Falls back to the raw UTF-8 string (truncated) when the body is not valid JSON
+/// or the expected fields are missing.
+fn extract_content_preview(data: &[u8], direction: &str, max_len: usize) -> String {
     if data.is_empty() {
         return String::new();
     }
+
+    // Try JSON-aware extraction first
+    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(data) {
+        let extracted = match direction {
+            "incoming" => extract_request_content(&value),
+            "outgoing" => extract_response_content(&value),
+            _ => None,
+        };
+
+        if let Some(content) = extracted {
+            if content.is_empty() {
+                return String::new();
+            }
+            if content.len() <= max_len {
+                return content;
+            }
+            return content[..content.floor_char_boundary(max_len)].to_string() + "…";
+        }
+    }
+
+    // Fallback: raw UTF-8 string preview
     match std::str::from_utf8(data) {
         Ok(s) => {
             let trimmed = s.trim();
+            if trimmed.is_empty() {
+                return String::new();
+            }
             if trimmed.len() <= max_len {
                 trimmed.to_string()
             } else {
@@ -775,4 +807,109 @@ fn truncate_preview(data: &[u8], max_len: usize) -> String {
         }
         Err(_) => format!("[{} bytes binary]", data.len()),
     }
+}
+
+/// Extract the last user message content from a request body's `messages` array.
+fn extract_request_content(value: &serde_json::Value) -> Option<String> {
+    let messages = value.get("messages")?.as_array()?;
+    let last_user_msg = messages
+        .iter()
+        .rev()
+        .find(|msg| msg.get("role").and_then(|r| r.as_str()) == Some("user"))?;
+
+    let content = last_user_msg.get("content")?;
+
+    // String content (OpenAI format, simple Anthropic format)
+    if let Some(s) = content.as_str() {
+        return Some(s.to_string());
+    }
+
+    // Array of content blocks (Anthropic format with tool use, images, etc.)
+    if let Some(blocks) = content.as_array() {
+        let texts: Vec<&str> = blocks
+            .iter()
+            .filter_map(|b| b.get("text")?.as_str())
+            .collect();
+        if !texts.is_empty() {
+            return Some(texts.join(" "));
+        }
+    }
+
+    None
+}
+
+/// Extract the AI's text response from a response body.
+/// Handles Anthropic format (`content[].text`), OpenAI format
+/// (`choices[0].message.content`), and SSE message_start events
+/// (`message.content[].text`).
+fn extract_response_content(value: &serde_json::Value) -> Option<String> {
+    // Anthropic: content[].text
+    if let Some(content) = value.get("content") {
+        if let Some(arr) = content.as_array() {
+            let texts: Vec<&str> = arr
+                .iter()
+                .filter_map(|b| b.get("text")?.as_str())
+                .collect();
+            if !texts.is_empty() {
+                return Some(texts.join(""));
+            }
+        }
+    }
+
+    // Anthropic SSE message_start / message_delta: message.content[].text
+    if let Some(message) = value.get("message") {
+        if let Some(content) = message.get("content") {
+            if let Some(arr) = content.as_array() {
+                let texts: Vec<&str> = arr
+                    .iter()
+                    .filter_map(|b| b.get("text")?.as_str())
+                    .collect();
+                if !texts.is_empty() {
+                    return Some(texts.join(""));
+                }
+            }
+            if let Some(s) = content.as_str() {
+                return Some(s.to_string());
+            }
+        }
+    }
+
+    // Anthropic SSE content_block_delta: delta.text
+    if let Some(delta) = value.get("delta") {
+        if let Some(text) = delta.get("text").and_then(|v| v.as_str()) {
+            return Some(text.to_string());
+        }
+    }
+
+    // OpenAI: choices[0].message.content
+    if let Some(choices) = value.get("choices") {
+        if let Some(arr) = choices.as_array() {
+            if let Some(first) = arr.first() {
+                if let Some(message) = first.get("message") {
+                    if let Some(content) = message.get("content") {
+                        if let Some(s) = content.as_str() {
+                            return Some(s.to_string());
+                        }
+                    }
+                }
+                // OpenAI streaming: choices[0].delta.content
+                if let Some(delta) = first.get("delta") {
+                    if let Some(content) = delta.get("content") {
+                        if let Some(s) = content.as_str() {
+                            return Some(s.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // OpenAI error response: error.message
+    if let Some(error) = value.get("error") {
+        if let Some(msg) = error.get("message").and_then(|v| v.as_str()) {
+            return Some(format!("Error: {}", msg));
+        }
+    }
+
+    None
 }
