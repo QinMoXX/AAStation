@@ -133,6 +133,21 @@ pub fn run() {
                 *proxy.proxy_auth_token.blocking_write() = auth_token;
             }
 
+            // Open floating window at startup if enabled in settings
+            {
+                let settings = crate::settings::load_settings().unwrap_or_default();
+                if settings.show_floating_window {
+                    let app_handle = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = crate::commands::floating_window_commands::toggle_floating_window(
+                            app_handle,
+                            true,
+                        )
+                        .await;
+                    });
+                }
+            }
+
             // Start background task to update tray status periodically.
             // `shutdown` is moved here via the `move` setup closure; the task
             // then re-captures it. `shutdown_for_run` (a clone created above)
