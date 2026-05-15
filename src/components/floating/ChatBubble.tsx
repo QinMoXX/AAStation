@@ -53,14 +53,16 @@ interface ChatBubbleProps {
 }
 
 export default function ChatBubble({ message }: ChatBubbleProps) {
+  // Incoming = request from client app into AAStation → displayed on the RIGHT
+  // Outgoing = response from upstream provider → displayed on the LEFT
   const isIncoming = message.direction === 'incoming';
   const isStreaming = message.phase === 'streaming';
   const hasContent = message.displayedContent.length > 0;
-  const statusText = message.statusCode != null && !isIncoming
+  const statusText = !isIncoming && message.statusCode != null
     ? `HTTP ${message.statusCode}`
-    : isIncoming
-      ? '收到请求'
-      : '返回响应';
+    : !isIncoming
+      ? '返回响应'
+      : '收到请求';
   const durationText = message.durationMs != null
     ? message.durationMs >= 1000
       ? `${(message.durationMs / 1000).toFixed(1)}s`
@@ -71,14 +73,14 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
     <div
       className={cn(
         'flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300',
-        isIncoming ? 'justify-start' : 'justify-end'
+        isIncoming ? 'justify-end' : 'justify-start'
       )}
     >
-      <div className={cn('flex max-w-[250px] flex-col', isIncoming ? 'items-start' : 'items-end')}>
+      <div className={cn('flex max-w-[250px] flex-col', isIncoming ? 'items-end' : 'items-start')}>
         <div
           className={cn(
             'mb-1 flex max-w-full items-center gap-1.5 px-1 text-[10px] leading-none text-white/70',
-            isIncoming ? 'flex-row' : 'flex-row-reverse'
+            isIncoming ? 'flex-row-reverse' : 'flex-row'
           )}
         >
           <span className="max-w-[132px] truncate font-medium">
@@ -97,11 +99,11 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
 
         <div
           className={cn(
-            'relative min-w-0 max-w-full rounded-[6px] px-3 py-2 text-[12px] leading-[1.48] shadow-[0_4px_14px_rgba(0,0,0,0.18)]',
+            'relative min-w-0 max-w-full rounded-[6px] px-3 py-2 text-[12px] leading-[1.48] shadow-[0_4px_14px_rgba(0,0,0,0.18)] opacity-80',
             'text-[#101010]',
             isIncoming
-              ? 'mr-5 bg-white'
-              : 'ml-5 bg-[#95ec69]'
+              ? 'ml-5 bg-[#95ec69]'
+              : 'mr-5 bg-white'
           )}
         >
           <span
@@ -109,8 +111,8 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
             className={cn(
               'absolute top-[11px] h-2.5 w-2.5 rotate-45',
               isIncoming
-                ? '-left-[4px] bg-white'
-                : '-right-[4px] bg-[#95ec69]'
+                ? '-left-[4px] bg-[#95ec69]'
+                : '-right-[4px] bg-white'
             )}
           />
 

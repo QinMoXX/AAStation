@@ -15,7 +15,7 @@ use super::forwarder::forward_request;
 use super::message_event::ProxyMessageEvent;
 use super::server::HandlerState;
 use super::sse_patch::AnthropicSsePatchStream;
-use super::stream::{is_sse_response, LoggedStream, MeteredStream};
+use super::stream::{is_sse_response, LoggedStream, MeteredStream, SseContentCaptureStream};
 use super::types::{ProxyRequestMetric, RequestProtocol};
 use super::workflow::{execute_workflow, WorkflowRuntime};
 
@@ -428,10 +428,15 @@ async fn build_response(
             let logged = LoggedStream::new(upstream.bytes_stream());
             Box::pin(logged)
         };
+
+        // Capture text content from the SSE stream so we can emit an update
+        // event once the stream completes and the full response text is known.
+        let (capture_stream, text_handle) = SseContentCaptureStream::new_with_handle(raw_stream);
+
         let body = if let Some(guard) = request_guard {
-            Body::from_stream(MeteredStream::with_attachment(raw_stream, bytes_tx, guard))
+            Body::from_stream(MeteredStream::with_attachment(capture_stream, bytes_tx, guard))
         } else {
-            Body::from_stream(MeteredStream::new(raw_stream, bytes_tx))
+            Body::from_stream(MeteredStream::new(capture_stream, bytes_tx))
         };
 
         let state_for_metrics = state.clone();
@@ -455,6 +460,22 @@ async fn build_response(
                 None,
             )
             .await;
+
+            // Emit a follow-up outgoing event with the actual SSE response text
+            let captured = text_handle.lock().unwrap().clone();
+            if !captured.is_empty() {
+                emit_message_event(
+                    &state_for_metrics,
+                    &metric_ctx_for_metrics,
+                    metric_ctx_for_metrics.request_model.as_deref().unwrap_or(""),
+                    captured.as_bytes(),
+                    "outgoing",
+                    Some(status.as_u16()),
+                    Some(metric_ctx_for_metrics.start_instant.elapsed().as_millis() as u64),
+                    false,
+                )
+                .await;
+            }
         });
 
         // Emit outgoing event — SSE streaming, body content not yet available

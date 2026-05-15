@@ -3,6 +3,7 @@
 use axum::http::HeaderMap;
 use futures::Stream;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use tokio::sync::oneshot;
 
@@ -120,4 +121,114 @@ where
             Poll::Pending => Poll::Pending,
         }
     }
+}
+
+/// A stream wrapper that captures text content from SSE events while forwarding
+/// chunks unchanged. The accumulated text is shared via `Arc<Mutex<String>>` so
+/// the caller (in `handler.rs`) can read it after the stream completes and emit
+/// a follow-up message event with the actual response content.
+///
+/// Recognised SSE delta formats:
+/// - Anthropic: `{"type":"content_block_delta","delta":{"text":"..."}}`
+/// - OpenAI:    `{"choices":[{"delta":{"content":"..."}}]}`
+pub struct SseContentCaptureStream<S> {
+    inner: S,
+    /// Incomplete SSE data that spans across chunks.
+    buffer: String,
+    /// Accumulated text content extracted from complete SSE events.
+    text: Arc<Mutex<String>>,
+}
+
+impl<S> SseContentCaptureStream<S> {
+    /// Create a new wrapper and return a handle for reading captured text.
+    pub fn new_with_handle(inner: S) -> (Self, Arc<Mutex<String>>) {
+        let text = Arc::new(Mutex::new(String::new()));
+        (
+            Self { inner, buffer: String::new(), text: text.clone() },
+            text,
+        )
+    }
+}
+
+impl<S> Stream for SseContentCaptureStream<S>
+where
+    S: Stream<Item = Result<bytes::Bytes, std::io::Error>> + Unpin,
+{
+    type Item = Result<bytes::Bytes, std::io::Error>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match Pin::new(&mut self.inner).poll_next(cx) {
+            Poll::Ready(Some(Ok(chunk))) => {
+                if let Ok(s) = std::str::from_utf8(&chunk) {
+                    self.buffer.push_str(s);
+                    let new_text = extract_sse_delta_text(&mut self.buffer);
+                    if !new_text.is_empty() {
+                        if let Ok(mut t) = self.text.lock() {
+                            t.push_str(&new_text);
+                        }
+                    }
+                }
+                Poll::Ready(Some(Ok(chunk)))
+            }
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => {
+                if !self.buffer.is_empty() {
+                    let new_text = extract_sse_delta_text(&mut self.buffer);
+                    if !new_text.is_empty() {
+                        if let Ok(mut t) = self.text.lock() {
+                            t.push_str(&new_text);
+                        }
+                    }
+                }
+                Poll::Ready(None)
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+/// Extract text content from complete SSE events in the buffer.
+/// Events are separated by double-newlines. Complete events are removed from
+/// the buffer; incomplete ones stay for the next chunk.
+fn extract_sse_delta_text(buffer: &mut String) -> String {
+    let mut text = String::new();
+
+    while let Some(pos) = buffer.find("\n\n") {
+        let event_text = buffer[..pos + 2].to_string();
+        buffer.drain(..pos + 2);
+
+        for line in event_text.lines() {
+            let data_json = match line.strip_prefix("data:") {
+                Some(s) => s.trim_start(),
+                None => continue,
+            };
+            let value: serde_json::Value = match serde_json::from_str(data_json) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            // Anthropic content_block_delta: delta.text
+            if let Some(t) = value
+                .get("delta")
+                .and_then(|d| d.get("text"))
+                .and_then(|v| v.as_str())
+            {
+                text.push_str(t);
+            }
+
+            // OpenAI: choices[0].delta.content
+            if let Some(t) = value
+                .get("choices")
+                .and_then(|c| c.as_array())
+                .and_then(|arr| arr.first())
+                .and_then(|c| c.get("delta"))
+                .and_then(|d| d.get("content"))
+                .and_then(|v| v.as_str())
+            {
+                text.push_str(t);
+            }
+        }
+    }
+
+    text
 }

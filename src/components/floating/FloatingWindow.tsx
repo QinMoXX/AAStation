@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi';
 import type { ProxyMessageEvent } from '../../types/proxy';
+import { cn } from '../../lib/utils';
 import ChatMessageList from './ChatMessageList';
 import SpriteAvatar from './SpriteAvatar';
 import { createChatMessage, type ChatMessage } from './ChatBubble';
@@ -55,11 +56,35 @@ export default function FloatingWindow() {
     return () => window.removeEventListener('contextmenu', handler);
   }, []);
 
+  // Make window click-through (OS level), avatar area re-enables via CSS pointer-events-auto
+  useEffect(() => {
+    getCurrentWindow().setIgnoreCursorEvents(true).catch(() => {});
+  }, []);
+
   // ── Listen for proxy-message events ────────────────────────────────
   useEffect(() => {
     const unlisten = listen<ProxyMessageEvent>('proxy-message', (event) => {
       const msg = createChatMessage(event.payload);
       setMessages((prev) => {
+        // If a message with the same requestId + direction already exists
+        // (e.g. the initial empty SSE event), update it with the new content
+        // instead of creating a duplicate.
+        const existingIdx = prev.findIndex(
+          (m) => m.requestId === msg.requestId && m.direction === msg.direction,
+        );
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            fullContent: msg.fullContent,
+            displayedContent: '',
+            phase: 'streaming',
+            createdAt: Date.now(),
+            statusCode: msg.statusCode ?? updated[existingIdx].statusCode,
+            durationMs: msg.durationMs ?? updated[existingIdx].durationMs,
+          };
+          return updated;
+        }
         const next = [...prev, msg];
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });
@@ -229,10 +254,10 @@ export default function FloatingWindow() {
 
   // ── Render ─────────────────────────────────────────────────────────
   return (
-    <div className="w-screen h-screen bg-transparent overflow-hidden select-none">
+    <div className="w-screen h-screen bg-transparent overflow-hidden select-none pointer-events-none">
       <div className="flex h-full flex-col items-center justify-end gap-2 px-2 pb-5">
         {hasMessages && <ChatMessageList messages={messages} />}
-        <div className={hasMessages ? 'shrink-0' : 'flex flex-1 items-end justify-center pb-4'}>
+        <div className={cn(hasMessages ? 'shrink-0' : 'flex flex-1 items-end justify-center pb-4', 'pointer-events-auto')}>
           <SpriteAvatar
             appType={latestMsg?.appType ?? null}
             appLabel={latestMsg?.appLabel ?? null}
