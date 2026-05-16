@@ -464,21 +464,21 @@ async fn build_response(
             )
             .await;
 
-            // Emit a follow-up outgoing event with the actual SSE response text
+            // Emit a follow-up outgoing event with the actual SSE response text.
+            // Always emit even when captured text is empty, so the frontend
+            // can transition the streaming bubble out of "streaming" mode.
             let captured = text_handle.lock().unwrap().clone();
-            if !captured.is_empty() {
-                emit_message_event(
-                    &state_for_metrics,
-                    &metric_ctx_for_metrics,
-                    metric_ctx_for_metrics.request_model.as_deref().unwrap_or(""),
-                    captured.as_bytes(),
-                    "outgoing",
-                    Some(status.as_u16()),
-                    Some(metric_ctx_for_metrics.start_instant.elapsed().as_millis() as u64),
-                    false,
-                )
-                .await;
-            }
+            emit_message_event(
+                &state_for_metrics,
+                &metric_ctx_for_metrics,
+                metric_ctx_for_metrics.request_model.as_deref().unwrap_or(""),
+                captured.as_bytes(),
+                "outgoing",
+                Some(status.as_u16()),
+                Some(metric_ctx_for_metrics.start_instant.elapsed().as_millis() as u64),
+                false,
+            )
+            .await;
         });
 
         // Emit outgoing event — SSE streaming, body content not yet available
