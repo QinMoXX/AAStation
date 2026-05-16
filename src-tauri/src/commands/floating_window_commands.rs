@@ -65,19 +65,11 @@ async fn create_or_show(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Hide the floating message monitor window and clean up the broadcast channel.
+/// Hide the floating message monitor window.
 async fn close_floating(app: &AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
         let _ = window.hide();
     }
-
-    // Clear the broadcast sender so the proxy handler stops sending events.
-    let state = app.state::<AppState>();
-    *state.message_sender.write().await = None;
-
-    let proxy = state.proxy.read().await;
-    proxy.set_message_sender(None).await;
-
     Ok(())
 }
 

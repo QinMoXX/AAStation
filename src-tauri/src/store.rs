@@ -14,7 +14,7 @@ pub struct AppState {
     /// Updated when settings are saved.
     pub proxy_auth_token: Arc<RwLock<String>>,
     /// Broadcast sender for proxy message events consumed by the floating window.
-    /// Created when the floating window is shown, cleared when hidden.
+    /// Created when the floating window is first shown, persists across hide/show cycles.
     pub message_sender: Arc<RwLock<Option<tokio::sync::broadcast::Sender<ProxyMessageEvent>>>>,
 }
 
