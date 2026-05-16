@@ -54,7 +54,9 @@ async fn create_or_show(app: &AppHandle) -> Result<(), String> {
         loop {
             match rx.recv().await {
                 Ok(event) => {
-                    let _ = app_handle.emit("proxy-message", event);
+                    if let Some(window) = app_handle.get_webview_window(FLOATING_WINDOW_LABEL) {
+                        let _ = window.emit("proxy-message", event);
+                    }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
