@@ -56,10 +56,10 @@ export default function FloatingWindow() {
     return () => window.removeEventListener('contextmenu', handler);
   }, []);
 
-  // Make window click-through (OS level), avatar area re-enables via CSS pointer-events-auto
-  useEffect(() => {
-    getCurrentWindow().setIgnoreCursorEvents(true).catch(() => {});
-  }, []);
+  // Transparent areas pass through via CSS pointer-events-none on the root div;
+  // the avatar wrapper uses pointer-events-auto to stay interactive for drag.
+  // Do NOT use setIgnoreCursorEvents(true) — OS-level click-through cannot be
+  // overridden by CSS, so the avatar area would never receive pointerdown events.
 
   // ── Listen for proxy-message events ────────────────────────────────
   useEffect(() => {
