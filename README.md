@@ -68,8 +68,17 @@
 - **一键配置客户端** — 自动写入 Claude Code、OpenCode、Codex CLI 的代理设置
 - **实时监控** — 请求数、Token 用量、延迟、成功率一目了然
 - **供应商健康状态** — 正常 / 降级 / 熔断 / 半开，状态持久化
+- **消息悬浮窗** — 桌面悬浮窗实时展示请求和响应内容，支持打字机动画和流式指示
 - **系统托盘** — 后台运行，支持开机自启
 - **自动更新** — 启动时检查，一键安装新版本
+
+<br>
+
+## 消息悬浮窗
+
+开启后在桌面显示一个半透明悬浮窗，实时展示代理转发的请求和响应内容：
+
+在「设置 → 通用」中开启"消息悬浮窗"即可使用。
 
 <br>
 
@@ -190,6 +199,7 @@ The simplest pipeline is just **Application → Provider**.
 - **One-click client setup** — Auto-writes proxy config for Claude Code, OpenCode, and Codex CLI
 - **Real-time monitoring** — Request count, token usage, latency, success rate at a glance
 - **Provider health status** — Normal / degraded / circuit-break / half-open, persisted across restarts
+- **Floating message monitor** — Desktop overlay window showing live request/response content with typewriter animation and streaming indicator
 - **System tray** — Runs in background, supports auto-start
 - **Auto-update** — Checks on startup, one-click install
 
@@ -233,4 +243,3 @@ npm run tauri build  # Build installer
 4. **Start proxy** — Save and click "Start Proxy"
 5. **Configure client** — Settings → Apps, select your client and application node, click "Write Config"
 6. **Done** — Use your client as usual; requests go through the proxy automatically
-

@@ -831,28 +831,41 @@ fn extract_content_preview(data: &[u8], direction: &str, max_len: usize) -> Stri
 }
 
 /// Extract the last user message content from a request body's `messages` array.
+/// Walks messages in reverse, skipping user messages that contain only
+/// tool_result blocks (which are tool output, not human text input).
 fn extract_request_content(value: &serde_json::Value) -> Option<String> {
     let messages = value.get("messages")?.as_array()?;
-    let last_user_msg = messages
-        .iter()
-        .rev()
-        .find(|msg| msg.get("role").and_then(|r| r.as_str()) == Some("user"))?;
 
-    let content = last_user_msg.get("content")?;
+    for msg in messages.iter().rev() {
+        if msg.get("role").and_then(|r| r.as_str()) != Some("user") {
+            continue;
+        }
 
-    // String content (OpenAI format, simple Anthropic format)
-    if let Some(s) = content.as_str() {
-        return Some(s.to_string());
-    }
+        let content = msg.get("content")?;
 
-    // Array of content blocks (Anthropic format with tool use, images, etc.)
-    if let Some(blocks) = content.as_array() {
-        let texts: Vec<&str> = blocks
-            .iter()
-            .filter_map(|b| b.get("text")?.as_str())
-            .collect();
-        if !texts.is_empty() {
-            return Some(texts.join(" "));
+        // String content — directly the user's text input
+        if let Some(s) = content.as_str() {
+            if s.trim().is_empty() {
+                continue;
+            }
+            return Some(s.to_string());
+        }
+
+        // Array of content blocks
+        if let Some(blocks) = content.as_array() {
+            // Extract text blocks only; skip tool_result blocks
+            let text_parts: Vec<&str> = blocks
+                .iter()
+                .filter(|b| {
+                    b.get("type").and_then(|v| v.as_str()) != Some("tool_result")
+                })
+                .filter_map(|b| b.get("text")?.as_str())
+                .collect();
+
+            if !text_parts.is_empty() {
+                return Some(text_parts.join(" "));
+            }
+            // All blocks were tool_results — skip, keep searching earlier messages
         }
     }
 

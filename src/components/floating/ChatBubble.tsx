@@ -23,16 +23,60 @@ export interface ChatMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Raw JSON detection — if the backend's content extraction fails and we get
+// raw JSON like {"model":"...","messages":[...]}, try to pull out the last
+// user message text.
 // ---------------------------------------------------------------------------
 
+function tryExtractFromRawJson(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('{')) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    const messages = parsed?.messages;
+    if (!Array.isArray(messages)) return null;
+
+    // Walk messages in reverse, skip user messages that are pure tool_result
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg?.role !== 'user') continue;
+
+      const content = msg.content;
+      if (typeof content === 'string') {
+        if (!content.trim()) continue;
+        return content;
+      }
+      if (!Array.isArray(content)) continue;
+
+      // Extract text blocks only; skip tool_result blocks
+      const texts: string[] = [];
+      for (const block of content) {
+        if (block?.type === 'tool_result') continue;
+        if (typeof block?.text === 'string') {
+          texts.push(block.text);
+        }
+      }
+      if (texts.length > 0) return texts.join(' ');
+      // All blocks were tool_results — skip, continue searching earlier messages
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function createChatMessage(event: ProxyMessageEvent): ChatMessage {
+  const raw = event.content_preview || '';
+  // If the backend fell through to raw JSON, try to extract the user message
+  const extracted = tryExtractFromRawJson(raw);
   return {
     id: `${event.request_id}-${event.direction}`,
     requestId: event.request_id,
     direction: event.direction,
     model: event.model,
-    fullContent: event.content_preview || '',
+    fullContent: extracted ?? raw,
     displayedContent: '',  // typewriter will fill this in
     appType: event.app_type || '',
     appLabel: event.app_label || '',
