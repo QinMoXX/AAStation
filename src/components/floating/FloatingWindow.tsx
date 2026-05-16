@@ -20,8 +20,6 @@ const MIN_ACTIVE_H = 236;
 const MAX_ACTIVE_H = 460;
 const SNAP_THRESHOLD = 60;
 const SNAP_GAP = 8;
-/** Duration to show the streaming indicator while waiting for SSE content. */
-const STREAMING_INDICATOR_MS = 5000;
 /** Typewriter characters per tick at ~20 ticks/sec (50ms interval). */
 const TYPEWRITER_CHARS_PER_TICK = 3;
 const TYPEWRITER_INTERVAL_MS = 50;
@@ -30,6 +28,8 @@ const EXPIRY_CHECK_INTERVAL_MS = 500;
 const COMPLETE_TTL_MS = 30000;
 /** Shorter TTL for messages with empty content. */
 const EMPTY_CONTENT_TTL_MS = 5000;
+/** How long the streaming indicator shows before timing out (SSE streams can be slow). */
+const STREAMING_INDICATOR_MS = 120_000;
 
 // ---------------------------------------------------------------------------
 // FloatingWindow
@@ -42,6 +42,10 @@ export default function FloatingWindow() {
   const draggingRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastAppliedHeightRef = useRef(0);
+  const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasActiveMessages = messages.some((m) => m.phase === 'active');
+  const hasDoneMessages = messages.some((m) => m.phase === 'done');
 
   // Disable right-click context menu
   useEffect(() => {
@@ -106,6 +110,8 @@ export default function FloatingWindow() {
 
   // ── Typewriter animation loop ──────────────────────────────────────
   useEffect(() => {
+    if (!hasActiveMessages) return;
+
     typewriterTimerRef.current = setInterval(() => {
       setMessages((prev) => {
         let changed = false;
@@ -160,16 +166,23 @@ export default function FloatingWindow() {
         typewriterTimerRef.current = null;
       }
     };
-  }, []);
+  }, [hasActiveMessages]);
 
   // ── Expiry checker ─────────────────────────────────────────────────
   useEffect(() => {
+    if (!hasDoneMessages) return;
+
     expiryTimerRef.current = setInterval(() => {
       setMessages((prev) => {
         const now = Date.now();
         let changed = false;
 
         const next = prev.map((msg) => {
+          // Never expire streaming messages — they are waiting for content
+          // from an in-progress SSE stream. Only the follow-up event from the
+          // backend (with real content) can resolve them.
+          if (msg.mode === 'streaming') return msg;
+
           if (msg.phase === 'done' && msg.completedAt) {
             const ttl = msg.fullContent ? COMPLETE_TTL_MS : EMPTY_CONTENT_TTL_MS;
             if (now - msg.completedAt >= ttl) {
@@ -192,7 +205,7 @@ export default function FloatingWindow() {
         expiryTimerRef.current = null;
       }
     };
-  }, []);
+  }, [hasDoneMessages]);
 
   // ── Window resize via ResizeObserver ───────────────────────────────
   const hasMessages = messages.length > 0;
@@ -205,24 +218,34 @@ export default function FloatingWindow() {
     if (!contentEl) return;
 
     const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const contentH = entry.contentRect.height;
-        // Pad for avatar area below the message list (56px)
-        const targetH = Math.round(
-          Math.min(Math.max(contentH + 56, MIN_ACTIVE_H), MAX_ACTIVE_H),
-        );
-
-        if (Math.abs(targetH - lastAppliedHeightRef.current) >= 4) {
-          lastAppliedHeightRef.current = targetH;
-          getCurrentWindow()
-            .setSize(new LogicalSize(ACTIVE_W, targetH))
-            .catch(() => {});
-        }
+      // Debounce — only apply the final size after content settles
+      if (resizeDebounceRef.current) {
+        clearTimeout(resizeDebounceRef.current);
       }
+      resizeDebounceRef.current = setTimeout(() => {
+        for (const entry of entries) {
+          const contentH = entry.contentRect.height;
+          const targetH = Math.round(
+            Math.min(Math.max(contentH + 56, MIN_ACTIVE_H), MAX_ACTIVE_H),
+          );
+
+          if (Math.abs(targetH - lastAppliedHeightRef.current) >= 4) {
+            lastAppliedHeightRef.current = targetH;
+            getCurrentWindow()
+              .setSize(new LogicalSize(ACTIVE_W, targetH))
+              .catch(() => {});
+          }
+        }
+      }, 200);
     });
 
     ro.observe(contentEl);
-    return () => ro.disconnect();
+    return () => {
+      if (resizeDebounceRef.current) {
+        clearTimeout(resizeDebounceRef.current);
+      }
+      ro.disconnect();
+    };
   }, [hasMessages]);
 
   // When messages disappear, reset to idle size.

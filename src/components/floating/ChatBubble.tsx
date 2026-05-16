@@ -212,11 +212,11 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
               </span>
             </div>
           ) : isError ? (
-            <div className="relative line-clamp-4 break-words">
+            <div className="relative line-clamp-12 break-words">
               {message.displayedContent || '(错误响应)'}
             </div>
           ) : hasContent || message.fullContent ? (
-            <div className="relative line-clamp-4 break-words">
+            <div className="relative line-clamp-12 break-words">
               {message.displayedContent || message.fullContent}
               {isActive && hasContent && (
                 <span className="ml-0.5 inline-block h-3 w-[1px] animate-pulse bg-[#101010]/60 align-[-1px]" />

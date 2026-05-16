@@ -52,6 +52,7 @@ struct RequestMetricContext {
     provider_label: String,
     token_limit: Option<u64>,
     listen_port: u16,
+    request_id: String,
     request_model: Option<String>,
     target_model: Option<String>,
     estimated_input_tokens: u64,
@@ -188,6 +189,7 @@ pub async fn proxy_handler(
     };
 
     let matched_route = matched_route.clone();
+    let request_id = uuid::Uuid::new_v4().to_string();
     let metric_ctx = RequestMetricContext {
         started_at: request_started_at,
         start_instant: request_started_instant,
@@ -201,6 +203,7 @@ pub async fn proxy_handler(
         provider_label: matched_route.provider_label.clone(),
         token_limit: matched_route.token_limit,
         listen_port: state.listen_port,
+        request_id: request_id.clone(),
         request_model: model.clone(),
         target_model: if matched_route.target_model.is_empty() {
             None
@@ -761,11 +764,9 @@ async fn emit_message_event(
 ) {
     let sender = state.message_sender.read().await;
     if let Some(tx) = sender.as_ref() {
-        let request_id = ctx.started_at.replace(['-', ':', '.', 'T'], "")[..20].to_string()
-            + "-"
-            + &ctx.listen_port.to_string();
+        let request_id = ctx.request_id.clone();
         let is_error = status_code.map(|s| s >= 400).unwrap_or(false);
-        let _ = tx.send(ProxyMessageEvent {
+        if let Err(e) = tx.send(ProxyMessageEvent {
             app_id: ctx.app_id.clone(),
             app_label: ctx.app_label.clone(),
             app_type: ctx.app_type.clone(),
@@ -778,7 +779,9 @@ async fn emit_message_event(
             duration_ms,
             is_streaming,
             is_error,
-        });
+        }) {
+            tracing::warn!("Failed to send proxy-message event: {}", e);
+        }
     }
 }
 

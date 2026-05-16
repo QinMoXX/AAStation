@@ -8,7 +8,7 @@ const FLOATING_WINDOW_LABEL: &str = "floating-monitor";
 /// ProxyState, and spawn a task that forwards broadcast messages to the Tauri
 /// event system for the floating window.
 async fn ensure_broadcast_channel(app: &AppHandle, state: &AppState) {
-    let (tx, _rx) = tokio::sync::broadcast::channel::<ProxyMessageEvent>(32);
+    let (tx, _rx) = tokio::sync::broadcast::channel::<ProxyMessageEvent>(256);
 
     // Store in AppState for direct access by commands.
     *state.message_sender.write().await = Some(tx.clone());
@@ -30,7 +30,14 @@ async fn ensure_broadcast_channel(app: &AppHandle, state: &AppState) {
                     }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!(
+                        lagged = n,
+                        "Floating window broadcast receiver lagged — dropped {} events",
+                        n
+                    );
+                    continue;
+                }
             }
         }
     });
