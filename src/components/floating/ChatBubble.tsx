@@ -17,6 +17,8 @@ export interface ChatMessage {
   statusCode?: number;
   durationMs?: number;
   timestamp: number;
+  /** Whether the upstream response is an active SSE stream (body not yet available). */
+  isStreaming: boolean;
   phase: 'streaming' | 'complete' | 'expiring';
   createdAt: number;
   completedAt?: number;
@@ -71,20 +73,27 @@ export function createChatMessage(event: ProxyMessageEvent): ChatMessage {
   const raw = event.content_preview || '';
   // If the backend fell through to raw JSON, try to extract the user message
   const extracted = tryExtractFromRawJson(raw);
+  const isStreaming = event.is_streaming === true;
+  const hasContent = !!(extracted ?? raw);
   return {
     id: `${event.request_id}-${event.direction}`,
     requestId: event.request_id,
     direction: event.direction,
     model: event.model,
     fullContent: extracted ?? raw,
-    displayedContent: '',  // typewriter will fill this in
+    displayedContent: '',
     appType: event.app_type || '',
     appLabel: event.app_label || '',
     statusCode: event.status_code,
     durationMs: event.duration_ms,
     timestamp: event.timestamp,
-    phase: 'streaming',
+    isStreaming,
+    // Only enter the streaming phase when there's content to animate or
+    // we're waiting for SSE chunks. Empty non-streaming messages are
+    // already complete — show them immediately.
+    phase: (isStreaming || hasContent) ? 'streaming' : 'complete',
     createdAt: Date.now(),
+    completedAt: (isStreaming || hasContent) ? undefined : Date.now(),
   };
 }
 
@@ -160,7 +169,7 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
             )}
           />
 
-          {isStreaming && !hasContent ? (
+          {message.isStreaming && !hasContent ? (
             <div className="relative flex items-center gap-1.5 text-[#606060]">
               <span>正在接收流式响应</span>
               <span className="inline-flex gap-0.5">

@@ -74,12 +74,15 @@ export default function FloatingWindow() {
         );
         if (existingIdx >= 0) {
           const updated = [...prev];
+          const hasContent = !!msg.fullContent;
           updated[existingIdx] = {
             ...updated[existingIdx],
             fullContent: msg.fullContent,
             displayedContent: '',
-            phase: 'streaming',
+            isStreaming: msg.isStreaming,
+            phase: (msg.isStreaming || hasContent) ? 'streaming' as const : 'complete' as const,
             createdAt: Date.now(),
+            completedAt: (msg.isStreaming || hasContent) ? undefined : Date.now(),
             statusCode: msg.statusCode ?? updated[existingIdx].statusCode,
             durationMs: msg.durationMs ?? updated[existingIdx].durationMs,
           };
