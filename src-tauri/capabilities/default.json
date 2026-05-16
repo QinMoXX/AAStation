@@ -14,6 +14,9 @@
     "core:window:allow-close",
     "core:window:allow-is-maximized",
     "core:window:allow-start-dragging",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-ignore-cursor-events",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

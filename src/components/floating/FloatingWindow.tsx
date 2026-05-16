@@ -185,7 +185,9 @@ export default function FloatingWindow() {
     const size = hasMessages
       ? new LogicalSize(ACTIVE_W, computeActiveHeight(messages.length))
       : new LogicalSize(IDLE_W, IDLE_H);
-    getCurrentWindow().setSize(size).catch(() => {});
+    getCurrentWindow().setSize(size).catch((e) => {
+      if (import.meta.env.DEV) console.error('FloatingWindow.setSize failed:', e);
+    });
   }, [hasMessages, messages.length]);
 
   // ── Edge snapping on drag end ──────────────────────────────────────
@@ -230,8 +232,8 @@ export default function FloatingWindow() {
 
           await win.setPosition(new PhysicalPosition(newX, newY));
         }
-      } catch {
-        // Silently ignore snap errors
+      } catch (e) {
+        if (import.meta.env.DEV) console.error('FloatingWindow snap failed:', e);
       }
     };
 
