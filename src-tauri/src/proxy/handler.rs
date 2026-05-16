@@ -764,6 +764,7 @@ async fn emit_message_event(
         let request_id = ctx.started_at.replace(['-', ':', '.', 'T'], "")[..20].to_string()
             + "-"
             + &ctx.listen_port.to_string();
+        let is_error = status_code.map(|s| s >= 400).unwrap_or(false);
         let _ = tx.send(ProxyMessageEvent {
             app_id: ctx.app_id.clone(),
             app_label: ctx.app_label.clone(),
@@ -776,6 +777,7 @@ async fn emit_message_event(
             status_code,
             duration_ms,
             is_streaming,
+            is_error,
         });
     }
 }

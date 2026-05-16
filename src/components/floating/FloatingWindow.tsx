@@ -12,32 +12,24 @@ import { createChatMessage, type ChatMessage } from './ChatBubble';
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_MESSAGES = 10;
+const MAX_MESSAGES = 20;
 const IDLE_W = 88;
 const IDLE_H = 112;
 const ACTIVE_W = 320;
+const MIN_ACTIVE_H = 236;
+const MAX_ACTIVE_H = 460;
 const SNAP_THRESHOLD = 60;
 const SNAP_GAP = 8;
-/** Duration to show the streaming indicator when the response body is empty (SSE). */
+/** Duration to show the streaming indicator while waiting for SSE content. */
 const STREAMING_INDICATOR_MS = 5000;
 /** Typewriter characters per tick at ~20 ticks/sec (50ms interval). */
 const TYPEWRITER_CHARS_PER_TICK = 3;
 const TYPEWRITER_INTERVAL_MS = 50;
 const EXPIRY_CHECK_INTERVAL_MS = 500;
 /** Messages stay visible for this long after content finishes displaying. */
-const COMPLETE_TTL_MS = 10000;
-/** Shorter TTL for messages with empty content (SSE responses). */
-const EMPTY_CONTENT_TTL_MS = 2000;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function computeActiveHeight(count: number): number {
-  // Keep the floating chat compact while leaving room for WeChat-style bubbles.
-  const h = 126 + count * 68;
-  return Math.min(Math.max(h, 236), 460);
-}
+const COMPLETE_TTL_MS = 30000;
+/** Shorter TTL for messages with empty content. */
+const EMPTY_CONTENT_TTL_MS = 5000;
 
 // ---------------------------------------------------------------------------
 // FloatingWindow
@@ -48,6 +40,8 @@ export default function FloatingWindow() {
   const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const expiryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const draggingRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const lastAppliedHeightRef = useRef(0);
 
   // Disable right-click context menu
   useEffect(() => {
@@ -57,37 +51,49 @@ export default function FloatingWindow() {
   }, []);
 
   // Transparent areas pass through via CSS pointer-events-none on the root div;
-  // the avatar wrapper uses pointer-events-auto to stay interactive for drag.
+  // the avatar wrapper and message list use pointer-events-auto to stay interactive.
   // Do NOT use setIgnoreCursorEvents(true) — OS-level click-through cannot be
-  // overridden by CSS, so the avatar area would never receive pointerdown events.
+  // overridden by CSS, so interactive areas would never receive pointer events.
 
   // ── Listen for proxy-message events ────────────────────────────────
   useEffect(() => {
     const unlisten = listen<ProxyMessageEvent>('proxy-message', (event) => {
       const msg = createChatMessage(event.payload);
+
       setMessages((prev) => {
         // If a message with the same requestId + direction already exists
-        // (e.g. the initial empty SSE event), update it with the new content
-        // instead of creating a duplicate.
+        // (e.g. the initial empty SSE event), update it with the new content.
         const existingIdx = prev.findIndex(
           (m) => m.requestId === msg.requestId && m.direction === msg.direction,
         );
+
         if (existingIdx >= 0) {
+          const existing = prev[existingIdx];
           const updated = [...prev];
-          const hasContent = !!msg.fullContent;
+
+          // Determine new mode: streaming → complete/error on follow-up
+          let newMode = existing.mode;
+          if (existing.mode === 'streaming') {
+            newMode = msg.mode === 'error' ? 'error' : 'complete';
+          }
+
+          // Error messages show content immediately
+          const isError = newMode === 'error' || msg.mode === 'error';
+
           updated[existingIdx] = {
-            ...updated[existingIdx],
-            fullContent: msg.fullContent,
-            displayedContent: '',
-            isStreaming: msg.isStreaming,
-            phase: (msg.isStreaming || hasContent) ? 'streaming' as const : 'complete' as const,
-            createdAt: Date.now(),
-            completedAt: (msg.isStreaming || hasContent) ? undefined : Date.now(),
-            statusCode: msg.statusCode ?? updated[existingIdx].statusCode,
-            durationMs: msg.durationMs ?? updated[existingIdx].durationMs,
+            ...existing,
+            fullContent: msg.fullContent || existing.fullContent,
+            displayedContent: isError ? (msg.fullContent || existing.fullContent) : '',
+            mode: newMode,
+            phase: isError ? 'done' : 'active',
+            createdAt: existing.createdAt,
+            completedAt: isError ? Date.now() : undefined,
+            statusCode: msg.statusCode ?? existing.statusCode,
+            durationMs: msg.durationMs ?? existing.durationMs,
           };
           return updated;
         }
+
         const next = [...prev, msg];
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });
@@ -106,22 +112,31 @@ export default function FloatingWindow() {
         const now = Date.now();
 
         const next = prev.map((msg) => {
-          if (msg.phase !== 'streaming') return msg;
+          if (msg.phase !== 'active') return msg;
 
-          // Empty content = SSE streaming indicator. Keep showing for a bit.
-          if (!msg.fullContent) {
+          // mode='streaming': show indicator until timeout, then mark done
+          if (msg.mode === 'streaming') {
             if (now - msg.createdAt > STREAMING_INDICATOR_MS) {
               changed = true;
-              return { ...msg, phase: 'complete' as const, completedAt: now };
+              return { ...msg, phase: 'done' as const, completedAt: now };
             }
             return msg;
           }
 
-          // Typewriter: reveal characters progressively
+          // mode='error': already done at creation time
+          if (msg.mode === 'error') return msg;
+
+          // mode='request' | 'complete': typewriter animation
+          // Empty content → mark done immediately
+          if (!msg.fullContent) {
+            changed = true;
+            return { ...msg, phase: 'done' as const, completedAt: now };
+          }
+
           const remaining = msg.fullContent.length - msg.displayedContent.length;
           if (remaining <= 0) {
             changed = true;
-            return { ...msg, phase: 'complete' as const, completedAt: now };
+            return { ...msg, phase: 'done' as const, completedAt: now };
           }
 
           const charsToAdd = Math.min(remaining, TYPEWRITER_CHARS_PER_TICK);
@@ -155,7 +170,7 @@ export default function FloatingWindow() {
         let changed = false;
 
         const next = prev.map((msg) => {
-          if (msg.phase === 'complete' && msg.completedAt) {
+          if (msg.phase === 'done' && msg.completedAt) {
             const ttl = msg.fullContent ? COMPLETE_TTL_MS : EMPTY_CONTENT_TTL_MS;
             if (now - msg.completedAt >= ttl) {
               changed = true;
@@ -167,9 +182,7 @@ export default function FloatingWindow() {
 
         if (!changed) return prev;
 
-        // Remove expired messages
-        const filtered = next.filter((msg) => msg.phase !== 'expiring');
-        return filtered;
+        return next.filter((msg) => msg.phase !== 'expiring');
       });
     }, EXPIRY_CHECK_INTERVAL_MS);
 
@@ -181,17 +194,46 @@ export default function FloatingWindow() {
     };
   }, []);
 
-  // ── Window resize ──────────────────────────────────────────────────
+  // ── Window resize via ResizeObserver ───────────────────────────────
   const hasMessages = messages.length > 0;
 
+  // When content height changes, resize the window to fit.
   useEffect(() => {
-    const size = hasMessages
-      ? new LogicalSize(ACTIVE_W, computeActiveHeight(messages.length))
-      : new LogicalSize(IDLE_W, IDLE_H);
-    getCurrentWindow().setSize(size).catch((e) => {
-      if (import.meta.env.DEV) console.error('FloatingWindow.setSize failed:', e);
+    if (!hasMessages) return;
+
+    const contentEl = contentRef.current;
+    if (!contentEl) return;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const contentH = entry.contentRect.height;
+        // Pad for avatar area below the message list (56px)
+        const targetH = Math.round(
+          Math.min(Math.max(contentH + 56, MIN_ACTIVE_H), MAX_ACTIVE_H),
+        );
+
+        if (Math.abs(targetH - lastAppliedHeightRef.current) >= 4) {
+          lastAppliedHeightRef.current = targetH;
+          getCurrentWindow()
+            .setSize(new LogicalSize(ACTIVE_W, targetH))
+            .catch(() => {});
+        }
+      }
     });
-  }, [hasMessages, messages.length]);
+
+    ro.observe(contentEl);
+    return () => ro.disconnect();
+  }, [hasMessages]);
+
+  // When messages disappear, reset to idle size.
+  useEffect(() => {
+    if (!hasMessages) {
+      lastAppliedHeightRef.current = 0;
+      getCurrentWindow()
+        .setSize(new LogicalSize(IDLE_W, IDLE_H))
+        .catch(() => {});
+    }
+  }, [hasMessages]);
 
   // ── Edge snapping on drag end ──────────────────────────────────────
   useEffect(() => {
@@ -260,9 +302,17 @@ export default function FloatingWindow() {
   // ── Render ─────────────────────────────────────────────────────────
   return (
     <div className="w-screen h-screen bg-transparent overflow-hidden select-none pointer-events-none">
-      <div className="flex h-full flex-col items-center justify-end gap-2 px-2 pb-5">
+      <div
+        ref={contentRef}
+        className="flex h-full flex-col items-center justify-end gap-2 px-2 pb-5"
+      >
         {hasMessages && <ChatMessageList messages={messages} />}
-        <div className={cn(hasMessages ? 'shrink-0' : 'flex flex-1 items-end justify-center pb-4', 'pointer-events-auto')}>
+        <div
+          className={cn(
+            hasMessages ? 'shrink-0' : 'flex flex-1 items-end justify-center pb-4',
+            'pointer-events-auto',
+          )}
+        >
           <SpriteAvatar
             appType={latestMsg?.appType ?? null}
             appLabel={latestMsg?.appLabel ?? null}

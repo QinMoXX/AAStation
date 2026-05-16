@@ -20,7 +20,7 @@ export default function ChatMessageList({ messages }: ChatMessageListProps) {
       ref={scrollRef}
       data-tauri-drag-region="false"
       onPointerDown={(e) => e.stopPropagation()}
-      className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pt-3 scroll-smooth"
+      className="w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pt-3 scroll-smooth pointer-events-auto"
       style={{ scrollbarWidth: 'none' }}
     >
       <div className="flex min-h-full flex-col justify-end gap-2">

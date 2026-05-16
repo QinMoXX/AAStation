@@ -202,6 +202,8 @@ export interface ProxyMessageEvent {
   request_id: string;
   status_code?: number;
   duration_ms?: number;
-  /** Whether the response is still streaming (SSE). Frontend shows typewriter effect when true. */
+  /** Whether the response is still streaming (SSE). Frontend shows generating indicator when true. */
   is_streaming?: boolean;
+  /** Whether this response is an error (status_code >= 400). Set by backend. */
+  is_error?: boolean;
 }

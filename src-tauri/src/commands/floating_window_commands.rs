@@ -4,18 +4,55 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const FLOATING_WINDOW_LABEL: &str = "floating-monitor";
 
+/// Create a fresh broadcast channel, store its sender in both AppState and
+/// ProxyState, and spawn a task that forwards broadcast messages to the Tauri
+/// event system for the floating window.
+async fn ensure_broadcast_channel(app: &AppHandle, state: &AppState) {
+    let (tx, _rx) = tokio::sync::broadcast::channel::<ProxyMessageEvent>(32);
+
+    // Store in AppState for direct access by commands.
+    *state.message_sender.write().await = Some(tx.clone());
+
+    // Store in ProxyState so HandlerState instances can read it.
+    let proxy = state.proxy.read().await;
+    proxy.set_message_sender(Some(tx.clone())).await;
+
+    // Spawn a task that forwards broadcast messages to the Tauri event system.
+    // The floating window's webview listens for "proxy-message" events.
+    let app_handle = app.clone();
+    let mut rx = tx.subscribe();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            match rx.recv().await {
+                Ok(event) => {
+                    if let Some(window) = app_handle.get_webview_window(FLOATING_WINDOW_LABEL) {
+                        let _ = window.emit("proxy-message", event);
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            }
+        }
+    });
+}
+
 /// Create or show the floating message monitor window.
 async fn create_or_show(app: &AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
         let _ = window.show();
         let _ = window.set_focus();
+
+        // Defensive: if the broadcast sender was cleared (e.g. state reset),
+        // recreate the channel so the window can receive proxy-message events.
+        let state = app.state::<AppState>();
+        if state.message_sender.read().await.is_none() {
+            ensure_broadcast_channel(app, state.inner()).await;
+        }
+
         return Ok(());
     }
 
-    // Create a new broadcast channel for proxy message events.
-    // capacity 32 is enough for burst traffic during a single request cycle.
-    let (tx, _rx) = tokio::sync::broadcast::channel::<ProxyMessageEvent>(32);
-
+    // Create a fresh window.
     let window = WebviewWindowBuilder::new(app, FLOATING_WINDOW_LABEL, WebviewUrl::App("floating.html".into()))
         .title("")
         .decorations(false)
@@ -38,36 +75,16 @@ async fn create_or_show(app: &AppHandle) -> Result<(), String> {
         let _ = window.set_position(tauri::PhysicalPosition::new(wx, wy));
     }
 
-    // Store the sender in AppState so the proxy handler can emit events.
     let state = app.state::<AppState>();
-    *state.message_sender.write().await = Some(tx.clone());
-
-    // Store in ProxyServer for HandlerState access.
-    let proxy = state.proxy.read().await;
-    proxy.set_message_sender(Some(tx.clone())).await;
-
-    // Spawn a task that forwards broadcast messages to the Tauri event system.
-    // The floating window listens on the Tauri event system.
-    let app_handle = app.clone();
-    let mut rx = tx.subscribe();
-    tauri::async_runtime::spawn(async move {
-        loop {
-            match rx.recv().await {
-                Ok(event) => {
-                    if let Some(window) = app_handle.get_webview_window(FLOATING_WINDOW_LABEL) {
-                        let _ = window.emit("proxy-message", event);
-                    }
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-            }
-        }
-    });
+    ensure_broadcast_channel(app, state.inner()).await;
 
     Ok(())
 }
 
 /// Hide the floating message monitor window.
+///
+/// Does NOT clear the message sender — the broadcast channel persists across
+/// hide/show cycles so that proxy messages continue to be forwarded.
 async fn close_floating(app: &AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
         let _ = window.hide();
