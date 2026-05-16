@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi';
+import { LogicalSize } from '@tauri-apps/api/dpi';
 import type { ProxyMessageEvent } from '../../types/proxy';
 import { cn } from '../../lib/utils';
 import ChatMessageList from './ChatMessageList';
@@ -18,8 +18,6 @@ const IDLE_H = 112;
 const ACTIVE_W = 320;
 const MIN_ACTIVE_H = 236;
 const MAX_ACTIVE_H = 460;
-const SNAP_THRESHOLD = 60;
-const SNAP_GAP = 8;
 /** Typewriter characters per tick at ~20 ticks/sec (50ms interval). */
 const TYPEWRITER_CHARS_PER_TICK = 3;
 const TYPEWRITER_INTERVAL_MS = 50;
@@ -39,7 +37,6 @@ export default function FloatingWindow() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const expiryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const draggingRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastAppliedHeightRef = useRef(0);
   const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -258,64 +255,12 @@ export default function FloatingWindow() {
     }
   }, [hasMessages]);
 
-  // ── Edge snapping on drag end ──────────────────────────────────────
-  useEffect(() => {
-    const handlePointerUp = async () => {
-      if (!draggingRef.current) return;
-      draggingRef.current = false;
-
-      await new Promise((r) => setTimeout(r, 300));
-
-      try {
-        const win = getCurrentWindow();
-        const monitor = await win.currentMonitor();
-        if (!monitor) return;
-
-        const pos = await win.outerPosition();
-        const size = await win.innerSize();
-        const scale = monitor.scaleFactor;
-
-        const wx = pos.x / scale;
-        const wy = pos.y / scale;
-        const sw = monitor.size.width / scale;
-        const sh = monitor.size.height / scale;
-        const winW = size.width / scale;
-        const winH = size.height / scale;
-
-        const distLeft = wx;
-        const distRight = sw - (wx + winW);
-        const distTop = wy;
-        const distBottom = sh - (wy + winH);
-
-        const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-
-        if (minDist < SNAP_THRESHOLD) {
-          let newX = wx;
-          let newY = wy;
-
-          if (minDist === distLeft) newX = SNAP_GAP;
-          else if (minDist === distRight) newX = sw - winW - SNAP_GAP;
-          else if (minDist === distTop) newY = SNAP_GAP;
-          else if (minDist === distBottom) newY = sh - winH - SNAP_GAP;
-
-          await win.setPosition(new PhysicalPosition(newX, newY));
-        }
-      } catch (e) {
-        if (import.meta.env.DEV) console.error('FloatingWindow snap failed:', e);
-      }
-    };
-
-    window.addEventListener('pointerup', handlePointerUp);
-    return () => window.removeEventListener('pointerup', handlePointerUp);
-  }, []);
-
   // ── Drag ───────────────────────────────────────────────────────────
   const handleDragStart = async () => {
-    draggingRef.current = true;
     try {
       await getCurrentWindow().startDragging();
     } catch {
-      draggingRef.current = false;
+      // ignored
     }
   };
 
